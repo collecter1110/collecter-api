@@ -101,17 +101,6 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **응답 200**
   - `{ user: { user_id: number, name: string, email: string, description: string | null, image_file_path: string | null } }`
 
-### POST `/api/users/me` (초기 프로필 설정)
-
-- **토큰**: 필수
-- **Body**
-  - `name` (string, required)
-  - `description` (string, optional)
-- **응답 200**
-  - `{ success: true }`
-- **에러**
-  - 400 `{ error: "name is required" }`
-
 ### PATCH `/api/users/me` (프로필 수정)
 
 - **토큰**: 필수

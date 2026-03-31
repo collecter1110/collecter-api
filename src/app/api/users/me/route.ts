@@ -21,40 +21,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ user: data });
 }
 
-// POST /api/users/me — setUserInfo (초기 프로필 설정)
-// body: { name: string, description?: string }
-export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
-
-  const body = await request.json();
-  const { name, description } = body;
-
-  if (!name) {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
-  }
-
-  const {
-    data: { user },
-  } = await getSupabase().auth.getUser(auth.accessToken);
-
-  if (!user?.email) {
-    return NextResponse.json({ error: "User email not found" }, { status: 400 });
-  }
-
-  const { error } = await getSupabase()
-    .from("userinfo")
-    .update({ name, description: description ?? null })
-    .eq("email", user.email);
-
-  if (error) {
-    console.error("setUserInfo error:", error);
-    return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true });
-}
-
 // PATCH /api/users/me — editUserInfo
 // body: { name: string, description?: string, image_file_path?: string }
 export async function PATCH(request: NextRequest) {
