@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import {
+  consumeOtp,
+  createRefreshSession,
+  getOrCreateUserIdByEmail,
+  newSessionId,
+} from "@/lib/authStore";
+import { signAccessToken, signRefreshToken } from "@/lib/jwt";
 
 // POST /api/auth/otp/verify
 // checkOtp: OTP 검증 후 세션 반환
@@ -15,49 +22,58 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const anonKey = process.env.SUPABASE_ANON_KEY!;
+  try {
+    const consumed = await consumeOtp({ email: String(email), code: String(token) });
+    if (!consumed) {
+      return NextResponse.json({ error: "Invalid OTP" }, { status: 400 });
+    }
 
-  // Supabase Auth REST API로 OTP 검증
-  const response = await fetch(`${supabaseUrl}/auth/v1/verify`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: anonKey,
-    },
-    body: JSON.stringify({ type: "email", email, token }),
-  });
+    const userId = await getOrCreateUserIdByEmail({
+      email: consumed.email,
+      createIfMissing: consumed.create_user,
+    });
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    console.error("verifyOtp error:", err);
-    return NextResponse.json(
-      { error: err.msg || "Invalid OTP" },
-      { status: response.status }
-    );
+    if (!userId) {
+      return NextResponse.json({ error: "User info not found" }, { status: 404 });
+    }
+
+    const sessionId = newSessionId();
+    const access_token = await signAccessToken({
+      typ: "access",
+      user_id: userId,
+      email: consumed.email,
+    });
+    const refresh_token = await signRefreshToken({
+      typ: "refresh",
+      sid: sessionId,
+      user_id: userId,
+      email: consumed.email,
+    });
+
+    const refreshTtl = Number(process.env.AUTH_REFRESH_TOKEN_TTL_SECONDS ?? 60 * 60 * 24 * 30);
+    await createRefreshSession({
+      session_id: sessionId,
+      user_id: userId,
+      email: consumed.email,
+      refresh_token,
+      expiresAt: new Date(Date.now() + refreshTtl * 1000),
+    });
+
+    // 기존 응답 shape 유지용 (client가 user object를 기대하는 경우)
+    const { data: userRow } = await getSupabase()
+      .from("userinfo")
+      .select("user_id, name, email, description, image_file_path")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    return NextResponse.json({
+      access_token,
+      refresh_token,
+      user_id: userId,
+      user: userRow ?? { user_id: userId, email: consumed.email },
+    });
+  } catch (e) {
+    console.error("verifyOtp error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-
-  const session = await response.json();
-  // session: { access_token, refresh_token, user, ... }
-
-  // userinfo에서 integer user_id 조회
-  const { data: userInfo, error: dbError } = await getSupabase()
-    .from("userinfo")
-    .select("user_id")
-    .eq("email", email)
-    .single();
-
-  if (dbError || !userInfo) {
-    return NextResponse.json(
-      { error: "User info not found" },
-      { status: 404 }
-    );
-  }
-
-  return NextResponse.json({
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    user_id: userInfo.user_id,
-    user: session.user,
-  });
 }

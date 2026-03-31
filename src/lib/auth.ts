@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "./supabase";
+import { verifyJwt, type AccessTokenClaims } from "./jwt";
 
 export interface AuthContext {
   userId: number;
-  userUuid: string;
+  email: string;
   accessToken: string;
 }
 
@@ -14,22 +15,26 @@ export async function getAuthContext(
   if (!authHeader?.startsWith("Bearer ")) return null;
 
   const token = authHeader.slice(7);
-  const {
-    data: { user },
-    error,
-  } = await getSupabase().auth.getUser(token);
+  let claims: AccessTokenClaims;
+  try {
+    claims = await verifyJwt<AccessTokenClaims>(token);
+  } catch {
+    return null;
+  }
 
-  if (error || !user) return null;
+  if (!claims || claims.typ !== "access") return null;
+  if (!claims.user_id || !claims.email) return null;
 
+  // Optional: ensure user still exists
   const { data, error: dbError } = await getSupabase()
     .from("userinfo")
-    .select("user_id")
-    .eq("email", user.email)
-    .single();
+    .select("user_id, email")
+    .eq("user_id", claims.user_id)
+    .maybeSingle();
 
   if (dbError || !data) return null;
 
-  return { userId: data.user_id, userUuid: user.id, accessToken: token };
+  return { userId: data.user_id, email: String(data.email), accessToken: token };
 }
 
 export function unauthorized() {

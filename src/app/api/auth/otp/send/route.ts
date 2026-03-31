@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomOtpCode, saveOtpIntent } from "@/lib/authStore";
+import { sendOtpEmail } from "@/lib/mail";
 
 // POST /api/auth/otp/send
-// sendOtp (회원가입) + emailLogin (로그인) 통합
+// sendOtp (회원가입) + emailLogin (로그인) 통합 (Local Auth)
 // body: { email: string, shouldCreateUser?: boolean }
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -14,28 +16,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const anonKey = process.env.SUPABASE_ANON_KEY!;
+  const code = randomOtpCode();
+  const ttlSeconds = Number(process.env.AUTH_OTP_TTL_SECONDS ?? 600);
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
 
-  const response = await fetch(`${supabaseUrl}/auth/v1/otp`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: anonKey,
-    },
-    body: JSON.stringify({
+  try {
+    await saveOtpIntent({
       email,
-      create_user: shouldCreateUser,
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    console.error("sendOtp error:", err);
-    return NextResponse.json(
-      { error: err.msg || "Failed to send OTP" },
-      { status: response.status }
-    );
+      create_user: Boolean(shouldCreateUser),
+      code,
+      expiresAt,
+    });
+    await sendOtpEmail(String(email), code);
+  } catch (e) {
+    console.error("sendOtp error:", e);
+    return NextResponse.json({ error: "Failed to send OTP" }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

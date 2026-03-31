@@ -45,7 +45,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 불필요
 - **Body**
   - `email` (string, required)
-  - `shouldCreateUser` (boolean, optional, default `false`) — Supabase `create_user`
+  - `shouldCreateUser` (boolean, optional, default `false`) — `true`면 해당 이메일 유저가 없을 때 생성
 - **응답 200**
   - `{ success: true }`
 - **에러**
@@ -66,9 +66,23 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 ### POST `/api/auth/logout`
 
 - **토큰**: 필수
-- **Body**: 없음
+- **Body**
+  - `refresh_token` (string, required)
 - **응답 200**
   - `{ success: true }`
+- **에러**
+  - 400 `{ error: "refresh_token is required" }`
+
+### POST `/api/auth/refresh`
+
+- **토큰**: 불필요
+- **Body**
+  - `refresh_token` (string, required)
+- **응답 200**
+  - `{ access_token: string, refresh_token: string }` (refresh 토큰은 회전되어 새로 발급됩니다)
+- **에러**
+  - 400 `{ error: "refresh_token is required" }` 또는 `{ error: "Invalid refresh token" }`
+  - 401 `{ error: "Unauthorized" }`
 
 ### DELETE `/api/auth/delete`
 
@@ -371,7 +385,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Query**
   - `properties` (string, optional, default `"*"`) — `selectingview`에서 select할 컬럼
 - **응답 200**
-  - `{ selectings: any }` 또는 데이터 없으면 `{ selectings: [] }`
+  - `{ selectings: any[] }` (항상 배열)
 
 ### POST `/api/selectings` (셀렉션 퍼오기)
 

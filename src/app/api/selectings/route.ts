@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch selectings" }, { status: 500 });
   }
 
-  return NextResponse.json({ selectings: data });
+  // Client 호환성: 항상 배열 형태로 반환
+  return NextResponse.json({ selectings: data ? [data] : [] });
 }
 
 // POST /api/selectings — selecting (셀렉션 퍼오기)
