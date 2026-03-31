@@ -5,7 +5,9 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 ## 인증 (Token)
 
 - **헤더**: `Authorization: Bearer <access_token>`
-- **토큰 발급**: `POST /api/auth/otp/verify` 응답의 `access_token`
+- **토큰 발급**
+  - `POST /api/auth/otp/verify` → `verified_token` 발급 (단기)
+  - `POST /api/auth/login` 또는 `POST /api/signup` → `access_token` + `refresh_token` 발급
 - **토큰 필요 여부 표기**
   - **필수**: 토큰 없으면 `401 { error: "Unauthorized" }`
   - **선택**: 토큰이 있으면 개인화(예: 차단 유저 제외, 좋아요 여부 계산) 반영
@@ -50,6 +52,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `{ success: true }`
 - **에러**
   - 400 `{ error: "email is required" }`
+  - 500 `{ error: "Failed to send OTP" }`
 
 ### POST `/api/auth/otp/verify`
 
@@ -58,10 +61,23 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `email` (string, required)
   - `token` (string, required) — 이메일 OTP 코드
 - **응답 200**
-  - `{ access_token: string, refresh_token: string, user_id: number, user: object }`
+  - `{ verified_token: string, is_new_user: boolean }`
 - **에러**
   - 400 `{ error: "email and token are required" }`
+  - 400 `{ error: "Invalid OTP" }`
   - 404 `{ error: "User info not found" }`
+  - 500 `{ error: "Server error" }`
+
+### POST `/api/auth/login`
+
+- **토큰**: 불필요
+- **Body**
+  - `verified_token` (string, required) — `POST /api/auth/otp/verify` 결과
+- **응답 200**
+  - `{ access_token: string, refresh_token: string }`
+- **에러**
+  - 400 `{ error: "verified_token is required" }`
+  - 400 `{ error: "Invalid or expired verified_token" }` 또는 `{ error: "Invalid verified_token" }`
 
 ### POST `/api/auth/logout`
 
@@ -72,6 +88,8 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `{ success: true }`
 - **에러**
   - 400 `{ error: "refresh_token is required" }`
+  - 400 `{ error: "Invalid refresh token" }`
+  - 500 `{ error: "Failed to logout" }`
 
 ### POST `/api/auth/refresh`
 
@@ -82,7 +100,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `{ access_token: string, refresh_token: string }` (refresh 토큰은 회전되어 새로 발급됩니다)
 - **에러**
   - 400 `{ error: "refresh_token is required" }` 또는 `{ error: "Invalid refresh token" }`
-  - 401 `{ error: "Unauthorized" }`
+  - 401 `{ error: "Unauthorized" }` (세션 만료/폐기 등)
 
 ### DELETE `/api/auth/delete`
 
@@ -90,6 +108,8 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Body**: 없음
 - **응답 200**
   - `{ success: true }`
+- **에러**
+  - 500 `{ error: "Failed to delete user" }`
 
 ---
 
@@ -149,17 +169,20 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 ### POST `/api/signup`
 
-- **토큰**: 필수
+- **토큰**: 불필요
 - **Body**
+  - `verified_token` (string, required) — `POST /api/auth/otp/verify` 결과
+  - `email` (string, required)
   - `name` (string, required)
-  - `email` (string, required) — access token의 email과 일치해야 함
   - `description` (string, optional)
   - `image_file_path` (string, optional)
 - **응답 200**
-  - `{ ok: true }`
+  - `{ access_token: string, refresh_token: string }`
 - **에러**
-  - 400 `{ error: "name and email are required" }` 또는 `{ error: "email mismatch" }`
-  - 404 `{ error: "User info not found" }`
+  - 400 `{ error: "verified_token is required" }`
+  - 400 `{ error: "email and name are required" }`
+  - 400 `{ error: "Invalid or expired verified_token" }` 또는 `{ error: "Invalid verified_token" }`
+  - 500 `{ error: "Failed to signup" }`
 
 ### GET `/api/users/search`
 
@@ -193,9 +216,12 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 ### GET `/api/users/{userId}/collections`
 
-- **토큰**: 불필요
+- **토큰**: 선택
 - **Path**
   - `userId` (number)
+- **동작**
+  - 본인 요청 시: `is_public` 관계없이 전체 반환
+  - 타인 요청 시: `is_public: true`인 컬렉션만 반환
 - **응답 200**
   - `{ collections: any[] }`
 - **에러**
@@ -249,6 +275,8 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 선택
 - **Path**
   - `collectionId` (number)
+- **동작**
+  - `is_public: false`인 컬렉션은 소유자 본인만 조회 가능, 타인 요청 시 404
 - **응답 200**
   - `{ collection: { ...fields, has_liked: boolean } }`
 - **에러**
@@ -314,7 +342,9 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 ### GET `/api/collections/{collectionId}/selections`
 
-- **토큰**: 불필요
+- **토큰**: 선택
+- **동작**
+  - 부모 컬렉션이 `is_public: false`이면 소유자 본인만 조회 가능, 타인 요청 시 404
 - **응답 200**
   - `{ selections: any[] }` (`thumb_file_path` 포함)
 

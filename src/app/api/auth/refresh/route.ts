@@ -19,10 +19,7 @@ export async function POST(request: NextRequest) {
   const refresh_token = body?.refresh_token as string | undefined;
 
   if (!refresh_token) {
-    return NextResponse.json(
-      { error: "refresh_token is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "refresh_token is required" }, { status: 400 });
   }
 
   let claims: RefreshTokenClaims;
@@ -36,18 +33,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid refresh token" }, { status: 400 });
   }
 
-  const ok = await isRefreshSessionValid({
-    session_id: claims.sid,
-    refresh_token,
-  });
-
+  const ok = await isRefreshSessionValid({ session_id: claims.sid, refresh_token });
   if (!ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Rotate refresh token (revoke old session, create new session)
+  // Token rotation: 기존 session 폐기 후 새 session 발급
   const newSid = newSessionId();
-  const access_token = await signAccessToken({
+  const new_access_token = await signAccessToken({
     typ: "access",
     user_id: claims.user_id,
     email: claims.email,
@@ -67,12 +60,7 @@ export async function POST(request: NextRequest) {
     refresh_token: new_refresh_token,
     expiresAt: new Date(Date.now() + refreshTtl * 1000),
   });
-
   await revokeRefreshSessionById(claims.sid);
 
-  return NextResponse.json({
-    access_token,
-    refresh_token: new_refresh_token,
-  });
+  return NextResponse.json({ access_token: new_access_token, refresh_token: new_refresh_token });
 }
-

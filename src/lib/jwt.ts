@@ -19,6 +19,12 @@ export type RefreshTokenClaims = {
   email: string;
 };
 
+export type VerifiedTokenClaims = {
+  typ: "verified";
+  user_id: number;
+  email: string;
+};
+
 function nowSeconds() {
   return Math.floor(Date.now() / 1000);
 }
@@ -38,6 +44,14 @@ export async function signRefreshToken(payload: RefreshTokenClaims) {
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuedAt(nowSeconds())
     .setExpirationTime(nowSeconds() + ttl)
+    .sign(getSecretKey());
+}
+
+export async function signVerifiedToken(payload: VerifiedTokenClaims) {
+  return await new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setIssuedAt(nowSeconds())
+    .setExpirationTime(nowSeconds() + 300) // 5분
     .sign(getSecretKey());
 }
 
