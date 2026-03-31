@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   }
 
   const code = randomOtpCode();
-  const ttlSeconds = Number(process.env.AUTH_OTP_TTL_SECONDS ?? 600);
+  const ttlSeconds = Number(process.env.AUTH_OTP_TTL_SECONDS ?? 180);
   const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
 
   try {

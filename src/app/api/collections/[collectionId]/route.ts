@@ -33,6 +33,10 @@ export async function GET(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Failed to fetch collection" }, { status: 500 });
   }
 
+  if (!data.is_public && auth?.userId !== data.user_id) {
+    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+  }
+
   const hasLiked = auth
     ? (data.likes as { user_id: number }[]).some((l) => l.user_id === auth.userId)
     : false;

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getAuthContext } from "@/lib/auth";
 
 type Params = { params: Promise<{ collectionId: string }> };
 
 // GET /api/collections/:collectionId/selections — getSelections
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: Params
 ) {
   const { collectionId: idParam } = await params;
@@ -14,6 +14,22 @@ export async function GET(
 
   if (isNaN(collectionId)) {
     return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+  }
+
+  const auth = await getAuthContext(request);
+
+  const { data: collection, error: collectionError } = await getSupabase()
+    .from("collections")
+    .select("user_id, is_public")
+    .eq("id", collectionId)
+    .single();
+
+  if (collectionError) {
+    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+  }
+
+  if (!collection.is_public && auth?.userId !== collection.user_id) {
+    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
   }
 
   const { data, error } = await getSupabase()

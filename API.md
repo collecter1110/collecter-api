@@ -143,6 +143,24 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **주의**
   - 현재 구현은 `.select("")`로 되어 있어 반환 shape/필드가 의도와 다를 수 있습니다.
 
+---
+
+## Signup
+
+### POST `/api/signup`
+
+- **토큰**: 필수
+- **Body**
+  - `name` (string, required)
+  - `email` (string, required) — access token의 email과 일치해야 함
+  - `description` (string, optional)
+  - `image_file_path` (string, optional)
+- **응답 200**
+  - `{ ok: true }`
+- **에러**
+  - 400 `{ error: "name and email are required" }` 또는 `{ error: "email mismatch" }`
+  - 404 `{ error: "User info not found" }`
+
 ### GET `/api/users/search`
 
 - **토큰**: 불필요
