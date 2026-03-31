@@ -88,13 +88,62 @@ export async function getOrCreateUserIdByEmail(params: {
   if (data?.user_id) return data.user_id as number;
   if (!params.createIfMissing) return null;
 
+  // TODO: userinfo.user_id → useridentify FK 제약 제거 후 이 블록 삭제 (auth.users/useridentify 의존 제거)
+  // 1. useridentify에서 기존 행 조회 (user_id까지 한번에)
+  const { data: existingIdentify, error: existingIdentifyError } = await getSupabase()
+    .from("useridentify")
+    .select("uuid, user_id")
+    .eq("email", email)
+    .maybeSingle();
+  if (existingIdentifyError) throw existingIdentifyError;
+
+  let userId: number;
+
+  if (existingIdentify) {
+    // useridentify에 이미 있으면 user_id 재사용
+    userId = existingIdentify.user_id as number;
+  } else {
+    // 2. useridentify에 없으면 auth.users에 유저 생성(또는 기존 UUID 조회) 후 insert
+    let uuid: string;
+    const { data: authUser, error: authError } = await getSupabase().auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+    if (authError) {
+      if (authError.code !== "email_exists") throw authError;
+      // auth.users에 이미 있지만 useridentify엔 없는 경우 — 페이지 순회하며 UUID 조회
+      let existing: { id: string } | undefined;
+      let page = 1;
+      while (!existing) {
+        const { data: userList, error: listError } = await getSupabase().auth.admin.listUsers({ page, perPage: 500 });
+        if (listError) throw listError;
+        if (userList.users.length === 0) break;
+        existing = userList.users.find((u) => u.email?.toLowerCase() === email);
+        page++;
+      }
+      if (!existing) throw new Error(`auth.users lookup failed for ${email}`);
+      uuid = existing.id;
+    } else {
+      uuid = authUser.user.id;
+    }
+
+    const identifyRes = await getSupabase()
+      .from("useridentify")
+      .insert({ uuid, email })
+      .select("user_id")
+      .single();
+    if (identifyRes.error) throw identifyRes.error;
+    userId = identifyRes.data.user_id as number;
+  }
+
+  // 3. userinfo에 insert
   const insertRes = await getSupabase()
     .from("userinfo")
-    .insert({ email, name: email.split("@")[0], description: null, image_file_path: null })
+    .insert({ user_id: userId, email, name: email.split("@")[0], description: null, image_file_path: null })
     .select("user_id")
     .single();
-
   if (insertRes.error) throw insertRes.error;
+
   return insertRes.data.user_id as number;
 }
 
