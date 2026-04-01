@@ -1,21 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { callEdgeFunction } from "@/lib/edge";
+import { getSupabase } from "@/lib/supabase";
 
 // DELETE /api/membership — cancelMembership
 export async function DELETE(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
-  const response = await callEdgeFunction("delete-user", auth.accessToken);
+  // Soft delete: keep collections/selections, but make user unresolvable by user_id.
+  // Also revoke refresh sessions so tokens can't be refreshed.
+  await getSupabase()
+    .from("auth_refresh_sessions")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("user_id", auth.userId)
+    .is("revoked_at", null);
 
-  const data = await response.json().catch(() => ({}));
+  const { error } = await getSupabase()
+    .from("userinfo")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("user_id", auth.userId)
+    .is("deleted_at", null);
 
-  if (!response.ok) {
-    console.error("cancelMembership edge function error:", data);
+  if (error) {
+    console.error("cancelMembership soft-delete error:", error);
     return NextResponse.json(
-      { error: data.error || "Failed to cancel membership" },
-      { status: response.status }
+      { error: "Failed to cancel membership" },
+      { status: 500 }
     );
   }
 

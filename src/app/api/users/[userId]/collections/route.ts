@@ -14,6 +14,22 @@ export async function GET(
     return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
   }
 
+  // If user is soft-deleted, behave as not found.
+  const { data: userRow, error: userError } = await getSupabase()
+    .from("userinfo")
+    .select("user_id")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (userError) {
+    console.error("getUsersCollections user lookup error:", userError);
+    return NextResponse.json({ error: "Failed to fetch collections" }, { status: 500 });
+  }
+  if (!userRow) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
   const auth = await getAuthContext(request);
   const isOwner = auth?.userId === userId;
 

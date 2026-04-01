@@ -17,6 +17,7 @@ export async function GET(
     .from("userinfo")
     .select("user_id, name, description, image_file_path")
     .eq("user_id", userId)
+    .is("deleted_at", null)
     .single();
 
   if (error) {

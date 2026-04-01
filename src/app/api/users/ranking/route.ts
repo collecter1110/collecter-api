@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   let query = getSupabase()
     .from("userinfo")
     .select()
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(10);
 

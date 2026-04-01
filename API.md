@@ -190,7 +190,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Query**
   - `q` (string, required)
 - **응답 200**
-  - `{ users: UserInfo[] }` (RPC `search_users`)
+  - `{ users: UserInfo[] }` (RPC `search_users`, **소프트 삭제된 유저는 제외**)
 - **에러**
   - 400 `{ error: "Query parameter 'q' is required" }`
 
@@ -200,6 +200,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Query**: 없음
 - **동작**
   - 토큰이 있으면 내가 차단한 유저는 제외하고 10명 반환
+  - **소프트 삭제된 유저는 제외**
 - **응답 200**
   - `{ users: any[] }`
 
@@ -212,7 +213,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `{ user: { user_id: number, name: string, description: string | null, image_file_path: string | null } }`
 - **에러**
   - 400 `{ error: "Invalid user ID" }`
-  - 404 `{ error: "User not found" }`
+  - 404 `{ error: "User not found" }` (소프트 삭제 포함)
 
 ### GET `/api/users/{userId}/collections`
 
@@ -226,6 +227,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `{ collections: any[] }`
 - **에러**
   - 400 `{ error: "Invalid user ID" }`
+  - 404 `{ error: "User not found" }` (소프트 삭제 포함)
 
 ---
 
@@ -439,45 +441,6 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 ---
 
-## Storage
-
-### POST `/api/storage/upload` (Presigned URL 발급)
-
-- **토큰**: 필수
-- **Body**
-  - `file_paths` (string[], required) — 예: `["userId/collections/image.jpg"]`
-- **응답 200**
-  - Edge Function `upload-images` 결과(JSON 그대로 반환)
-
-### DELETE `/api/storage/images` (이미지 삭제)
-
-- **토큰**: 필수
-- **Body**
-  - `folder_path` (string, required) — 예: `"collections"` 또는 `"selections"`
-  - `image_file_paths` (string[], required) — 폴더 내부 파일명 목록
-- **응답 200**
-  - Edge Function `delete-images` 결과(JSON 그대로 반환)
-
-### DELETE `/api/storage/folder` (유저 폴더 삭제)
-
-- **토큰**: 필수
-- **Body**: 없음
-- **응답 200**
-  - Edge Function `delete-folder` 결과(JSON 그대로 반환)
-
-### POST `/api/storage/copy` (이미지 복사)
-
-- **토큰**: 필수
-- **Body**
-  - `source_folder_path` (string, required)
-  - `destination_folder_path` (string, required)
-  - `file_name` (string, required)
-  - `collection_id` (number, optional)
-- **응답 200**
-  - Edge Function `copy-image` 결과(JSON 그대로 반환)
-
----
-
 ## Reports
 
 ### POST `/api/reports`
@@ -499,3 +462,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 필수
 - **응답 200**
   - `{ success: true }`
+- **동작**
+  - 유저를 **소프트 삭제** 처리합니다(`userinfo.deleted_at` 설정).
+  - 컬렉션/셀렉션 데이터는 유지됩니다.
+  - 이후 `user_id`로 해당 유저 조회 시 `404`가 반환됩니다.

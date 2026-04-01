@@ -30,6 +30,7 @@ export async function getAuthContext(
     .from("userinfo")
     .select("user_id, email")
     .eq("user_id", claims.user_id)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (dbError || !data) return null;
