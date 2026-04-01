@@ -15,7 +15,7 @@ export async function GET(
 
   const { data, error } = await getSupabase()
     .from("userinfo")
-    .select("user_id, name, description, image_file_path")
+    .select("user_id, name, description, image_file_path, image_id, images(file_path)")
     .eq("user_id", userId)
     .is("deleted_at", null)
     .single();

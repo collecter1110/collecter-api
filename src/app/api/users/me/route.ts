@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
+import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
 
 // GET /api/users/me — getUserInfo
 export async function GET(request: NextRequest) {
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await getSupabase()
     .from("userinfo")
-    .select("user_id, name, email, description, image_file_path")
+    .select("user_id, name, email, description, image_file_path, image_id, images(file_path)")
     .eq("user_id", auth.userId)
     .single();
 
@@ -22,25 +23,52 @@ export async function GET(request: NextRequest) {
 }
 
 // PATCH /api/users/me — editUserInfo
-// body: { name: string, description?: string, image_file_path?: string }
+// body: multipart/form-data { name, description?, image? }
 export async function PATCH(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
-  const body = await request.json();
-  const { name, description, image_file_path } = body;
+  const formData = await request.formData();
+  const name = formData.get("name") as string | null;
+  const description = formData.get("description") as string | null;
+  const imageFile = formData.get("image") as File | null;
 
   if (!name) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
 
+  const updates: Record<string, unknown> = {
+    name,
+    description: description ?? null,
+  };
+
+  if (imageFile && imageFile.size > 0) {
+    const { data: old } = await getSupabase()
+      .from("userinfo")
+      .select("image_id")
+      .eq("user_id", auth.userId)
+      .single();
+
+    if (old?.image_id) {
+      await deleteImageById(old.image_id);
+    }
+
+    try {
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      const { imageId } = await uploadImageAndSave(
+        buffer,
+        imageFile.type,
+        `users/${auth.userId}/profile`
+      );
+      updates.image_id = imageId;
+    } catch {
+      return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
+    }
+  }
+
   const { error } = await getSupabase()
     .from("userinfo")
-    .update({
-      name,
-      description: description ?? null,
-      image_file_path: image_file_path ?? null,
-    })
+    .update(updates)
     .eq("user_id", auth.userId);
 
   if (error) {

@@ -18,6 +18,14 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **401 Unauthorized**: `{ "error": "Unauthorized" }`
 - 그 외 `400/404/500`은 라우트별로 `{ "error": "<message>" }` 형태를 주로 사용합니다.
 
+## 이미지 업로드 공통 사항
+
+- 이미지가 있는 모든 쓰기 API는 `multipart/form-data` 형식으로 요청합니다.
+- 이미지 필드명: 단일 이미지 → `image`, 다중 이미지 → `images` (같은 키 반복)
+- 이미지는 서버에서 S3에 업로드 후 `images` 테이블에 기록되며, 각 리소스는 `image_id` (UUID FK)로 참조합니다.
+- 조회 응답에는 `image_id`와 함께 `images: { file_path }` 형태로 실제 경로가 포함됩니다.
+- S3 업로드를 위해 서버 환경변수에 버킷/리전 정보가 필요합니다. (예: `AWS_BUCKET_NAME`, `AWS_REGION`)
+
 ---
 
 ## Auth
@@ -119,25 +127,27 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ user: { user_id: number, name: string, email: string, description: string | null, image_file_path: string | null } }`
+  - `{ user: { user_id, name, email, description, image_file_path, image_id, images: { file_path } | null } }`
 
 ### PATCH `/api/users/me` (프로필 수정)
 
 - **토큰**: 필수
+- **Content-Type**: `multipart/form-data`
 - **Body**
   - `name` (string, required)
   - `description` (string, optional)
-  - `image_file_path` (string, optional)
+  - `image` (File, optional) — 새 프로필 이미지. 기존 이미지는 자동 삭제됩니다.
 - **응답 200**
   - `{ success: true }`
 - **에러**
   - 400 `{ error: "name is required" }`
+  - 500 `{ error: "Failed to upload image" }`
 
 ### GET `/api/users/me/likes`
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ collections: any[] }` (likes join 결과에서 `collections(*)`만 추출)
+  - `{ collections: any[] }`
 
 ### GET `/api/users/me/blocks`
 
@@ -160,8 +170,6 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 필수
 - **응답 200**
   - `{ collections: any }`
-- **주의**
-  - 현재 구현은 `.select("")`로 되어 있어 반환 shape/필드가 의도와 다를 수 있습니다.
 
 ---
 
@@ -170,18 +178,20 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 ### POST `/api/signup`
 
 - **토큰**: 불필요
+- **Content-Type**: `multipart/form-data`
 - **Body**
   - `verified_token` (string, required) — `POST /api/auth/otp/verify` 결과
   - `email` (string, required)
   - `name` (string, required)
   - `description` (string, optional)
-  - `image_file_path` (string, optional)
+  - `image` (File, optional) — 프로필 이미지
 - **응답 200**
   - `{ access_token: string, refresh_token: string }`
 - **에러**
   - 400 `{ error: "verified_token is required" }`
   - 400 `{ error: "email and name are required" }`
   - 400 `{ error: "Invalid or expired verified_token" }` 또는 `{ error: "Invalid verified_token" }`
+  - 500 `{ error: "Failed to upload image" }`
   - 500 `{ error: "Failed to signup" }`
 
 ### GET `/api/users/search`
@@ -210,7 +220,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Path**
   - `userId` (number)
 - **응답 200**
-  - `{ user: { user_id: number, name: string, description: string | null, image_file_path: string | null } }`
+  - `{ user: { user_id, name, description, image_file_path, image_id, images: { file_path } | null } }`
 - **에러**
   - 400 `{ error: "Invalid user ID" }`
   - 404 `{ error: "User not found" }` (소프트 삭제 포함)
@@ -261,16 +271,19 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 ### POST `/api/collections`
 
 - **토큰**: 필수
+- **Content-Type**: `multipart/form-data`
 - **Body**
   - `category_id` (number, required)
   - `title` (string, required)
   - `description` (string, optional)
-  - `tags` (any, optional)
-  - `is_public` (boolean, optional, default `true`)
+  - `tags` (JSON string, optional)
+  - `is_public` (string `"true"` | `"false"`, optional, default `"true"`)
+  - `image` (File, optional) — 컬렉션 대표 이미지
 - **응답 201**
   - `{ success: true }`
 - **에러**
   - 400 `{ error: "category_id and title are required" }`
+  - 500 `{ error: "Failed to upload image" }`
 
 ### GET `/api/collections/{collectionId}`
 
@@ -280,7 +293,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **동작**
   - `is_public: false`인 컬렉션은 소유자 본인만 조회 가능, 타인 요청 시 404
 - **응답 200**
-  - `{ collection: { ...fields, has_liked: boolean } }`
+  - `{ collection: { ..., image_id, images: { image_id, file_path } | null, has_liked: boolean } }`
 - **에러**
   - 400 `{ error: "Invalid collection ID" }`
   - 404 `{ error: "Collection not found" }`
@@ -288,20 +301,25 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 ### PATCH `/api/collections/{collectionId}`
 
 - **토큰**: 필수
+- **Content-Type**: `multipart/form-data`
 - **Body**
   - `category_id` (number, optional)
   - `title` (string, optional)
   - `description` (string, optional)
-  - `image_file_path` (string, optional)
-  - `tags` (any, optional)
-  - `is_public` (boolean, optional)
+  - `tags` (JSON string, optional)
+  - `is_public` (string `"true"` | `"false"`, optional)
+  - `image` (File, optional) — 새 대표 이미지. 제공 시 기존 이미지 자동 삭제 후 교체.
 - **응답 200**
   - `{ success: true }`
+- **에러**
+  - 500 `{ error: "Failed to upload image" }`
 
 ### DELETE `/api/collections/{collectionId}`
 
 - **토큰**: 필수
 - **Body**: 없음
+- **동작**
+  - 컬렉션 대표 이미지 및 하위 셀렉션 이미지 전체 삭제 (S3 + DB)
 - **응답 200**
   - `{ success: true }`
 
@@ -348,42 +366,63 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **동작**
   - 부모 컬렉션이 `is_public: false`이면 소유자 본인만 조회 가능, 타인 요청 시 404
 - **응답 200**
-  - `{ selections: any[] }` (`thumb_file_path` 포함)
+  - `{ selections: { ..., selection_images: { image_id, sort_order, images: { file_path } }[], thumb_file_path: string | null }[] }`
+  - `thumb_file_path`: `selection_images` 중 `sort_order` 가장 낮은 이미지의 `file_path`
 
 ### POST `/api/collections/{collectionId}/selections`
 
 - **토큰**: 필수
+- **Content-Type**: `multipart/form-data`
 - **Body**
   - `category_id` (number, required)
   - `title` (string, required)
   - `description` (string, optional)
-  - `image_file_paths` (string[], optional)
-  - `keywords` (any, optional; 기본 `[]`)
+  - `images` (File, optional, 반복 가능) — 여러 이미지를 같은 키 `images`로 반복 전송. `sort_order`는 전송 순서.
+  - `keywords` (JSON string, optional; 기본 `[]`)
   - `link` (string, optional)
-  - `items` (any, optional)
-  - `is_ordered` (boolean, optional; 기본 `false`)
-  - `is_selectable` (boolean, optional; 기본 `true`)
+  - `items` (JSON string, optional)
+  - `is_ordered` (string `"true"` | `"false"`, optional; 기본 `"false"`)
+  - `is_selectable` (string `"true"` | `"false"`, optional; 기본 `"true"`)
 - **응답 201**
   - `{ success: true }`
+- **에러**
+  - 400 `{ error: "category_id and title are required" }`
 
 ### GET `/api/collections/{collectionId}/selections/{selectionId}`
 
 - **토큰**: 불필요
 - **응답 200**
-  - `{ selection: any }`
+  - `{ selection: { ..., selection_images: { image_id, sort_order, images: { file_path } }[] } }`
 - **에러**
   - 404 `{ error: "Selection not found" }`
 
 ### PATCH `/api/collections/{collectionId}/selections/{selectionId}`
 
 - **토큰**: 필수
-- **Body**: selection 필드들(카테고리/제목/설명/이미지/키워드/링크/items/정렬/선택 가능 여부 등)
+- **Content-Type**: `multipart/form-data`
+- **Body**
+  - `category_id` (number, optional)
+  - `title` (string, optional)
+  - `description` (string, optional)
+  - `keywords` (JSON string, optional)
+  - `link` (string, optional)
+  - `items` (JSON string, optional)
+  - `is_ordered` (string `"true"` | `"false"`, optional)
+  - `is_selectable` (string `"true"` | `"false"`, optional)
+  - `images` (File, optional, 반복 가능) — 새로 추가할 이미지
+  - `keep_image_ids` (JSON string, optional) — 유지할 기존 `image_id` 배열. 명시된 ID 외 기존 이미지는 삭제됨. 필드 자체가 없으면 이미지 변경 없음. 빈 배열(`"[]"`)이면 기존 이미지 전체 삭제.
 - **응답 200**
   - `{ success: true }`
+- **이미지 업데이트 예시**
+  - 이미지 추가만: `images`만 전송
+  - 특정 이미지 삭제: `keep_image_ids`에 유지할 ID만 포함
+  - 전체 교체: `keep_image_ids: "[]"` + `images`
 
 ### DELETE `/api/collections/{collectionId}/selections/{selectionId}`
 
 - **토큰**: 필수
+- **동작**
+  - 셀렉션 이미지 전체 삭제 (S3 + DB) 후 셀렉션 삭제
 - **응답 200**
   - `{ success: true }`
 
@@ -457,12 +496,13 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 ## Membership
 
-### DELETE `/api/membership` (회원 탈퇴/멤버십 취소)
+### DELETE `/api/membership` (회원 탈퇴)
 
 - **토큰**: 필수
 - **응답 200**
   - `{ success: true }`
 - **동작**
-  - 유저를 **소프트 삭제** 처리합니다(`userinfo.deleted_at` 설정).
-  - 컬렉션/셀렉션 데이터는 유지됩니다.
-  - 이후 `user_id`로 해당 유저 조회 시 `404`가 반환됩니다.
+  - 프로필 이미지 삭제 (S3 + DB)
+  - 유저를 **소프트 삭제** 처리합니다(`userinfo.deleted_at` 설정)
+  - 컬렉션/셀렉션 데이터는 유지됩니다
+  - 이후 `user_id`로 해당 유저 조회 시 `404`가 반환됩니다

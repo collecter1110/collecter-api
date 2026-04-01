@@ -2,13 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { createRefreshSession, newSessionId } from "@/lib/authStore";
 import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims } from "@/lib/jwt";
+import { uploadImageAndSave } from "@/lib/storage";
 
 // POST /api/signup
-// body: { verified_token: string, name: string, description?: string, image_file_path?: string }
+// body: multipart/form-data { verified_token, email, name, description?, image? }
 // OTP 인증 후 발급된 verified_token으로 프로필 설정 + access_token + refresh_token 반환 (신규 유저)
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
-  const { verified_token, email, name, description, image_file_path } = body;
+  const formData = await request.formData().catch(() => null);
+  if (!formData) {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  const verified_token = formData.get("verified_token") as string | null;
+  const email = formData.get("email") as string | null;
+  const name = formData.get("name") as string | null;
+  const description = (formData.get("description") as string | null) ?? null;
+  const imageFile = formData.get("image") as File | null;
 
   if (!verified_token) {
     return NextResponse.json({ error: "verified_token is required" }, { status: 400 });
@@ -28,9 +37,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid verified_token" }, { status: 400 });
   }
 
+  let image_id: string | null = null;
+  if (imageFile && imageFile.size > 0) {
+    try {
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      const result = await uploadImageAndSave(
+        buffer,
+        imageFile.type,
+        `users/${claims.user_id}/profile`
+      );
+      image_id = result.imageId;
+    } catch {
+      return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
+    }
+  }
+
+  const updateData: Record<string, unknown> = { name, description };
+  if (image_id) updateData.image_id = image_id;
+
   const { error } = await getSupabase()
     .from("userinfo")
-    .update({ name, description: description ?? null, image_file_path: image_file_path ?? null })
+    .update(updateData)
     .eq("user_id", claims.user_id);
 
   if (error) {
