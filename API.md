@@ -24,7 +24,11 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - 이미지 필드명: 단일 이미지 → `image`, 다중 이미지 → `images` (같은 키 반복)
 - 이미지는 서버에서 S3에 업로드 후 `images` 테이블에 기록되며, 각 리소스는 `image_id` (UUID FK)로 참조합니다.
 - 조회 응답에는 `image_id`와 함께 `images: { file_path }` 형태로 실제 경로가 포함됩니다.
-- S3 업로드를 위해 서버 환경변수에 버킷/리전 정보가 필요합니다. (예: `AWS_BUCKET_NAME`, `AWS_REGION`)
+- S3 업로드를 위해 서버 환경변수에 버킷/리전 정보가 필요합니다.
+  - `AWS_REGION` (optional, default `ap-northeast-2`)
+  - 버킷명 (required): `AWS_BUCKET_NAME` (권장) 또는 `AWS_BUCKET` / `S3_BUCKET_NAME` / `S3_BUCKET`
+  - 로컬에서 static key를 쓰는 경우: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+  - 배포 환경에서는 가능하면 IAM Role 등 managed credential을 사용하고, 위 key/secret은 생략합니다.
 
 ---
 
@@ -169,7 +173,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ collections: any }`
+  - `{ collections: any[] }`
 
 ---
 
@@ -256,6 +260,9 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 ### POST `/api/keywords`
 
 - **토큰**: 필수
+- **용도**
+  - 현재 키워드는 셀렉션 생성/수정 시 서버가 `keywordinfo`에 자동 저장하므로, 클라이언트에서 별도 호출할 필요가 없습니다.
+  - 호환/관리 목적의 엔드포인트로 남겨둡니다.
 - **Body**
   - `keywords` (string[], required)
   - `category_id` (number, required)
@@ -278,12 +285,13 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `description` (string, optional)
   - `tags` (JSON string, optional)
   - `is_public` (string `"true"` | `"false"`, optional, default `"true"`)
-  - `image` (File, optional) — 컬렉션 대표 이미지
+- **커버 이미지**
+  - 컬렉션 커버(`collections.image_id`)는 **셀렉션 이미지(`selection_images.image_id`)를 재사용**하도록 서버에서 자동 설정합니다.
+  - 따라서 컬렉션 생성 시 `image` 파일 업로드는 사용하지 않습니다.
 - **응답 201**
   - `{ success: true }`
 - **에러**
   - 400 `{ error: "category_id and title are required" }`
-  - 500 `{ error: "Failed to upload image" }`
 
 ### GET `/api/collections/{collectionId}`
 
@@ -308,11 +316,10 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `description` (string, optional)
   - `tags` (JSON string, optional)
   - `is_public` (string `"true"` | `"false"`, optional)
-  - `image` (File, optional) — 새 대표 이미지. 제공 시 기존 이미지 자동 삭제 후 교체.
+- **커버 이미지**
+  - 컬렉션 커버는 서버에서 자동으로 관리하므로 `image` 업로드로 변경하지 않습니다.
 - **응답 200**
   - `{ success: true }`
-- **에러**
-  - 500 `{ error: "Failed to upload image" }`
 
 ### DELETE `/api/collections/{collectionId}`
 
@@ -378,7 +385,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `title` (string, required)
   - `description` (string, optional)
   - `images` (File, optional, 반복 가능) — 여러 이미지를 같은 키 `images`로 반복 전송. `sort_order`는 전송 순서.
-  - `keywords` (JSON string, optional; 기본 `[]`)
+  - `keywords` (JSON string, required) — **빈 배열 불가**
   - `link` (string, optional)
   - `items` (JSON string, optional)
   - `is_ordered` (string `"true"` | `"false"`, optional; 기본 `"false"`)
@@ -387,6 +394,8 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `{ success: true }`
 - **에러**
   - 400 `{ error: "category_id and title are required" }`
+  - 400 `{ error: "keywords is required" }`
+  - 400 `{ error: "keywords must be a non-empty JSON array of strings" }`
 
 ### GET `/api/collections/{collectionId}/selections/{selectionId}`
 
@@ -404,7 +413,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `category_id` (number, optional)
   - `title` (string, optional)
   - `description` (string, optional)
-  - `keywords` (JSON string, optional)
+  - `keywords` (JSON string, required) — **빈 배열 불가**
   - `link` (string, optional)
   - `items` (JSON string, optional)
   - `is_ordered` (string `"true"` | `"false"`, optional)
@@ -425,6 +434,9 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - 셀렉션 이미지 전체 삭제 (S3 + DB) 후 셀렉션 삭제
 - **응답 200**
   - `{ success: true }`
+ - **에러**
+  - 400 `{ error: "keywords is required" }`
+  - 400 `{ error: "keywords must be a non-empty JSON array of strings" }`
 
 ### PATCH `/api/collections/{collectionId}/selections/{selectionId}/move`
 

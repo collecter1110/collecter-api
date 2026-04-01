@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
-import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
+import { deleteImageById } from "@/lib/storage";
 
 type Params = { params: Promise<{ collectionId: string }> };
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 // PATCH /api/collections/:collectionId — editCollection
-// body: multipart/form-data { category_id?, title?, description?, image?, tags?, is_public? }
+// body: multipart/form-data { category_id?, title?, description?, tags?, is_public? }
 export async function PATCH(request: NextRequest, { params }: Params) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
@@ -63,7 +63,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const description = formData.get("description") as string | null;
   const tagsRaw = formData.get("tags") as string | null;
   const is_publicRaw = formData.get("is_public") as string | null;
-  const imageFile = formData.get("image") as File | null;
 
   const updates: Record<string, unknown> = {};
   if (category_idRaw) updates.category_id = parseInt(category_idRaw, 10);
@@ -71,30 +70,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (description !== null) updates.description = description;
   if (tagsRaw !== null) updates.tags = JSON.parse(tagsRaw);
   if (is_publicRaw !== null) updates.is_public = is_publicRaw !== "false";
-
-  if (imageFile && imageFile.size > 0) {
-    const { data: old } = await getSupabase()
-      .from("collections")
-      .select("image_id")
-      .eq("id", collectionId)
-      .single();
-
-    if (old?.image_id) {
-      await deleteImageById(old.image_id);
-    }
-
-    try {
-      const buffer = Buffer.from(await imageFile.arrayBuffer());
-      const result = await uploadImageAndSave(
-        buffer,
-        imageFile.type,
-        `users/${auth.userId}/collections`
-      );
-      updates.image_id = result.imageId;
-    } catch {
-      return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
-    }
-  }
 
   const { error } = await getSupabase()
     .from("collections")

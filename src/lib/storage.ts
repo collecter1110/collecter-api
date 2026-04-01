@@ -44,13 +44,13 @@ function getBucketName(): string {
 
 export async function uploadImageAndSave(
   buffer: Buffer,
-  contentType: string,
-  folder: string
+  contentType: string
 ): Promise<{ imageId: string; filePath: string }> {
   const s3 = getS3Client();
   const bucket = getBucketName();
   const ext = contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
-  const key = `${folder}/${randomUUID()}.${ext}`;
+  const imageId = randomUUID();
+  const key = `images/${imageId}.${ext}`;
 
   await s3.send(
     new PutObjectCommand({
@@ -63,7 +63,7 @@ export async function uploadImageAndSave(
 
   const { data, error } = await getSupabase()
     .from("images")
-    .insert({ file_path: key })
+    .insert({ image_id: imageId, file_path: key })
     .select("image_id")
     .single();
 

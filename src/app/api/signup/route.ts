@@ -43,8 +43,7 @@ export async function POST(request: NextRequest) {
       const buffer = Buffer.from(await imageFile.arrayBuffer());
       const result = await uploadImageAndSave(
         buffer,
-        imageFile.type,
-        `users/${claims.user_id}/profile`
+        imageFile.type
       );
       image_id = result.imageId;
     } catch {

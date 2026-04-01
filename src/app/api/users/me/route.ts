@@ -57,8 +57,7 @@ export async function PATCH(request: NextRequest) {
       const buffer = Buffer.from(await imageFile.arrayBuffer());
       const { imageId } = await uploadImageAndSave(
         buffer,
-        imageFile.type,
-        `users/${auth.userId}/profile`
+        imageFile.type
       );
       updates.image_id = imageId;
     } catch {

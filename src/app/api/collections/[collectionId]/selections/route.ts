@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
 import { uploadImageAndSave } from "@/lib/storage";
+import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
+import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 
 type Params = { params: Promise<{ collectionId: string }> };
 
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const title = formData.get("title") as string | null;
   const description = (formData.get("description") as string | null) ?? null;
   const keywordsRaw = formData.get("keywords") as string | null;
-  const keywords = keywordsRaw ? JSON.parse(keywordsRaw) : [];
+  const keywords = parseKeywordsJson(keywordsRaw);
   const link = (formData.get("link") as string | null) ?? null;
   const itemsRaw = formData.get("items") as string | null;
   const items = itemsRaw ? JSON.parse(itemsRaw) : null;
@@ -86,6 +88,22 @@ export async function POST(request: NextRequest, { params }: Params) {
       { error: "category_id and title are required" },
       { status: 400 }
     );
+  }
+  if (keywordsRaw === null) {
+    return NextResponse.json({ error: "keywords is required" }, { status: 400 });
+  }
+  if (!keywords || keywords.length === 0) {
+    return NextResponse.json(
+      { error: "keywords must be a non-empty JSON array of strings" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    await ensureKeywordsInCategory(category_id, keywords);
+  } catch (err) {
+    console.error("Failed to save keywords:", err);
+    return NextResponse.json({ error: "Failed to save keywords" }, { status: 500 });
   }
 
   const { data: newSelection, error } = await getSupabase()
@@ -119,8 +137,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       const buffer = Buffer.from(await file.arrayBuffer());
       const { imageId } = await uploadImageAndSave(
         buffer,
-        file.type,
-        `users/${auth.userId}/selections`
+        file.type
       );
       await getSupabase().from("selection_images").insert({
         collection_id: newSelection.collection_id,
@@ -128,6 +145,11 @@ export async function POST(request: NextRequest, { params }: Params) {
         image_id: imageId,
         sort_order: i,
       });
+
+      // 컬렉션 커버가 비어있으면 첫 셀렉션 이미지로 자동 설정
+      if (i === 0) {
+        await ensureCollectionCoverIfEmpty(collectionId, imageId);
+      }
     } catch (err) {
       console.error("Failed to upload selection image:", err);
     }
