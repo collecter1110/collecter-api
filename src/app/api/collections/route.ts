@@ -2,6 +2,54 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
+/**
+ * @openapi
+ * /api/collections:
+ *   post:
+ *     tags:
+ *       - Collections
+ *     summary: 컬렉션 생성
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - category_id
+ *               - title
+ *             properties:
+ *               category_id:
+ *                 type: integer
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               tags:
+ *                 type: string
+ *                 description: JSON 배열 문자열
+ *               is_public:
+ *                 type: string
+ *                 description: 비공개이면 "false"
+ *     responses:
+ *       201:
+ *         description: 생성됨
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *       400:
+ *         description: 잘못된 요청
+ *       401:
+ *         description: 인증 필요
+ *       500:
+ *         description: 서버 오류
+ */
 // POST /api/collections — addCollection
 // body: multipart/form-data { category_id, title, description?, tags?, is_public? }
 export async function POST(request: NextRequest) {
