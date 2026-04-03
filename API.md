@@ -243,18 +243,6 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - 400 `{ error: "Invalid user ID" }`
   - 404 `{ error: "User not found" }` (소프트 삭제 포함)
 
----
-
-## Categories
-
-### GET `/api/categories`
-
-- **토큰**: 불필요
-- **응답 200**
-  - `{ categories: any[] }`
-
----
-
 ## Keywords
 
 ### POST `/api/keywords`
