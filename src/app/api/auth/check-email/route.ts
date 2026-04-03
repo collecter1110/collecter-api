@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 
 // GET /api/auth/check-email?email=...
-// checkEmailDuplicate: true = 사용 가능, false = 이미 존재
+// success: true = 사용 가능, false = 이미 존재
 export async function GET(request: NextRequest) {
   const email = request.nextUrl.searchParams.get("email");
 
@@ -24,5 +24,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ available: data === null });
+  return NextResponse.json({ success: data === null });
 }

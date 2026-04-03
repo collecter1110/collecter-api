@@ -40,7 +40,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Query**
   - `email` (string, required)
 - **응답 200**
-  - `{ available: boolean }` (`true`면 사용 가능)
+  - `{ success: boolean }` (`true`면 사용 가능, `false`면 이미 사용 중)
 - **에러**
   - 400 `{ error: "email parameter is required" }`
 
@@ -50,7 +50,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Query**
   - `username` (string, required)
 - **응답 200**
-  - `{ available: boolean }`
+  - `{ success: boolean }` (`true`면 사용 가능, `false`면 이미 사용 중)
 - **에러**
   - 400 `{ error: "username parameter is required" }`
 
