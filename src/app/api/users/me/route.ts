@@ -3,6 +3,123 @@ import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
 
+/**
+ * @openapi
+ * /api/users/me:
+ *   get:
+ *     tags: [Users]
+ *     summary: 내 정보 조회
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 내 유저 정보
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [user]
+ *               properties:
+ *                 user:
+ *                   $ref: "#/components/schemas/MyUserInfo"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   user:
+ *                     user_id: 45
+ *                     name: gimgahui
+ *                     email: user@example.com
+ *                     description: 안녕하세요
+ *                     image_file_path: "https://cdn.example.com/users/profile.jpg"
+ *                     image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                     images:
+ *                       - file_path: "https://cdn.example.com/users/profile.jpg"
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch user
+ *   patch:
+ *     tags: [Users]
+ *     summary: 내 정보 수정
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: 수정 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       400:
+ *         description: name 누락
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: name is required
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 수정 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to update user
+ */
 // GET /api/users/me — getUserInfo
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);

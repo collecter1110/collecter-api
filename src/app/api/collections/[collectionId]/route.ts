@@ -3,6 +3,199 @@ import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
 import { deleteImageById } from "@/lib/storage";
 
+/**
+ * @openapi
+ * /api/collections/{collectionId}:
+ *   get:
+ *     tags: [Collections]
+ *     summary: 컬렉션 상세 조회
+ *     description: 컬렉션 ID로 상세 정보를 가져옵니다. 비공개 컬렉션은 소유자만 조회 가능합니다.
+ *     parameters:
+ *       - in: path
+ *         name: collectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional, 좋아요 여부 확인용)
+ *         example: Bearer eyJhbGciOi...
+ *     responses:
+ *       200:
+ *         description: 컬렉션 상세 정보
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [collection]
+ *               properties:
+ *                 collection:
+ *                   $ref: "#/components/schemas/CollectionDetail"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   collection:
+ *                     id: 123
+ *                     category_id: 1
+ *                     title: 내 컬렉션
+ *                     description: 컬렉션 설명
+ *                     created_at: "2026-04-06T12:34:56.000Z"
+ *                     image_file_path: "https://cdn.example.com/collections/cover.jpg"
+ *                     image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                     tags: ["태그1", "태그2"]
+ *                     user_id: 45
+ *                     user_name: gimgahui
+ *                     primary_keywords:
+ *                       - keyword_id: 7
+ *                         keyword_name: 키워드
+ *                         count: 3
+ *                     selection_num: 12
+ *                     like_num: 34
+ *                     has_liked: false
+ *                     is_public: true
+ *                     images:
+ *                       - image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                         file_path: "https://cdn.example.com/collections/cover.jpg"
+ *       404:
+ *         description: 컬렉션을 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Collection not found
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch collection
+ *   patch:
+ *     tags: [Collections]
+ *     summary: 컬렉션 수정
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: collectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               category_id:
+ *                 type: integer
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               tags:
+ *                 type: string
+ *                 description: "JSON 배열 문자열 (예: '[\"태그1\",\"태그2\"]')"
+ *               is_public:
+ *                 type: string
+ *                 description: 비공개이면 "false"
+ *     responses:
+ *       200:
+ *         description: 수정 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 수정 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to update collection
+ *   delete:
+ *     tags: [Collections]
+ *     summary: 컬렉션 삭제
+ *     description: 컬렉션과 연관된 이미지, 셀렉션 이미지를 모두 삭제합니다.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: collectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: 삭제 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       404:
+ *         description: 컬렉션을 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Collection not found
+ *       500:
+ *         description: 삭제 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to delete collection
+ */
+
 type Params = { params: Promise<{ collectionId: string }> };
 
 // GET /api/collections/:collectionId — getCollectionDetail

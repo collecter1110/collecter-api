@@ -5,6 +5,172 @@ import { uploadImageAndSave } from "@/lib/storage";
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 
+/**
+ * @openapi
+ * /api/collections/{collectionId}/selections:
+ *   get:
+ *     tags: [Selections]
+ *     summary: 컬렉션의 셀렉션 목록 조회
+ *     description: 컬렉션에 속한 셀렉션 목록을 반환합니다. 비공개 컬렉션은 소유자만 조회 가능합니다.
+ *     parameters:
+ *       - in: path
+ *         name: collectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
+ *     responses:
+ *       200:
+ *         description: 셀렉션 목록
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [selections]
+ *               properties:
+ *                 selections:
+ *                   type: array
+ *                   items:
+ *                     $ref: "#/components/schemas/SelectionListItem"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   selections:
+ *                     - category_id: 1
+ *                       collection_id: 123
+ *                       selection_id: 456
+ *                       title: 내 셀렉션
+ *                       keywords:
+ *                         - keyword_id: 7
+ *                           keyword_name: 키워드
+ *                       owner_name: gimgahui
+ *                       owner_id: 45
+ *                       is_selecting: false
+ *                       thumb_file_path: "https://cdn.example.com/selections/img1.jpg"
+ *                       selection_images:
+ *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                           sort_order: 0
+ *                           images:
+ *                             - file_path: "https://cdn.example.com/selections/img1.jpg"
+ *       404:
+ *         description: 컬렉션을 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Collection not found
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch selections
+ *   post:
+ *     tags: [Selections]
+ *     summary: 셀렉션 추가
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: collectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [category_id, title, keywords]
+ *             properties:
+ *               category_id:
+ *                 type: integer
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               keywords:
+ *                 type: string
+ *                 description: "JSON 배열 문자열 (예: '[\"키워드1\",\"키워드2\"]')"
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *               link:
+ *                 type: string
+ *               items:
+ *                 type: string
+ *                 description: JSON 배열 문자열
+ *               is_ordered:
+ *                 type: string
+ *                 description: 순서 있는 목록이면 "true"
+ *               is_selectable:
+ *                 type: string
+ *                 description: 퍼가기 불가이면 "false"
+ *     responses:
+ *       201:
+ *         description: 셀렉션 추가 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       400:
+ *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: category_id and title are required
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 셀렉션 추가 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to create selection
+ */
+
 type Params = { params: Promise<{ collectionId: string }> };
 
 // GET /api/collections/:collectionId/selections — getSelections
@@ -99,8 +265,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     );
   }
 
+  let keywordEntries;
   try {
-    await ensureKeywordsInCategory(category_id, keywords);
+    keywordEntries = await ensureKeywordsInCategory(category_id, keywords);
   } catch (err) {
     console.error("Failed to save keywords:", err);
     return NextResponse.json({ error: "Failed to save keywords" }, { status: 500 });
@@ -116,7 +283,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       selection_id: null,
       title,
       description,
-      keywords,
+      keywords: keywordEntries,
       link,
       items,
       is_ordered,

@@ -4,6 +4,72 @@ import { createRefreshSession, newSessionId } from "@/lib/authStore";
 import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims } from "@/lib/jwt";
 import { uploadImageAndSave } from "@/lib/storage";
 
+/**
+ * @openapi
+ * /api/signup:
+ *   post:
+ *     tags: [Auth]
+ *     summary: 회원가입
+ *     description: OTP 검증 후 발급된 `verified_token`으로 프로필을 설정하고 토큰을 발급합니다.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [verified_token, email, name]
+ *             properties:
+ *               verified_token:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: 회원가입 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [access_token, refresh_token]
+ *               properties:
+ *                 access_token:
+ *                   type: string
+ *                 refresh_token:
+ *                   type: string
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NiwiZW1haWwiOiJuZXd1c2VyQGV4YW1wbGUuY29tIn0.signature
+ *                   refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoibmV3LXNlc3Npb24tdXVpZCIsInVzZXJfaWQiOjQ2LCJlbWFpbCI6Im5ld3VzZXJAZXhhbXBsZS5jb20ifQ.signature
+ *       400:
+ *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Invalid or expired verified_token
+ *       500:
+ *         description: 회원가입 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to signup
+ */
 // POST /api/signup
 // body: multipart/form-data { verified_token, email, name, description?, image? }
 // OTP 인증 후 발급된 verified_token으로 프로필 설정 + access_token + refresh_token 반환 (신규 유저)

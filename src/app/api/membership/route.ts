@@ -3,6 +3,53 @@ import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { deleteImageById } from "@/lib/storage";
 
+/**
+ * @openapi
+ * /api/membership:
+ *   delete:
+ *     tags: [Auth]
+ *     summary: 회원 탈퇴 (Soft Delete)
+ *     description: |
+ *       유저 계정을 soft delete 처리합니다. `userinfo.deleted_at`을 설정하고 모든 세션을 폐기합니다.
+ *       컬렉션/셀렉션 데이터는 유지됩니다. 계정 완전 삭제는 `/api/auth/delete`를 사용하세요.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 회원 탈퇴 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 탈퇴 처리 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to cancel membership
+ */
 // DELETE /api/membership — cancelMembership
 export async function DELETE(request: NextRequest) {
   const auth = await requireAuth(request);

@@ -2,6 +2,120 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
+/**
+ * @openapi
+ * /api/users/me/blocks:
+ *   get:
+ *     tags: [Users]
+ *     summary: 차단한 유저 ID 목록 조회
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 차단한 유저 ID 목록
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [blocked_user_ids]
+ *               properties:
+ *                 blocked_user_ids:
+ *                   type: array
+ *                   items:
+ *                     type: integer
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   blocked_user_ids: [12, 34, 56]
+ *               empty:
+ *                 summary: 차단한 유저 없음
+ *                 value:
+ *                   blocked_user_ids: []
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch blocked users
+ *   post:
+ *     tags: [Users]
+ *     summary: 유저 차단
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [blocked_user_id]
+ *             properties:
+ *               blocked_user_id:
+ *                 type: integer
+ *           examples:
+ *             ok:
+ *               value:
+ *                 blocked_user_id: 99
+ *     responses:
+ *       200:
+ *         description: 차단 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       400:
+ *         description: blocked_user_id 누락
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: blocked_user_id is required
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 차단 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to block user
+ */
 // GET /api/users/me/blocks — initializeBlockedIds
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);

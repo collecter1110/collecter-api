@@ -2,6 +2,159 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
+/**
+ * @openapi
+ * /api/selectings:
+ *   get:
+ *     tags: [Selectings]
+ *     summary: 내 셀렉팅 목록 조회
+ *     description: |
+ *       `selectingview`에서 내가 퍼온 셀렉션(selectings) 목록을 조회합니다.
+ *       `properties` 파라미터로 조회할 컬럼을 지정할 수 있습니다. (기본값: `*`)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: properties
+ *         required: false
+ *         schema:
+ *           type: string
+ *           default: "*"
+ *         description: 조회할 컬럼 목록 (Supabase select 문법)
+ *         example: "user_id,collection_id,selection_id"
+ *     responses:
+ *       200:
+ *         description: 셀렉팅 목록
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [selectings]
+ *               properties:
+ *                 selectings:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   selectings:
+ *                     - user_id: 45
+ *                       collection_id: 123
+ *                       selection_id: 456
+ *                       selecting_collection_id: 200
+ *                       selected_collection_id: 123
+ *                       selected_selection_id: 456
+ *                       selected_user_id: 99
+ *                       title: 퍼온 셀렉션
+ *                       owner_id: 99
+ *                       owner_name: otheruser
+ *                       is_selecting: true
+ *               empty:
+ *                 summary: 셀렉팅 없음
+ *                 value:
+ *                   selectings: []
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch selectings
+ *   post:
+ *     tags: [Selectings]
+ *     summary: 셀렉션 퍼오기 (selecting)
+ *     description: |
+ *       다른 유저의 셀렉션을 내 컬렉션으로 퍼옵니다.
+ *       이미 퍼온 셀렉션(is_selecting=true)인 경우 원본을 추적해 저장합니다.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [category_id, selecting_collection_id, selected_collection_id, selected_selection_id]
+ *             properties:
+ *               category_id:
+ *                 type: integer
+ *                 description: 내 컬렉션의 카테고리 ID
+ *               selecting_collection_id:
+ *                 type: integer
+ *                 description: 퍼올 내 컬렉션 ID
+ *               selected_collection_id:
+ *                 type: integer
+ *                 description: 원본 컬렉션 ID
+ *               selected_selection_id:
+ *                 type: integer
+ *                 description: 원본 셀렉션 ID
+ *           examples:
+ *             ok:
+ *               value:
+ *                 category_id: 1
+ *                 selecting_collection_id: 200
+ *                 selected_collection_id: 123
+ *                 selected_selection_id: 456
+ *     responses:
+ *       201:
+ *         description: 셀렉팅 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       404:
+ *         description: 원본 셀렉션을 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Source selection not found
+ *       500:
+ *         description: 셀렉팅 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to create selecting
+ */
 // GET /api/selectings?properties=... — getSelectings
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);

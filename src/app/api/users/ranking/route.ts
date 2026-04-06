@@ -2,6 +2,59 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 
+/**
+ * @openapi
+ * /api/users/ranking:
+ *   get:
+ *     tags: [Users]
+ *     summary: 랭킹 유저 목록
+ *     description: |
+ *       최신 가입순으로 최대 10명의 유저를 반환합니다.
+ *       Authorization 헤더가 있으면 차단한 유저를 제외합니다.
+ *     parameters:
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
+ *     responses:
+ *       200:
+ *         description: 랭킹 유저 목록
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [users]
+ *               properties:
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     $ref: "#/components/schemas/RankingUser"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   users:
+ *                     - user_id: 45
+ *                       name: gimgahui
+ *                       email: user@example.com
+ *                       description: 안녕하세요
+ *                       image_file_path: "https://cdn.example.com/users/profile.jpg"
+ *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                       created_at: "2026-04-06T12:34:56.000Z"
+ *                       deleted_at: null
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch ranking users
+ */
 // GET /api/users/ranking — getRankingUsers
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);

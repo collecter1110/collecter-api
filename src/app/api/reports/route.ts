@@ -2,6 +2,93 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
+/**
+ * @openapi
+ * /api/reports:
+ *   post:
+ *     tags: [Reports]
+ *     summary: 신고 접수
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [report_type, reported_post_id, report_reason]
+ *             properties:
+ *               report_type:
+ *                 type: integer
+ *                 description: 신고 유형 코드
+ *               reported_post_id:
+ *                 type: object
+ *                 description: "신고 대상 ID (예: { collection_id: 123, selection_id: 456 })"
+ *               report_reason:
+ *                 type: string
+ *                 description: 신고 사유
+ *           examples:
+ *             collection:
+ *               summary: 컬렉션 신고
+ *               value:
+ *                 report_type: 1
+ *                 reported_post_id:
+ *                   collection_id: 123
+ *                 report_reason: 부적절한 콘텐츠
+ *             selection:
+ *               summary: 셀렉션 신고
+ *               value:
+ *                 report_type: 2
+ *                 reported_post_id:
+ *                   collection_id: 123
+ *                   selection_id: 456
+ *                 report_reason: 스팸
+ *     responses:
+ *       201:
+ *         description: 신고 접수 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       400:
+ *         description: 필수 필드 누락
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: report_type, reported_post_id, report_reason are required
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 신고 접수 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to submit report
+ */
 // POST /api/reports — report
 // body: { report_type: number, reported_post_id: { [key: string]: number }, report_reason: string }
 export async function POST(request: NextRequest) {

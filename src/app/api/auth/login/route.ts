@@ -2,6 +2,56 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRefreshSession, newSessionId } from "@/lib/authStore";
 import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims } from "@/lib/jwt";
 
+/**
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: 로그인 (기존 유저)
+ *     description: OTP 검증 후 발급된 `verified_token`으로 `access_token`과 `refresh_token`을 반환합니다.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [verified_token]
+ *             properties:
+ *               verified_token:
+ *                 type: string
+ *           examples:
+ *             ok:
+ *               value:
+ *                 verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.signature
+ *     responses:
+ *       200:
+ *         description: 로그인 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [access_token, refresh_token]
+ *               properties:
+ *                 access_token:
+ *                   type: string
+ *                 refresh_token:
+ *                   type: string
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIn0.signature
+ *                   refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoic2Vzc2lvbi11dWlkIiwidXNlcl9pZCI6NDUsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSJ9.signature
+ *       400:
+ *         description: 잘못된 토큰
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Invalid or expired verified_token
+ */
 // POST /api/auth/login
 // body: { verified_token: string }
 // OTP 인증 후 발급된 verified_token으로 access_token + refresh_token 반환 (기존 유저)
