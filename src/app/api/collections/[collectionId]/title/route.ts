@@ -1,6 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 
+/**
+ * @openapi
+ * /api/collections/{collectionId}/title:
+ *   get:
+ *     tags: [Collections]
+ *     summary: 컬렉션 제목 조회
+ *     parameters:
+ *       - in: path
+ *         name: collectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: 컬렉션 제목
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [title]
+ *               properties:
+ *                 title:
+ *                   type: string
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   title: 내 컬렉션
+ *       404:
+ *         description: 컬렉션을 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Collection not found
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch title
+ */
 // GET /api/collections/:collectionId/title — getCollectionTitle
 export async function GET(
   _request: NextRequest,

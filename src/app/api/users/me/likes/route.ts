@@ -3,6 +3,73 @@ import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 
+/**
+ * @openapi
+ * /api/users/me/likes:
+ *   get:
+ *     tags: [Users]
+ *     summary: 내가 좋아요한 컬렉션 목록
+ *     description: 차단한 유저의 컬렉션은 제외됩니다.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 좋아요한 컬렉션 목록
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [collections]
+ *               properties:
+ *                 collections:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   collections:
+ *                     - id: 123
+ *                       category_id: 1
+ *                       title: 좋아요한 컬렉션
+ *                       description: 컬렉션 설명
+ *                       image_file_path: "https://cdn.example.com/collections/cover.jpg"
+ *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                       tags: ["태그1"]
+ *                       user_id: 99
+ *                       user_name: otheruser
+ *                       primary_keywords:
+ *                         - keyword_id: 3
+ *                           keyword_name: 여행
+ *                           count: 2
+ *                       selection_num: 8
+ *                       like_num: 21
+ *                       is_public: true
+ *               empty:
+ *                 summary: 좋아요한 컬렉션 없음
+ *                 value:
+ *                   collections: []
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch liked collections
+ */
 // GET /api/users/me/likes — getLikeCollections
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);

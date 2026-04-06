@@ -8,6 +8,224 @@ import {
 } from "@/lib/collectionCover";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 
+/**
+ * @openapi
+ * /api/collections/{collectionId}/selections/{selectionId}:
+ *   get:
+ *     tags: [Selections]
+ *     summary: 셀렉션 상세 조회
+ *     parameters:
+ *       - in: path
+ *         name: collectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *       - in: path
+ *         name: selectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 456
+ *     responses:
+ *       200:
+ *         description: 셀렉션 상세 정보
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [selection]
+ *               properties:
+ *                 selection:
+ *                   $ref: "#/components/schemas/SelectionDetail"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   selection:
+ *                     category_id: 1
+ *                     collection_id: 123
+ *                     selection_id: 456
+ *                     user_id: 45
+ *                     owner_id: 45
+ *                     title: 내 셀렉션
+ *                     description: 셀렉션 설명
+ *                     is_ordered: false
+ *                     link: null
+ *                     items: null
+ *                     keywords:
+ *                       - keyword_id: 7
+ *                         keyword_name: 키워드
+ *                     created_at: "2026-04-06T12:34:56.000Z"
+ *                     owner_name: gimgahui
+ *                     is_selectable: true
+ *                     is_selecting: false
+ *                     selection_images:
+ *                       - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                         sort_order: 0
+ *                         images:
+ *                           - file_path: "https://cdn.example.com/selections/img1.jpg"
+ *       404:
+ *         description: 셀렉션을 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Selection not found
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch selection
+ *   patch:
+ *     tags: [Selections]
+ *     summary: 셀렉션 수정
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: collectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *       - in: path
+ *         name: selectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 456
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [keywords]
+ *             properties:
+ *               category_id:
+ *                 type: integer
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               keywords:
+ *                 type: string
+ *                 description: "JSON 배열 문자열 (예: '[\"키워드1\"]')"
+ *               link:
+ *                 type: string
+ *               items:
+ *                 type: string
+ *                 description: JSON 배열 문자열
+ *               is_ordered:
+ *                 type: string
+ *               is_selectable:
+ *                 type: string
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *               keep_image_ids:
+ *                 type: string
+ *                 description: 유지할 기존 image_id JSON 배열. 빈 배열이면 전체 삭제.
+ *     responses:
+ *       200:
+ *         description: 수정 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 수정 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to update selection
+ *   delete:
+ *     tags: [Selections]
+ *     summary: 셀렉션 삭제
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: collectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *       - in: path
+ *         name: selectionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 456
+ *     responses:
+ *       200:
+ *         description: 삭제 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       401:
+ *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 삭제 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to delete selection
+ */
+
 type Params = { params: Promise<{ collectionId: string; selectionId: string }> };
 
 // GET /api/collections/:collectionId/selections/:selectionId — getSelectionDetail

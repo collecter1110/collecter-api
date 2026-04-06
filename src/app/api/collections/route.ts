@@ -40,15 +40,44 @@ import { requireAuth } from "@/lib/auth";
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [success]
  *               properties:
  *                 success:
  *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
  *       400:
  *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: category_id and title are required
  *       401:
  *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
  *       500:
  *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to create collection
  */
 // POST /api/collections — addCollection
 // body: multipart/form-data { category_id, title, description?, tags?, is_public? }

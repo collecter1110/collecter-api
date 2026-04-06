@@ -2,6 +2,84 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 
+/**
+ * @openapi
+ * /api/users/{userId}/collections:
+ *   get:
+ *     tags: [Users]
+ *     summary: 특정 유저의 컬렉션 목록 조회
+ *     description: |
+ *       특정 유저의 컬렉션 목록을 반환합니다.
+ *       - 소유자 본인: 공개/비공개 모두 반환
+ *       - 타인: 공개 컬렉션만 반환
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 45
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
+ *     responses:
+ *       200:
+ *         description: 컬렉션 목록
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [collections]
+ *               properties:
+ *                 collections:
+ *                   type: array
+ *                   items:
+ *                     $ref: "#/components/schemas/UserCollection"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   collections:
+ *                     - category_id: 1
+ *                       id: 123
+ *                       title: 내 컬렉션
+ *                       image_file_path: "https://cdn.example.com/collections/cover.jpg"
+ *                       user_id: 45
+ *                       user_name: gimgahui
+ *                       primary_keywords:
+ *                         - keyword_id: 7
+ *                           keyword_name: 키워드
+ *                           count: 3
+ *                       selection_num: 12
+ *                       is_public: true
+ *               empty:
+ *                 summary: 컬렉션 없음
+ *                 value:
+ *                   collections: []
+ *       404:
+ *         description: 유저를 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: User not found
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch collections
+ */
 // GET /api/users/:userId/collections — getUsersCollections
 export async function GET(
   request: NextRequest,

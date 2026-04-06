@@ -3,6 +3,78 @@ import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 
+/**
+ * @openapi
+ * /api/selections/ranking:
+ *   get:
+ *     tags: [Selections]
+ *     summary: Get ranking selections
+ *     description: |
+ *       public 컬렉션(`collections.is_public = true`)에 속한 셀렉션을 `select_num` 내림차순으로 정렬 후,
+ *       category_id별 상위 10개씩 반환합니다.
+ *
+ *       - Authorization 헤더가 있으면 차단한 유저의 셀렉션을 제외합니다. (토큰 선택)
+ *       - `thumb_file_path`는 `selection_images` 중 `sort_order`가 가장 낮은 이미지의 `file_path`입니다.
+ *     parameters:
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
+ *     responses:
+ *       200:
+ *         description: Ranking selections
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [selections]
+ *               properties:
+ *                 selections:
+ *                   type: array
+ *                   items:
+ *                     $ref: "#/components/schemas/RankingSelection"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   selections:
+ *                     - collection_id: 123
+ *                       selection_id: 456
+ *                       title: My selection
+ *                       description: null
+ *                       user_id: 45
+ *                       owner_id: 45
+ *                       owner_name: gimgahui
+ *                       is_ordered: false
+ *                       link: null
+ *                       items: []
+ *                       keywords:
+ *                         - keyword_id: 7
+ *                           keyword_name: "키워드"
+ *                       created_at: "2026-04-06T12:34:56.000Z"
+ *                       is_selectable: true
+ *                       is_selecting: false
+ *                       select_num: 99
+ *                       category_id: 1
+ *                       selection_images:
+ *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                           sort_order: 0
+ *                           images:
+ *                             - file_path: "https://cdn.example.com/selections/img1.jpg"
+ *                       thumb_file_path: "https://cdn.example.com/selections/img1.jpg"
+ *       500:
+ *         description: Failed to fetch ranking selections
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to fetch ranking selections
+ */
 // GET /api/selections/ranking — getRankingSelections
 // category_id별 select_num 상위 10개
 export async function GET(request: NextRequest) {

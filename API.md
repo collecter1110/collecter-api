@@ -150,6 +150,8 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 ### GET `/api/users/me/likes`
 
 - **토큰**: 필수
+- **동작**
+  - 차단한 유저의 컬렉션 제외
 - **응답 200**
   - `{ collections: any[] }`
 
@@ -200,11 +202,15 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 ### GET `/api/users/search`
 
-- **토큰**: 불필요
+- **토큰**: 선택
 - **Query**
   - `q` (string, required)
+- **동작**
+  - `userinfo.name` textSearch (`simple` config, plain query)
+  - 로그인 시: 본인 제외, 차단한 유저 제외
+  - **소프트 삭제된 유저 제외**
 - **응답 200**
-  - `{ users: UserInfo[] }` (RPC `search_users`, **소프트 삭제된 유저는 제외**)
+  - `{ users: UserInfo[] }`
 - **에러**
   - 400 `{ error: "Query parameter 'q' is required" }`
 
@@ -213,8 +219,9 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 선택
 - **Query**: 없음
 - **동작**
-  - 토큰이 있으면 내가 차단한 유저는 제외하고 10명 반환
-  - **소프트 삭제된 유저는 제외**
+  - 최근 가입순 최대 10명
+  - 로그인 시: 차단한 유저 제외
+  - **소프트 삭제된 유저 제외**
 - **응답 200**
   - `{ users: any[] }`
 
@@ -338,18 +345,26 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 ### GET `/api/collections/search`
 
-- **토큰**: 불필요
+- **토큰**: 선택
 - **Query**
   - `q` (string, required)
   - `type` (`keyword` | `tag`, optional, default `keyword`)
+- **동작**
+  - `keyword`: `keywordinfo` ILIKE `%q%` → `primary_keywords @> [{"keyword_id": N}]` (public만)
+  - `tag`: `tags @> ["q"]` (exact match, public만)
+  - 로그인 시: 차단한 유저 제외, 본인 제외
 - **응답 200**
   - `{ collections: any[] }`
 
 ### GET `/api/collections/ranking`
 
 - **토큰**: 선택
+- **동작**
+  - `is_public: true`, `image_file_path IS NOT NULL` 조건
+  - category_id별 무작위 최대 10개 (Fisher-Yates shuffle)
+  - 로그인 시: 차단한 유저 제외
 - **응답 200**
-  - `{ collections: any }` (RPC `get_ranking_collections`)
+  - `{ collections: any[] }`
 
 ---
 
@@ -373,11 +388,14 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `title` (string, required)
   - `description` (string, optional)
   - `images` (File, optional, 반복 가능) — 여러 이미지를 같은 키 `images`로 반복 전송. `sort_order`는 전송 순서.
-  - `keywords` (JSON string, required) — **빈 배열 불가**
+  - `keywords` (JSON string, required) — **빈 배열 불가**, 예: `'["키워드1","키워드2"]'`
   - `link` (string, optional)
   - `items` (JSON string, optional)
   - `is_ordered` (string `"true"` | `"false"`, optional; 기본 `"false"`)
   - `is_selectable` (string `"true"` | `"false"`, optional; 기본 `"true"`)
+- **keywords 저장 방식**
+  - 전달된 키워드 이름을 `keywordinfo` 테이블에 upsert 후 `keyword_id`를 조회
+  - `selections.keywords`에 `[{"keyword_id": N, "keyword_name": "..."}]` 형식으로 저장
 - **응답 201**
   - `{ success: true }`
 - **에러**
@@ -401,13 +419,15 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `category_id` (number, optional)
   - `title` (string, optional)
   - `description` (string, optional)
-  - `keywords` (JSON string, required) — **빈 배열 불가**
+  - `keywords` (JSON string, required) — **빈 배열 불가**, 예: `'["키워드1","키워드2"]'`
   - `link` (string, optional)
   - `items` (JSON string, optional)
   - `is_ordered` (string `"true"` | `"false"`, optional)
   - `is_selectable` (string `"true"` | `"false"`, optional)
   - `images` (File, optional, 반복 가능) — 새로 추가할 이미지
   - `keep_image_ids` (JSON string, optional) — 유지할 기존 `image_id` 배열. 명시된 ID 외 기존 이미지는 삭제됨. 필드 자체가 없으면 이미지 변경 없음. 빈 배열(`"[]"`)이면 기존 이미지 전체 삭제.
+- **keywords 저장 방식**
+  - 전달된 키워드 이름을 `keywordinfo`에 upsert 후 `[{"keyword_id": N, "keyword_name": "..."}]` 형식으로 저장
 - **응답 200**
   - `{ success: true }`
 - **이미지 업데이트 예시**
@@ -441,17 +461,24 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 ### GET `/api/selections/search`
 
-- **토큰**: 불필요
+- **토큰**: 선택
 - **Query**
   - `q` (string, required)
+- **동작**
+  - `keywordinfo` ILIKE `%q%` → `keywords @> [{"keyword_id": N}]`
+  - 로그인 시: 본인 제외, 차단한 유저 제외
 - **응답 200**
-  - `{ selections: any[] }` (`thumb_file_path` 포함)
+  - `{ selections: any[] }` (`thumb_file_path` 포함, `selection_images` 기반)
 
 ### GET `/api/selections/ranking`
 
 - **토큰**: 선택
+- **동작**
+  - public 컬렉션 소속 셀렉션, `select_num` 내림차순
+  - category_id별 상위 10개
+  - 로그인 시: 차단한 유저 제외
 - **응답 200**
-  - `{ selections: any[] }` (`thumb_file_path` 포함)
+  - `{ selections: any[] }` (`thumb_file_path` 포함, `selection_images` 기반)
 
 ---
 

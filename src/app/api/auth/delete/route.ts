@@ -2,6 +2,53 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
+/**
+ * @openapi
+ * /api/auth/delete:
+ *   delete:
+ *     tags: [Auth]
+ *     summary: 계정 삭제 (Hard Delete)
+ *     description: |
+ *       유저 계정을 완전 삭제합니다. 모든 세션을 폐기하고 `userinfo` 행을 삭제합니다.
+ *       회원 탈퇴(soft delete)는 `/api/membership` DELETE를 사용하세요.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 삭제 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   success: true
+ *       401:
+ *         description: 인증 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
+ *       500:
+ *         description: 삭제 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Failed to delete user
+ */
 // DELETE /api/auth/delete
 // deleteAuthUser (Local Auth): delete by user_id/email (and revoke sessions)
 export async function DELETE(request: NextRequest) {
