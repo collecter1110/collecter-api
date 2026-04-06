@@ -99,8 +99,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     );
   }
 
+  let keywordEntries;
   try {
-    await ensureKeywordsInCategory(category_id, keywords);
+    keywordEntries = await ensureKeywordsInCategory(category_id, keywords);
   } catch (err) {
     console.error("Failed to save keywords:", err);
     return NextResponse.json({ error: "Failed to save keywords" }, { status: 500 });
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       selection_id: null,
       title,
       description,
-      keywords,
+      keywords: keywordEntries,
       link,
       items,
       is_ordered,

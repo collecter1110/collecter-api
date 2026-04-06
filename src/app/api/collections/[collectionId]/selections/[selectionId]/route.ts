@@ -73,16 +73,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (category_idRaw) updates.category_id = parseInt(category_idRaw, 10);
   if (title !== null) updates.title = title;
   if (description !== null) updates.description = description;
-  if (keywordsRaw !== null) {
-    const parsed = parseKeywordsJson(keywordsRaw);
-    if (!parsed || parsed.length === 0) {
-      return NextResponse.json(
-        { error: "keywords must be a non-empty JSON array of strings" },
-        { status: 400 }
-      );
-    }
-    updates.keywords = parsed;
-  }
   if (linkRaw !== null) updates.link = linkRaw;
   if (itemsRaw !== null) updates.items = JSON.parse(itemsRaw);
   if (is_orderedRaw !== null) updates.is_ordered = is_orderedRaw === "true";
@@ -92,30 +82,38 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "keywords is required" }, { status: 400 });
   }
 
-  // 키워드를 keywordinfo에 저장 (category_id는 요청값 우선, 없으면 기존 셀렉션 값 사용)
-  try {
-    const categoryIdForKeywords =
-      category_idRaw !== null
-        ? parseInt(category_idRaw, 10)
-        : (
-            await getSupabase()
-              .from("selections")
-              .select("category_id")
-              .eq("collection_id", collectionId)
-              .eq("selection_id", selectionId)
-              .single()
-          ).data?.category_id;
+  // 키워드를 keywordinfo에 저장하고 {keyword_id, keyword_name}[] 형식으로 업데이트
+  if (keywordsRaw !== null) {
+    const parsedNames = parseKeywordsJson(keywordsRaw);
+    if (!parsedNames || parsedNames.length === 0) {
+      return NextResponse.json(
+        { error: "keywords must be a non-empty JSON array of strings" },
+        { status: 400 }
+      );
+    }
 
-    const keywordsForSave = updates.keywords as string[] | undefined;
-    if (!categoryIdForKeywords) {
-      return NextResponse.json({ error: "Selection not found" }, { status: 404 });
+    try {
+      const categoryIdForKeywords =
+        category_idRaw !== null
+          ? parseInt(category_idRaw, 10)
+          : (
+              await getSupabase()
+                .from("selections")
+                .select("category_id")
+                .eq("collection_id", collectionId)
+                .eq("selection_id", selectionId)
+                .single()
+            ).data?.category_id;
+
+      if (!categoryIdForKeywords) {
+        return NextResponse.json({ error: "Selection not found" }, { status: 404 });
+      }
+
+      updates.keywords = await ensureKeywordsInCategory(categoryIdForKeywords, parsedNames);
+    } catch (err) {
+      console.error("Failed to save keywords:", err);
+      return NextResponse.json({ error: "Failed to save keywords" }, { status: 500 });
     }
-    if (keywordsForSave) {
-      await ensureKeywordsInCategory(categoryIdForKeywords, keywordsForSave);
-    }
-  } catch (err) {
-    console.error("Failed to save keywords:", err);
-    return NextResponse.json({ error: "Failed to save keywords" }, { status: 500 });
   }
 
   if (Object.keys(updates).length > 0) {
