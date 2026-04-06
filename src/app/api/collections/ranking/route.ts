@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/blocks";
 
 // GET /api/collections/ranking — getRankingCollections
 export async function GET(request: NextRequest) {
@@ -19,5 +20,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ collections: data });
+  const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
+  const collections = blockedIds.length > 0
+    ? (data ?? []).filter((c: { user_id: number }) => !blockedIds.includes(c.user_id))
+    : (data ?? []);
+
+  return NextResponse.json({ collections });
 }
