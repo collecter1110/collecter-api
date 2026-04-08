@@ -14,7 +14,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *       category_id별 상위 10개씩 반환합니다.
  *
  *       - Authorization 헤더가 있으면 차단한 유저의 셀렉션을 제외합니다. (토큰 선택)
- *       - `thumb_file_path`는 `selection_images` 중 `sort_order`가 가장 낮은 이미지의 `file_path`입니다.
+ *       - `file_path`는 `selection_images` 중 `sort_order`가 0인 이미지의 `file_path`입니다.
  *     parameters:
  *       - in: header
  *         name: Authorization
@@ -40,30 +40,12 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *               ok:
  *                 value:
  *                   selections:
- *                     - collection_id: 123
- *                       selection_id: 456
- *                       title: My selection
- *                       description: null
- *                       user_id: 45
- *                       owner_id: 45
- *                       owner_name: gimgahui
- *                       is_ordered: false
- *                       link: null
- *                       items: []
+ *                     - selection_id: 456
+ *                       selection_title: My selection
+ *                       file_path: "https://cdn.example.com/selections/img1.jpg"
  *                       keywords:
  *                         - keyword_id: 7
  *                           keyword_name: "키워드"
- *                       created_at: "2026-04-06T12:34:56.000Z"
- *                       is_selectable: true
- *                       is_selecting: false
- *                       select_num: 99
- *                       category_id: 1
- *                       selection_images:
- *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
- *                           sort_order: 0
- *                           images:
- *                             - file_path: "https://cdn.example.com/selections/img1.jpg"
- *                       thumb_file_path: "https://cdn.example.com/selections/img1.jpg"
  *       500:
  *         description: Failed to fetch ranking selections
  *         content:
@@ -85,10 +67,8 @@ export async function GET(request: NextRequest) {
   let dbQuery = getSupabase()
     .from("selections")
     .select(
-      "collection_id, selection_id, title, description, user_id, owner_id, owner_name, " +
-      "is_ordered, link, items, keywords, created_at, is_selectable, is_selecting, " +
-      "select_num, category_id, " +
-      "selection_images(image_id, sort_order, images(file_path)), " +
+      "selection_id, title, keywords, user_id, select_num, category_id, " +
+      "selection_images(sort_order, images(file_path)), " +
       "collections!inner(is_public)"
     )
     .eq("collections.is_public", true)
@@ -105,24 +85,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch ranking selections" }, { status: 500 });
   }
 
+  type SelectionRow = {
+    selection_id: number;
+    title: string;
+    keywords: unknown;
+    user_id: number;
+    select_num: number;
+    category_id: number;
+    selection_images: { sort_order: number; images: { file_path: string }[] }[];
+  };
+
   // category_id별 상위 10개 추출
   const countPerCategory = new Map<number, number>();
-  const selections = (data ?? [])
+  const selections = ((data ?? []) as unknown as SelectionRow[])
     .filter((item) => {
-      const cat = item.category_id as number;
+      const cat = item.category_id;
       const count = countPerCategory.get(cat) ?? 0;
       if (count >= 10) return false;
       countPerCategory.set(cat, count + 1);
       return true;
     })
     .map((item) => {
-      const imgs = (
-        item.selection_images as { image_id: string; sort_order: number; images: { file_path: string }[] }[]
-      ).sort((a, b) => a.sort_order - b.sort_order);
-      const { collections: _c, ...rest } = item as typeof item & { collections: unknown };
+      const thumb = item.selection_images.find((si) => si.sort_order === 0);
       return {
-        ...rest,
-        thumb_file_path: imgs[0]?.images?.[0]?.file_path ?? null,
+        selection_id: item.selection_id,
+        selection_title: item.title,
+        file_path: thumb?.images?.[0]?.file_path ?? null,
+        keywords: item.keywords,
       };
     });
 

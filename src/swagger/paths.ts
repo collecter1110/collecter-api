@@ -295,23 +295,39 @@
  *   get:
  *     tags:
  *       - Collections
- *     summary: 랭킹 컬렉션 목록
- *     security:
- *       - bearerAuth: []
+ *     summary: Get ranking collections
+ *     description: |
+ *       `is_public: true` 이면서 `image_id`가 있는 컬렉션을 가져옵니다.
+ *       category_id별로 무작위 셔플(Fisher-Yates) 후 최대 10개씩 반환합니다.
+ *
+ *       - Authorization 헤더가 있으면 차단한 유저의 컬렉션을 제외합니다. (토큰 선택)
+ *     parameters:
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
  *     responses:
  *       200:
- *         description: 성공
+ *         description: Ranking collections
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [collections]
  *               properties:
  *                 collections:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/RankingCollection"
  *       500:
- *         description: 서버 오류
+ *         description: Failed to fetch ranking collections
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *
  * /api/collections/search:
  *   get:
@@ -818,23 +834,40 @@
  *   get:
  *     tags:
  *       - Selections
- *     summary: 랭킹 셀렉션 목록
- *     security:
- *       - bearerAuth: []
+ *     summary: Get ranking selections
+ *     description: |
+ *       public 컬렉션(`collections.is_public = true`)에 속한 셀렉션을 `select_num` 내림차순으로 정렬 후,
+ *       category_id별 상위 10개씩 반환합니다.
+ *
+ *       - Authorization 헤더가 있으면 차단한 유저의 셀렉션을 제외합니다. (토큰 선택)
+ *       - `file_path`는 `selection_images` 중 `sort_order`가 0인 이미지의 `file_path`입니다.
+ *     parameters:
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
  *     responses:
  *       200:
- *         description: 성공
+ *         description: Ranking selections
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [selections]
  *               properties:
  *                 selections:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/RankingSelection"
  *       500:
- *         description: 서버 오류
+ *         description: Failed to fetch ranking selections
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *
  * /api/selections/search:
  *   get:
