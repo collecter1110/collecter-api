@@ -139,7 +139,7 @@ export async function getOrCreateUserIdByEmail(params: {
   // 3. userinfo에 insert
   const insertRes = await getSupabase()
     .from("userinfo")
-    .insert({ user_id: userId, email, name: email.split("@")[0], description: null, image_file_path: null })
+    .insert({ user_id: userId, email, name: email.split("@")[0], description: null, image_id: null })
     .select("user_id")
     .single();
   if (insertRes.error) throw insertRes.error;

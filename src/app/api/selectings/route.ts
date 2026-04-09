@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
+import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 
 /**
  * @openapi
@@ -80,6 +81,8 @@ import { requireAuth } from "@/lib/auth";
  *     description: |
  *       다른 유저의 셀렉션을 내 컬렉션으로 퍼옵니다.
  *       이미 퍼온 셀렉션(is_selecting=true)인 경우 원본을 추적해 저장합니다.
+ *       원본의 `selection_images`를 새 셀렉션으로 복사하며(동일 image_id 공유),
+ *       퍼온 컬렉션에 커버가 없으면 첫 이미지로 자동 설정합니다.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -235,7 +238,6 @@ export async function POST(request: NextRequest) {
       user_id: auth.userId,
       title: selectedSelection.title,
       description: selectedSelection.description,
-      image_file_paths: selectedSelection.image_file_paths,
       keywords: selectedSelection.keywords,
       link: selectedSelection.link,
       items: selectedSelection.items,
@@ -264,6 +266,28 @@ export async function POST(request: NextRequest) {
   if (updateError) {
     console.error("selecting update error:", updateError);
     return NextResponse.json({ error: "Failed to update selecting" }, { status: 500 });
+  }
+
+  // 원본 셀렉션의 이미지를 새 셀렉션으로 복사 (같은 image_id 공유)
+  const { data: sourceImages } = await getSupabase()
+    .from("selection_images")
+    .select("image_id, sort_order")
+    .eq("collection_id", selected_collection_id)
+    .eq("selection_id", selected_selection_id)
+    .order("sort_order", { ascending: true });
+
+  for (const img of sourceImages ?? []) {
+    await getSupabase().from("selection_images").insert({
+      collection_id: selecting_collection_id,
+      selection_id: newData.selection_id,
+      image_id: img.image_id,
+      sort_order: img.sort_order,
+    });
+  }
+
+  // 컬렉션 커버가 비어있으면 첫 이미지로 자동 설정
+  if (sourceImages && sourceImages.length > 0) {
+    await ensureCollectionCoverIfEmpty(selecting_collection_id, sourceImages[0].image_id);
   }
 
   return NextResponse.json({ success: true }, { status: 201 });
