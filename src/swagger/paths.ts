@@ -353,11 +353,19 @@
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [collections]
  *               properties:
  *                 collections:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/SearchCollection"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   collections:
+ *                     - collection_id: 123
+ *                       collection_title: "내 컬렉션"
+ *                       file_path: "https://cdn.example.com/collections/cover.jpg"
  *       400:
  *         description: 쿼리 없음
  *       500:
@@ -887,11 +895,21 @@
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [selections]
  *               properties:
  *                 selections:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/SearchSelection"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   selections:
+ *                     - selection_id: 456
+ *                       selection_title: "내 셀렉션"
+ *                       file_path: "https://cdn.example.com/selections/img1.jpg"
+ *                       collection_id: 123
+ *                       collection_title: "내 컬렉션"
  *       400:
  *         description: 쿼리 없음
  *       500:
@@ -1012,11 +1030,20 @@
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [users]
  *               properties:
  *                 users:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/SearchUser"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   users:
+ *                     - user_id: 45
+ *                       user_name: "gimgahui"
+ *                       description: "안녕하세요"
+ *                       file_path: "https://cdn.example.com/users/profile.jpg"
  *       400:
  *         description: 쿼리 없음
  *       500:

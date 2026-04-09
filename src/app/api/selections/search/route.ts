@@ -43,24 +43,11 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *               ok:
  *                 value:
  *                   selections:
- *                     - category_id: 1
+ *                     - selection_id: 456
+ *                       selection_title: 내 셀렉션
+ *                       file_path: "https://cdn.example.com/selections/img1.jpg"
  *                       collection_id: 123
- *                       selection_id: 456
- *                       user_id: 45
- *                       owner_id: 45
- *                       owner_name: gimgahui
- *                       title: 내 셀렉션
- *                       keywords:
- *                         - keyword_id: 7
- *                           keyword_name: 키워드
- *                       is_selectable: true
- *                       is_selecting: false
- *                       thumb_file_path: "https://cdn.example.com/selections/img1.jpg"
- *                       selection_images:
- *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
- *                           sort_order: 0
- *                           images:
- *                             - file_path: "https://cdn.example.com/selections/img1.jpg"
+ *                       collection_title: 내 컬렉션
  *               empty:
  *                 summary: 검색 결과 없음
  *                 value:
@@ -115,7 +102,7 @@ export async function GET(request: NextRequest) {
   let dbQuery = getSupabase()
     .from("selections")
     .select(
-      "category_id, collection_id, selection_id, user_id, owner_id, owner_name, title, keywords, is_selectable, is_selecting, selection_images(image_id, sort_order, images(file_path))"
+      "collection_id, selection_id, user_id, title, keywords, selection_images(image_id, sort_order, images(file_path)), collections(title)"
     )
     .or(
       kwIds.map((id) => `keywords.cs.${JSON.stringify([{ keyword_id: id }])}`).join(",")
@@ -135,13 +122,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to search selections" }, { status: 500 });
   }
 
+  type SearchRow = {
+    collection_id: number;
+    selection_id: number;
+    title: string;
+    selection_images: { image_id: string; sort_order: number; images: { file_path: string }[] }[];
+    collections: { title: string } | { title: string }[] | null;
+  };
+
   const selections = (data ?? []).map((item) => {
-    const imgs = (
-      item.selection_images as { image_id: string; sort_order: number; images: { file_path: string }[] }[]
-    ).sort((a, b) => a.sort_order - b.sort_order);
+    const row = item as SearchRow;
+    const imgs = [...row.selection_images].sort((a, b) => a.sort_order - b.sort_order);
+    const coll = row.collections;
+    const collectionTitle = Array.isArray(coll) ? coll[0]?.title : coll?.title;
+
     return {
-      ...item,
-      thumb_file_path: imgs[0]?.images?.[0]?.file_path ?? null,
+      selection_id: row.selection_id,
+      selection_title: row.title,
+      file_path: imgs[0]?.images?.[0]?.file_path ?? null,
+      collection_id: row.collection_id,
+      collection_title: collectionTitle ?? "",
     };
   });
 

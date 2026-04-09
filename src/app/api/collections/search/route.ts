@@ -54,22 +54,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *               ok:
  *                 value:
  *                   collections:
- *                     - category_id: 1
- *                       id: 123
- *                       title: 내 컬렉션
- *                       description: 컬렉션 설명
- *                       image_file_path: "https://cdn.example.com/collections/cover.jpg"
- *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
- *                       tags: ["책", "소설"]
- *                       user_id: 45
- *                       user_name: gimgahui
- *                       primary_keywords:
- *                         - keyword_id: 7
- *                           keyword_name: 책
- *                           count: 5
- *                       selection_num: 12
- *                       like_num: 34
- *                       is_public: true
+ *                     - collection_id: 123
+ *                       collection_title: 내 컬렉션
+ *                       file_path: "https://cdn.example.com/collections/cover.jpg"
  *               empty:
  *                 summary: 검색 결과 없음
  *                 value:
@@ -95,6 +82,18 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                 value:
  *                   error: Failed to search collections
  */
+function mapSearchCollection(row: {
+  id: number;
+  title: string;
+  image_file_path: string | null;
+}) {
+  return {
+    collection_id: row.id,
+    collection_title: row.title,
+    file_path: row.image_file_path ?? null,
+  };
+}
+
 // GET /api/collections/search?q=...&type=keyword|tag
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q");
@@ -134,7 +133,11 @@ export async function GET(request: NextRequest) {
       console.error("searchCollectionsByTag error:", error);
       return NextResponse.json({ error: "Failed to search collections" }, { status: 500 });
     }
-    return NextResponse.json({ collections: data ?? [] });
+    return NextResponse.json({
+      collections: (data ?? []).map((row) =>
+        mapSearchCollection(row as { id: number; title: string; image_file_path: string | null })
+      ),
+    });
   }
 
   // keyword 검색: keywordinfo에서 ILIKE로 keyword_id 목록 조회
@@ -161,5 +164,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to search collections" }, { status: 500 });
   }
 
-  return NextResponse.json({ collections: data ?? [] });
+  return NextResponse.json({
+    collections: (data ?? []).map((row) =>
+      mapSearchCollection(row as { id: number; title: string; image_file_path: string | null })
+    ),
+  });
 }
