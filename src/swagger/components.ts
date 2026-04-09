@@ -16,25 +16,46 @@
  *       example:
  *         error: Failed to fetch ranking collections
  *
+ *     UserDetailCollection:
+ *       type: object
+ *       required: [collection_id, collection_title, image_id]
+ *       properties:
+ *         collection_id: { type: integer, example: 123 }
+ *         collection_title: { type: string, example: "내 컬렉션" }
+ *         image_id: { type: string, nullable: true, example: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1" }
+ *
+ *     UserDetailResponse:
+ *       type: object
+ *       required: [user_id, user_name, image_id, description, collections]
+ *       properties:
+ *         user_id: { type: integer, example: 45 }
+ *         user_name: { type: string, example: "gimgahui" }
+ *         image_id: { type: string, nullable: true, example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+ *         description: { type: string, nullable: true, example: "안녕하세요" }
+ *         collections:
+ *           type: array
+ *           items:
+ *             $ref: "#/components/schemas/UserDetailCollection"
+ *
  *     RankingCollection:
  *       type: object
  *       required:
  *         - collection_id
- *         - collection_name
+ *         - collection_title
  *       properties:
  *         collection_id: { type: integer, example: 123 }
- *         collection_name: { type: string, example: My collection }
+ *         collection_title: { type: string, example: My collection }
  *         image_id: { type: string, nullable: true, example: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1" }
  *
  *     RankingSelection:
  *       type: object
  *       required:
  *         - selection_id
- *         - selection_name
+ *         - selection_title
  *         - keywords
  *       properties:
  *         selection_id: { type: integer, example: 456 }
- *         selection_name: { type: string, example: My selection }
+ *         selection_title: { type: string, example: My selection }
  *         image_id: { type: string, nullable: true, example: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a" }
  *         keywords:
  *           type: array

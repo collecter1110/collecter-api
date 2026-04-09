@@ -1049,34 +1049,6 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/users/{userId}:
- *   get:
- *     tags:
- *       - Users
- *     summary: 다른 유저 정보 조회
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: 성공
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 user:
- *                   type: object
- *       400:
- *         description: 잘못된 ID
- *       404:
- *         description: 유저 없음
- *       500:
- *         description: 서버 오류
- *
  * /api/users/{userId}/collections:
  *   get:
  *     tags:
@@ -1379,5 +1351,50 @@
  *         description: 인증 필요
  *       500:
  *         description: 서버 오류
+ *
+ * /api/user/detail:
+ *   get:
+ *     tags:
+ *       - Users
+ *     summary: 유저 상세 조회 (프로필 + 컬렉션 요약)
+ *     parameters:
+ *       - in: query
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 45
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
+ *     responses:
+ *       200:
+ *         description: 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/UserDetailResponse"
+ *       400:
+ *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *       404:
+ *         description: 유저 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  */
 export {};

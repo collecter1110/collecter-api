@@ -131,7 +131,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ user: { user_id, name, email, description, image_file_path, image_id, images: { file_path } | null } }`
+  - `{ user: { user_id, name, email, description, image_id } }`
 
 ### PATCH `/api/users/me` (프로필 수정)
 
@@ -225,16 +225,47 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **응답 200**
   - `{ users: any[] }`
 
-### GET `/api/users/{userId}`
+### GET `/api/user/detail`
 
-- **토큰**: 불필요
-- **Path**
-  - `userId` (number)
-- **응답 200**
-  - `{ user: { user_id, name, description, image_file_path, image_id, images: { file_path } | null } }`
+- **토큰**: 선택
+- **Query**
+  - `user_id` (number, required)
+- **동작**
+  - Authorization이 있고 본인(`auth.userId === user_id`)이면 **공개/비공개 컬렉션 모두 반환**
+  - 그 외에는 **공개 컬렉션만 반환**
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/user/detail?user_id=45"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "user_id": 45,
+  "user_name": "gimgahui",
+  "image_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "description": "안녕하세요",
+  "collections": [
+    {
+      "collection_id": 123,
+      "collection_title": "내 컬렉션",
+      "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+    },
+    {
+      "collection_id": 124,
+      "collection_title": "커버 없는 컬렉션",
+      "image_id": null
+    }
+  ]
+}
+```
+
 - **에러**
-  - 400 `{ error: "Invalid user ID" }`
-  - 404 `{ error: "User not found" }` (소프트 삭제 포함)
+  - 400 `{ "error": "Invalid user ID" }`
+  - 404 `{ "error": "User not found" }` (소프트 삭제 포함)
+  - 500 `{ "error": "Failed to fetch user detail" }`
 
 ### GET `/api/users/{userId}/collections`
 
@@ -296,7 +327,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **동작**
   - `is_public: false`인 컬렉션은 소유자 본인만 조회 가능, 타인 요청 시 404
 - **응답 200**
-  - `{ collection: { ..., image_id, images: { image_id, file_path } | null, has_liked: boolean } }`
+  - `{ collection: { ..., image_id, has_liked: boolean } }`
 - **에러**
   - 400 `{ error: "Invalid collection ID" }`
   - 404 `{ error: "Collection not found" }`
@@ -360,7 +391,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 - **토큰**: 선택
 - **동작**
-  - `is_public: true`, `image_file_path IS NOT NULL` 조건
+  - `is_public: true` 조건
   - category_id별 무작위 최대 10개 (Fisher-Yates shuffle)
   - 로그인 시: 차단한 유저 제외
 - **응답 200**
@@ -376,8 +407,18 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **동작**
   - 부모 컬렉션이 `is_public: false`이면 소유자 본인만 조회 가능, 타인 요청 시 404
 - **응답 200**
-  - `{ selections: { ..., selection_images: { image_id, sort_order, images: { file_path } }[], thumb_file_path: string | null }[] }`
-  - `thumb_file_path`: `selection_images` 중 `sort_order` 가장 낮은 이미지의 `file_path`
+  - `{ selections: SelectionListItem[] }`
+  - 각 항목 필드:
+    - `category_id` (number)
+    - `collection_id` (number)
+    - `selection_id` (number)
+    - `title` (string)
+    - `keywords` (object[]) — `[{ keyword_id, keyword_name }]`
+    - `owner_name` (string)
+    - `owner_id` (number)
+    - `is_selecting` (boolean)
+    - `selection_images` (object[]) — `[{ image_id, sort_order }]`
+    - `thumb_image_id` (string | null) — `selection_images` 중 `sort_order`가 가장 낮은 이미지의 `image_id`
 
 ### POST `/api/collections/{collectionId}/selections`
 
@@ -407,7 +448,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 - **토큰**: 불필요
 - **응답 200**
-  - `{ selection: { ..., selection_images: { image_id, sort_order, images: { file_path } }[] } }`
+  - `{ selection: { ..., selection_images: { image_id, sort_order }[] } }`
 - **에러**
   - 404 `{ error: "Selection not found" }`
 
@@ -468,7 +509,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `keywordinfo` ILIKE `%q%` → `keywords @> [{"keyword_id": N}]`
   - 로그인 시: 본인 제외, 차단한 유저 제외
 - **응답 200**
-  - `{ selections: any[] }` (`thumb_file_path` 포함, `selection_images` 기반)
+  - `{ selections: any[] }` (`image_id` 포함)
 
 ### GET `/api/selections/ranking`
 
@@ -478,7 +519,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - category_id별 상위 10개
   - 로그인 시: 차단한 유저 제외
 - **응답 200**
-  - `{ selections: any[] }` (`thumb_file_path` 포함, `selection_images` 기반)
+  - `{ selections: any[] }` (`image_id` 포함)
 
 ---
 
