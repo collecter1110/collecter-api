@@ -40,8 +40,6 @@ import { requireAuth } from "@/lib/auth";
  *                           count: 3
  *                       selection_num: 12
  *                       is_public: true
- *                       images:
- *                         - file_path: "https://cdn.example.com/collections/cover.jpg"
  *               empty:
  *                 summary: 컬렉션 없음
  *                 value:
@@ -75,7 +73,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await getSupabase()
     .from("collections")
     .select(
-      "category_id, id, title, image_id, images(file_path), user_id, user_name, primary_keywords, selection_num, is_public"
+      "category_id, id, title, image_id, user_id, user_name, primary_keywords, selection_num, is_public"
     )
     .eq("user_id", auth.userId);
 

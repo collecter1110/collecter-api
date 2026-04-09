@@ -40,7 +40,6 @@ import { getAuthContext } from "@/lib/auth";
  *                       name: gimgahui
  *                       email: user@example.com
  *                       description: 안녕하세요
- *                       image_file_path: "https://cdn.example.com/users/profile.jpg"
  *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *                       created_at: "2026-04-06T12:34:56.000Z"
  *                       deleted_at: null
@@ -61,7 +60,7 @@ export async function GET(request: NextRequest) {
 
   let query = getSupabase()
     .from("userinfo")
-    .select()
+    .select("user_id, name, email, description, image_id, created_at, deleted_at")
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(10);

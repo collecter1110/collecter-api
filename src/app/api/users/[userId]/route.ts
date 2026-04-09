@@ -33,10 +33,7 @@ import { UserInfo } from "@/types/user";
  *                     user_id: 45
  *                     name: gimgahui
  *                     description: 안녕하세요
- *                     image_file_path: "https://cdn.example.com/users/profile.jpg"
  *                     image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
- *                     images:
- *                       - file_path: "https://cdn.example.com/users/profile.jpg"
  *       404:
  *         description: 유저를 찾을 수 없음
  *         content:
@@ -71,7 +68,7 @@ export async function GET(
 
   const { data, error } = await getSupabase()
     .from("userinfo")
-    .select("user_id, name, description, image_file_path, image_id, images(file_path)")
+    .select("user_id, name, description, image_id")
     .eq("user_id", userId)
     .is("deleted_at", null)
     .single();

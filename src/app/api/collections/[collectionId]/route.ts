@@ -44,7 +44,6 @@ import { deleteImageById } from "@/lib/storage";
  *                     title: 내 컬렉션
  *                     description: 컬렉션 설명
  *                     created_at: "2026-04-06T12:34:56.000Z"
- *                     image_file_path: "https://cdn.example.com/collections/cover.jpg"
  *                     image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *                     tags: ["태그1", "태그2"]
  *                     user_id: 45
@@ -57,9 +56,6 @@ import { deleteImageById } from "@/lib/storage";
  *                     like_num: 34
  *                     has_liked: false
  *                     is_public: true
- *                     images:
- *                       - image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
- *                         file_path: "https://cdn.example.com/collections/cover.jpg"
  *       404:
  *         description: 컬렉션을 찾을 수 없음
  *         content:
@@ -211,9 +207,9 @@ export async function GET(request: NextRequest, { params }: Params) {
   const { data, error } = await getSupabase()
     .from("collections")
     .select(
-      `category_id, id, title, description, created_at, image_file_path, image_id,
+      `category_id, id, title, description, created_at, image_id,
        tags, user_id, user_name, primary_keywords, selection_num, like_num,
-       likes(user_id), is_public, images(image_id, file_path)`
+       likes(user_id), is_public`
     )
     .eq("id", collectionId)
     .single();

@@ -53,12 +53,10 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                       owner_name: gimgahui
  *                       owner_id: 45
  *                       is_selecting: false
- *                       thumb_file_path: "https://cdn.example.com/selections/img1.jpg"
+ *                       thumb_image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                       selection_images:
  *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                           sort_order: 0
- *                           images:
- *                             - file_path: "https://cdn.example.com/selections/img1.jpg"
  *       404:
  *         description: 컬렉션을 찾을 수 없음
  *         content:
@@ -202,7 +200,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     .from("selections")
     .select(
       `category_id, collection_id, selection_id, title, keywords, owner_name, owner_id, is_selecting,
-       selection_images(image_id, sort_order, images(file_path))`
+       selection_images(image_id, sort_order)`
     )
     .eq("collection_id", collectionId);
 
@@ -212,11 +210,11 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   const selections = (data ?? []).map((item) => {
-    const imgs = (item.selection_images as unknown as { image_id: string; sort_order: number; images: { file_path: string }[] }[])
+    const imgs = (item.selection_images as unknown as { image_id: string; sort_order: number }[])
       .sort((a, b) => a.sort_order - b.sort_order);
     return {
       ...item,
-      thumb_file_path: imgs[0]?.images?.[0]?.file_path ?? null,
+      thumb_image_id: imgs[0]?.image_id ?? null,
     };
   });
 

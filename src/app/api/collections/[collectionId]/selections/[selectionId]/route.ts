@@ -62,8 +62,6 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                     selection_images:
  *                       - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                         sort_order: 0
- *                         images:
- *                           - file_path: "https://cdn.example.com/selections/img1.jpg"
  *       404:
  *         description: 셀렉션을 찾을 수 없음
  *         content:
@@ -243,7 +241,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     .select(
       `category_id, collection_id, selection_id, user_id, owner_id, title, description,
        is_ordered, link, items, keywords, created_at, owner_name, is_selectable, is_selecting,
-       selection_images(image_id, sort_order, images(file_path))`
+       selection_images(image_id, sort_order)`
     )
     .eq("collection_id", collectionId)
     .eq("selection_id", selectionId)

@@ -42,7 +42,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   selections:
  *                     - selection_id: 456
  *                       selection_title: My selection
- *                       file_path: "https://cdn.example.com/selections/img1.jpg"
+ *                       image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                       keywords:
  *                         - keyword_id: 7
  *                           keyword_name: "키워드"
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     .from("selections")
     .select(
       "selection_id, title, keywords, user_id, select_num, category_id, " +
-      "selection_images(sort_order, images(file_path)), " +
+      "selection_images(image_id, sort_order), " +
       "collections!inner(is_public)"
     )
     .eq("collections.is_public", true)
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     user_id: number;
     select_num: number;
     category_id: number;
-    selection_images: { sort_order: number; images: { file_path: string }[] }[];
+    selection_images: { image_id: string; sort_order: number }[];
   };
 
   // category_id별 상위 10개 추출
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
       return {
         selection_id: item.selection_id,
         selection_title: item.title,
-        file_path: thumb?.images?.[0]?.file_path ?? null,
+        image_id: thumb?.image_id ?? null,
         keywords: item.keywords,
       };
     });

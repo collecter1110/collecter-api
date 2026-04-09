@@ -30,10 +30,7 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *                     name: gimgahui
  *                     email: user@example.com
  *                     description: 안녕하세요
- *                     image_file_path: "https://cdn.example.com/users/profile.jpg"
  *                     image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
- *                     images:
- *                       - file_path: "https://cdn.example.com/users/profile.jpg"
  *       401:
  *         description: 인증 필요
  *         content:
@@ -127,7 +124,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await getSupabase()
     .from("userinfo")
-    .select("user_id, name, email, description, image_file_path, image_id, images(file_path)")
+    .select("user_id, name, email, description, image_id")
     .eq("user_id", auth.userId)
     .single();
 

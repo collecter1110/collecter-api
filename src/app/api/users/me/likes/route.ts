@@ -33,7 +33,6 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                       category_id: 1
  *                       title: 좋아요한 컬렉션
  *                       description: 컬렉션 설명
- *                       image_file_path: "https://cdn.example.com/collections/cover.jpg"
  *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *                       tags: ["태그1"]
  *                       user_id: 99
@@ -77,7 +76,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await getSupabase()
     .from("likes")
-    .select("collections(*)")
+    .select("collections(id, category_id, title, description, image_id, tags, user_id, user_name, primary_keywords, selection_num, like_num, is_public)")
     .eq("user_id", auth.userId);
 
   if (error) {

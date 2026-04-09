@@ -24,7 +24,7 @@
  *       properties:
  *         collection_id: { type: integer, example: 123 }
  *         collection_name: { type: string, example: My collection }
- *         file_path: { type: string, nullable: true, example: "https://cdn.example.com/collections/cover.jpg" }
+ *         image_id: { type: string, nullable: true, example: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1" }
  *
  *     RankingSelection:
  *       type: object
@@ -35,7 +35,7 @@
  *       properties:
  *         selection_id: { type: integer, example: 456 }
  *         selection_name: { type: string, example: My selection }
- *         file_path: { type: string, nullable: true, example: "https://cdn.example.com/selections/img1.jpg" }
+ *         image_id: { type: string, nullable: true, example: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a" }
  *         keywords:
  *           type: array
  *           items:
@@ -53,7 +53,7 @@
  *       properties:
  *         collection_id: { type: integer, example: 123 }
  *         collection_title: { type: string, example: "내 컬렉션" }
- *         file_path: { type: string, nullable: true, example: "https://cdn.example.com/collections/cover.jpg" }
+ *         image_id: { type: string, nullable: true, example: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1" }
  *
  *     SearchSelection:
  *       type: object
@@ -65,7 +65,7 @@
  *       properties:
  *         selection_id: { type: integer, example: 456 }
  *         selection_title: { type: string, example: "내 셀렉션" }
- *         file_path: { type: string, nullable: true, example: "https://cdn.example.com/selections/img1.jpg" }
+ *         image_id: { type: string, nullable: true, example: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a" }
  *         collection_id: { type: integer, example: 123 }
  *         collection_title: { type: string, example: "내 컬렉션" }
  *
@@ -78,6 +78,6 @@
  *         user_id: { type: integer, example: 45 }
  *         user_name: { type: string, example: "gimgahui" }
  *         description: { type: string, nullable: true, example: "안녕하세요" }
- *         file_path: { type: string, nullable: true, example: "https://cdn.example.com/users/profile.jpg" }
+ *         image_id: { type: string, nullable: true, example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
  */
 export {};

@@ -41,7 +41,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   collections:
  *                     - collection_id: 123
  *                       collection_title: My collection
- *                       file_path: "https://cdn.example.com/collections/cover.jpg"
+ *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *       500:
  *         description: Failed to fetch ranking collections
  *         content:
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
   let dbQuery = getSupabase()
     .from("collections")
-    .select("id, title, category_id, user_id, image_id, images(file_path)")
+    .select("id, title, category_id, user_id, image_id")
     .eq("is_public", true);
 
   if (blockedIds.length > 0) {
@@ -81,7 +81,6 @@ export async function GET(request: NextRequest) {
     category_id: number;
     user_id: number;
     image_id: string | null;
-    images: { file_path: string }[] | null;
   };
   const rows = (data ?? []) as unknown as CollectionRow[];
 
@@ -104,7 +103,7 @@ export async function GET(request: NextRequest) {
       collections.push({
         collection_id: col.id,
         collection_title: col.title,
-        file_path: Array.isArray(col.images) && col.images.length > 0 ? col.images[0].file_path : null,
+        image_id: col.image_id ?? null,
       });
     }
   }

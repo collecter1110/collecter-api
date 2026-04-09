@@ -56,7 +56,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   collections:
  *                     - collection_id: 123
  *                       collection_title: 내 컬렉션
- *                       file_path: "https://cdn.example.com/collections/cover.jpg"
+ *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *               empty:
  *                 summary: 검색 결과 없음
  *                 value:
@@ -85,12 +85,12 @@ import { getBlockedUserIds } from "@/lib/blocks";
 function mapSearchCollection(row: {
   id: number;
   title: string;
-  image_file_path: string | null;
+  image_id: string | null;
 }) {
   return {
     collection_id: row.id,
     collection_title: row.title,
-    file_path: row.image_file_path ?? null,
+    image_id: row.image_id ?? null,
   };
 }
 
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
   let dbQuery = getSupabase()
     .from("collections")
     .select(
-      "category_id, id, title, description, image_file_path, image_id, tags, user_id, user_name, primary_keywords, selection_num, like_num, is_public"
+      "category_id, id, title, description, image_id, tags, user_id, user_name, primary_keywords, selection_num, like_num, is_public"
     )
     .eq("is_public", true);
 
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({
       collections: (data ?? []).map((row) =>
-        mapSearchCollection(row as { id: number; title: string; image_file_path: string | null })
+        mapSearchCollection(row as { id: number; title: string; image_id: string | null })
       ),
     });
   }
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     collections: (data ?? []).map((row) =>
-      mapSearchCollection(row as { id: number; title: string; image_file_path: string | null })
+      mapSearchCollection(row as { id: number; title: string; image_id: string | null })
     ),
   });
 }

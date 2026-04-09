@@ -48,9 +48,8 @@ export async function uploadImageAndSave(
 ): Promise<{ imageId: string; filePath: string }> {
   const s3 = getS3Client();
   const bucket = getBucketName();
-  const ext = contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
   const imageId = randomUUID();
-  const key = `images/${imageId}.${ext}`;
+  const key = `${imageId}.jpg`;
 
   await s3.send(
     new PutObjectCommand({

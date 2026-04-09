@@ -45,7 +45,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   selections:
  *                     - selection_id: 456
  *                       selection_title: 내 셀렉션
- *                       file_path: "https://cdn.example.com/selections/img1.jpg"
+ *                       image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                       collection_id: 123
  *                       collection_title: 내 컬렉션
  *               empty:
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
   let dbQuery = getSupabase()
     .from("selections")
     .select(
-      "collection_id, selection_id, user_id, title, keywords, selection_images(image_id, sort_order, images(file_path)), collections(title)"
+      "collection_id, selection_id, user_id, title, keywords, selection_images(image_id, sort_order), collections(title)"
     )
     .or(
       kwIds.map((id) => `keywords.cs.${JSON.stringify([{ keyword_id: id }])}`).join(",")
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     collection_id: number;
     selection_id: number;
     title: string;
-    selection_images: { image_id: string; sort_order: number; images: { file_path: string }[] }[];
+    selection_images: { image_id: string; sort_order: number }[];
     collections: { title: string } | { title: string }[] | null;
   };
 
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
     return {
       selection_id: row.selection_id,
       selection_title: row.title,
-      file_path: imgs[0]?.images?.[0]?.file_path ?? null,
+      image_id: imgs[0]?.image_id ?? null,
       collection_id: row.collection_id,
       collection_title: collectionTitle ?? "",
     };

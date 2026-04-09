@@ -365,7 +365,7 @@
  *                   collections:
  *                     - collection_id: 123
  *                       collection_title: "내 컬렉션"
- *                       file_path: "https://cdn.example.com/collections/cover.jpg"
+ *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *       400:
  *         description: 쿼리 없음
  *       500:
@@ -848,7 +848,7 @@
  *       category_id별 상위 10개씩 반환합니다.
  *
  *       - Authorization 헤더가 있으면 차단한 유저의 셀렉션을 제외합니다. (토큰 선택)
- *       - `file_path`는 `selection_images` 중 `sort_order`가 0인 이미지의 `file_path`입니다.
+ *       - `image_id`는 `selection_images` 중 `sort_order`가 0인 이미지의 `image_id`입니다.
  *     parameters:
  *       - in: header
  *         name: Authorization
@@ -907,7 +907,7 @@
  *                   selections:
  *                     - selection_id: 456
  *                       selection_title: "내 셀렉션"
- *                       file_path: "https://cdn.example.com/selections/img1.jpg"
+ *                       image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                       collection_id: 123
  *                       collection_title: "내 컬렉션"
  *       400:
@@ -1043,7 +1043,7 @@
  *                     - user_id: 45
  *                       user_name: "gimgahui"
  *                       description: "안녕하세요"
- *                       file_path: "https://cdn.example.com/users/profile.jpg"
+ *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *       400:
  *         description: 쿼리 없음
  *       500:

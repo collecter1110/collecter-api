@@ -46,7 +46,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                     - user_id: 45
  *                       user_name: gimgahui
  *                       description: 안녕하세요
- *                       file_path: "https://cdn.example.com/users/profile.jpg"
+ *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *               empty:
  *                 summary: 검색 결과 없음
  *                 value:
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
   let query = getSupabase()
     .from("userinfo")
-    .select("user_id, name, description, image_file_path")
+    .select("user_id, name, description, image_id")
     .textSearch("name", q.trim(), { type: "plain", config: "simple" })
     .is("deleted_at", null);
 
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     user_id: u.user_id as number,
     user_name: u.name as string,
     description: (u.description as string | null) ?? null,
-    file_path: (u.image_file_path as string | null) ?? null,
+    image_id: (u.image_id as string | null) ?? null,
   }));
 
   return NextResponse.json({ users });
