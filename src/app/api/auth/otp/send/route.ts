@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
-import { randomOtpCode, saveOtpIntent } from "@/lib/authStore";
+import { randomOtpCode, saveOtpIntent, checkOtpSendRateLimit } from "@/lib/authStore";
 import { sendOtpEmail } from "@/lib/mail";
 
 /**
@@ -87,6 +87,11 @@ export async function POST(request: NextRequest) {
 
   if (!email) {
     return apiError("email is required", 400);
+  }
+
+  const sendLimit = checkOtpSendRateLimit(String(email));
+  if (!sendLimit.allowed) {
+    return apiError(`Too many requests. Please retry after ${sendLimit.retryAfterSeconds} seconds`, 429);
   }
 
   const code = randomOtpCode();

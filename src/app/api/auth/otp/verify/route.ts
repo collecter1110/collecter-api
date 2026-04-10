@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
-import { consumeOtp, getOrCreateUserIdByEmail } from "@/lib/authStore";
+import { consumeOtp, getOrCreateUserIdByEmail, checkOtpVerifyRateLimit, resetOtpVerifyRateLimit } from "@/lib/authStore";
 import { signVerifiedToken } from "@/lib/jwt";
 
 /**
@@ -110,11 +110,18 @@ export async function POST(request: NextRequest) {
     return apiError("email and token are required", 400);
   }
 
+  const verifyLimit = checkOtpVerifyRateLimit(String(email));
+  if (!verifyLimit.allowed) {
+    return apiError("Too many verification attempts. Please request a new OTP", 429);
+  }
+
   try {
     const consumed = await consumeOtp({ email: String(email), code: String(token) });
     if (!consumed) {
       return apiError("Invalid OTP", 400);
     }
+
+    resetOtpVerifyRateLimit(String(email));
 
     const userId = await getOrCreateUserIdByEmail({
       email: consumed.email,

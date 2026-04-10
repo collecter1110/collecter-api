@@ -99,6 +99,9 @@ export async function POST(request: NextRequest) {
     if (!claims || claims.typ !== "refresh") {
       return apiError("Invalid refresh token", 400);
     }
+    if (claims.user_id !== auth.userId) {
+      return apiError("Refresh token does not belong to this user", 403);
+    }
     await revokeRefreshSessionByToken(refresh_token);
   } catch (e) {
     console.error("logout error:", e);

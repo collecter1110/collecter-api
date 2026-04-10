@@ -1,6 +1,53 @@
 import crypto from "crypto";
 import { getSupabase } from "./supabase";
 
+/* ─── OTP Rate Limit (in-memory) ─── */
+
+const OTP_SEND_INTERVAL_MS = 60_000; // 이메일당 발송 간격 60초
+const OTP_VERIFY_MAX_ATTEMPTS = 5; // 이메일당 최대 검증 시도 횟수
+const OTP_VERIFY_WINDOW_MS = 10 * 60_000; // 검증 윈도우 10분
+
+const otpSendTimestamps = new Map<string, number>();
+const otpVerifyAttempts = new Map<string, { count: number; firstAt: number }>();
+
+export function checkOtpSendRateLimit(email: string): { allowed: boolean; retryAfterSeconds?: number } {
+  const key = email.toLowerCase();
+  const now = Date.now();
+  const lastSent = otpSendTimestamps.get(key);
+
+  if (lastSent && now - lastSent < OTP_SEND_INTERVAL_MS) {
+    const retryAfterSeconds = Math.ceil((OTP_SEND_INTERVAL_MS - (now - lastSent)) / 1000);
+    return { allowed: false, retryAfterSeconds };
+  }
+
+  otpSendTimestamps.set(key, now);
+  return { allowed: true };
+}
+
+export function checkOtpVerifyRateLimit(email: string): { allowed: boolean } {
+  const key = email.toLowerCase();
+  const now = Date.now();
+  const record = otpVerifyAttempts.get(key);
+
+  if (!record || now - record.firstAt > OTP_VERIFY_WINDOW_MS) {
+    otpVerifyAttempts.set(key, { count: 1, firstAt: now });
+    return { allowed: true };
+  }
+
+  if (record.count >= OTP_VERIFY_MAX_ATTEMPTS) {
+    return { allowed: false };
+  }
+
+  record.count++;
+  return { allowed: true };
+}
+
+export function resetOtpVerifyRateLimit(email: string) {
+  otpVerifyAttempts.delete(email.toLowerCase());
+}
+
+/* ─── Types ─── */
+
 export type OtpIntent = {
   email: string;
   create_user: boolean;
