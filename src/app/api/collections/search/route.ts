@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
@@ -53,14 +54,20 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               ok:
  *                 value:
- *                   collections:
- *                     - collection_id: 123
- *                       collection_title: 내 컬렉션
- *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     collections:
+ *                       - collection_id: 123
+ *                         collection_title: 내 컬렉션
+ *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *               empty:
  *                 summary: 검색 결과 없음
  *                 value:
- *                   collections: []
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     collections: []
  *       400:
  *         description: q 파라미터 누락
  *         content:
@@ -70,7 +77,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               error:
  *                 value:
- *                   error: "Query parameter 'q' is required"
+ *                   errorCode: SU000
+ *                   msg: "Query parameter 'q' is required"
+ *                   data: {}
  *       500:
  *         description: 검색 실패
  *         content:
@@ -80,7 +89,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to search collections
+ *                   errorCode: SU000
+ *                   msg: Failed to search collections
+ *                   data: {}
  */
 function mapSearchCollection(row: {
   id: number;
@@ -100,10 +111,7 @@ export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get("type") ?? "keyword";
 
   if (!q || q.trim() === "") {
-    return NextResponse.json(
-      { error: "Query parameter 'q' is required" },
-      { status: 400 }
-    );
+    return apiError("Query parameter 'q' is required", 400);
   }
 
   const auth = await getAuthContext(request);
@@ -131,9 +139,9 @@ export async function GET(request: NextRequest) {
     const { data, error } = await dbQuery;
     if (error) {
       console.error("searchCollectionsByTag error:", error);
-      return NextResponse.json({ error: "Failed to search collections" }, { status: 500 });
+      return apiError("Failed to search collections", 500);
     }
-    return NextResponse.json({
+    return apiResponse({
       collections: (data ?? []).map((row) =>
         mapSearchCollection(row as { id: number; title: string; image_id: string | null })
       ),
@@ -150,7 +158,7 @@ export async function GET(request: NextRequest) {
 
   const kwIds = (kwData ?? []).map((k) => k.keyword_id as number);
   if (kwIds.length === 0) {
-    return NextResponse.json({ collections: [] });
+    return apiResponse({ collections: [] });
   }
 
   // 각 keyword_id에 대해 primary_keywords @> '[{"keyword_id": N}]' OR 조건
@@ -161,10 +169,10 @@ export async function GET(request: NextRequest) {
   const { data, error } = await dbQuery;
   if (error) {
     console.error("searchCollectionsByKeyword error:", error);
-    return NextResponse.json({ error: "Failed to search collections" }, { status: 500 });
+    return apiError("Failed to search collections", 500);
   }
 
-  return NextResponse.json({
+  return apiResponse({
     collections: (data ?? []).map((row) =>
       mapSearchCollection(row as { id: number; title: string; image_id: string | null })
     ),

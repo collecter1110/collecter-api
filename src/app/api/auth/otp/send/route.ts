@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { randomOtpCode, saveOtpIntent } from "@/lib/authStore";
 import { sendOtpEmail } from "@/lib/mail";
 
@@ -48,7 +49,10 @@ import { sendOtpEmail } from "@/lib/mail";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: email 누락
  *         content:
@@ -58,7 +62,9 @@ import { sendOtpEmail } from "@/lib/mail";
  *             examples:
  *               error:
  *                 value:
- *                   error: email is required
+ *                   errorCode: SU000
+ *                   msg: email is required
+ *                   data: {}
  *       500:
  *         description: OTP 전송 실패
  *         content:
@@ -68,7 +74,9 @@ import { sendOtpEmail } from "@/lib/mail";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to send OTP
+ *                   errorCode: SU000
+ *                   msg: Failed to send OTP
+ *                   data: {}
  */
 // POST /api/auth/otp/send
 // sendOtp (회원가입) + emailLogin (로그인) 통합 (Local Auth)
@@ -78,10 +86,7 @@ export async function POST(request: NextRequest) {
   const { email, shouldCreateUser = false } = body;
 
   if (!email) {
-    return NextResponse.json(
-      { error: "email is required" },
-      { status: 400 }
-    );
+    return apiError("email is required", 400);
   }
 
   const code = randomOtpCode();
@@ -98,8 +103,8 @@ export async function POST(request: NextRequest) {
     await sendOtpEmail(String(email), code);
   } catch (e) {
     console.error("sendOtp error:", e);
-    return NextResponse.json({ error: "Failed to send OTP" }, { status: 500 });
+    return apiError("Failed to send OTP", 500);
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }

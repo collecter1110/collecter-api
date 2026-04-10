@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
 import { uploadImageAndSave } from "@/lib/storage";
@@ -42,21 +43,24 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               ok:
  *                 value:
- *                   selections:
- *                     - category_id: 1
- *                       collection_id: 123
- *                       selection_id: 456
- *                       title: 내 셀렉션
- *                       keywords:
- *                         - keyword_id: 7
- *                           keyword_name: 키워드
- *                       owner_name: gimgahui
- *                       owner_id: 45
- *                       is_selecting: false
- *                       thumb_image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
- *                       selection_images:
- *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
- *                           sort_order: 0
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selections:
+ *                       - category_id: 1
+ *                         collection_id: 123
+ *                         selection_id: 456
+ *                         title: 내 셀렉션
+ *                         keywords:
+ *                           - keyword_id: 7
+ *                             keyword_name: 키워드
+ *                         owner_name: gimgahui
+ *                         owner_id: 45
+ *                         is_selecting: false
+ *                         thumb_image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                         selection_images:
+ *                           - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                             sort_order: 0
  *       404:
  *         description: 컬렉션을 찾을 수 없음
  *         content:
@@ -66,7 +70,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Collection not found
+ *                   errorCode: SU000
+ *                   msg: Collection not found
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -76,7 +82,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch selections
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch selections
+ *                   data: {}
  *   post:
  *     tags: [Selections]
  *     summary: 셀렉션 추가
@@ -136,7 +144,10 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: 잘못된 요청
  *         content:
@@ -146,7 +157,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: category_id and title are required
+ *                   errorCode: SU000
+ *                   msg: category_id and title are required
+ *                   data: {}
  *       401:
  *         description: 인증 필요
  *         content:
@@ -156,7 +169,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 셀렉션 추가 실패
  *         content:
@@ -166,7 +181,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to create selection
+ *                   errorCode: SU000
+ *                   msg: Failed to create selection
+ *                   data: {}
  */
 
 type Params = { params: Promise<{ collectionId: string }> };
@@ -177,7 +194,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const collectionId = parseInt(idParam, 10);
 
   if (isNaN(collectionId)) {
-    return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+    return apiError("Invalid collection ID", 400);
   }
 
   const auth = await getAuthContext(request);
@@ -189,11 +206,11 @@ export async function GET(request: NextRequest, { params }: Params) {
     .single();
 
   if (collectionError) {
-    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    return apiError("Collection not found", 404);
   }
 
   if (!collection.is_public && auth?.userId !== collection.user_id) {
-    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    return apiError("Collection not found", 404);
   }
 
   const { data, error } = await getSupabase()
@@ -206,7 +223,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("getSelections error:", error);
-    return NextResponse.json({ error: "Failed to fetch selections" }, { status: 500 });
+    return apiError("Failed to fetch selections", 500);
   }
 
   const selections = (data ?? []).map((item) => {
@@ -218,7 +235,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     };
   });
 
-  return NextResponse.json({ selections });
+  return apiResponse({ selections });
 }
 
 // POST /api/collections/:collectionId/selections — addSelections
@@ -231,7 +248,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const collectionId = parseInt(idParam, 10);
 
   if (isNaN(collectionId)) {
-    return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+    return apiError("Invalid collection ID", 400);
   }
 
   const formData = await request.formData();
@@ -248,19 +265,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   const imageFiles = formData.getAll("images") as File[];
 
   if (!category_id || !title) {
-    return NextResponse.json(
-      { error: "category_id and title are required" },
-      { status: 400 }
-    );
+    return apiError("category_id and title are required", 400);
   }
   if (keywordsRaw === null) {
-    return NextResponse.json({ error: "keywords is required" }, { status: 400 });
+    return apiError("keywords is required", 400);
   }
   if (!keywords || keywords.length === 0) {
-    return NextResponse.json(
-      { error: "keywords must be a non-empty JSON array of strings" },
-      { status: 400 }
-    );
+    return apiError("keywords must be a non-empty JSON array of strings", 400);
   }
 
   let keywordEntries;
@@ -268,7 +279,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     keywordEntries = await ensureKeywordsInCategory(category_id, keywords);
   } catch (err) {
     console.error("Failed to save keywords:", err);
-    return NextResponse.json({ error: "Failed to save keywords" }, { status: 500 });
+    return apiError("Failed to save keywords", 500);
   }
 
   const { data: newSelection, error } = await getSupabase()
@@ -292,7 +303,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   if (error || !newSelection) {
     console.error("addSelections error:", error);
-    return NextResponse.json({ error: "Failed to create selection" }, { status: 500 });
+    return apiError("Failed to create selection", 500);
   }
 
   for (let i = 0; i < imageFiles.length; i++) {
@@ -320,5 +331,5 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
   }
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  return apiResponse({ success: true }, 201);
 }

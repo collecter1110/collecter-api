@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 
@@ -42,23 +43,29 @@ import { getAuthContext } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   collections:
- *                     - category_id: 1
- *                       id: 123
- *                       title: 내 컬렉션
- *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
- *                       user_id: 45
- *                       user_name: gimgahui
- *                       primary_keywords:
- *                         - keyword_id: 7
- *                           keyword_name: 키워드
- *                           count: 3
- *                       selection_num: 12
- *                       is_public: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     collections:
+ *                       - category_id: 1
+ *                         id: 123
+ *                         title: 내 컬렉션
+ *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                         user_id: 45
+ *                         user_name: gimgahui
+ *                         primary_keywords:
+ *                           - keyword_id: 7
+ *                             keyword_name: 키워드
+ *                             count: 3
+ *                         selection_num: 12
+ *                         is_public: true
  *               empty:
  *                 summary: 컬렉션 없음
  *                 value:
- *                   collections: []
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     collections: []
  *       404:
  *         description: 유저를 찾을 수 없음
  *         content:
@@ -68,7 +75,9 @@ import { getAuthContext } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: User not found
+ *                   errorCode: SU000
+ *                   msg: User not found
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -78,7 +87,9 @@ import { getAuthContext } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch collections
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch collections
+ *                   data: {}
  */
 // GET /api/users/:userId/collections — getUsersCollections
 export async function GET(
@@ -89,7 +100,7 @@ export async function GET(
   const userId = parseInt(userIdParam, 10);
 
   if (isNaN(userId)) {
-    return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+    return apiError("Invalid user ID", 400);
   }
 
   // If user is soft-deleted, behave as not found.
@@ -102,10 +113,10 @@ export async function GET(
 
   if (userError) {
     console.error("getUsersCollections user lookup error:", userError);
-    return NextResponse.json({ error: "Failed to fetch collections" }, { status: 500 });
+    return apiError("Failed to fetch collections", 500);
   }
   if (!userRow) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return apiError("User not found", 404);
   }
 
   const auth = await getAuthContext(request);
@@ -126,11 +137,8 @@ export async function GET(
 
   if (error) {
     console.error("getUsersCollections error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch collections" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch collections", 500);
   }
 
-  return NextResponse.json({ collections: data });
+  return apiResponse({ collections: data });
 }

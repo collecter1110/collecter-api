@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
@@ -39,13 +40,16 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               ok:
  *                 value:
- *                   selections:
- *                     - selection_id: 456
- *                       selection_title: My selection
- *                       image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
- *                       keywords:
- *                         - keyword_id: 7
- *                           keyword_name: "키워드"
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selections:
+ *                       - selection_id: 456
+ *                         selection_title: My selection
+ *                         image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                         keywords:
+ *                           - keyword_id: 7
+ *                             keyword_name: "키워드"
  *       500:
  *         description: Failed to fetch ranking selections
  *         content:
@@ -55,7 +59,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch ranking selections
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch ranking selections
+ *                   data: {}
  */
 // GET /api/selections/ranking — getRankingSelections
 // category_id별 select_num 상위 10개
@@ -82,7 +88,7 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("getRankingSelections error:", error);
-    return NextResponse.json({ error: "Failed to fetch ranking selections" }, { status: 500 });
+    return apiError("Failed to fetch ranking selections", 500);
   }
 
   type SelectionRow = {
@@ -115,5 +121,5 @@ export async function GET(request: NextRequest) {
       };
     });
 
-  return NextResponse.json({ selections });
+  return apiResponse({ selections });
 }

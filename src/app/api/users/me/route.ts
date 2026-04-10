@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
@@ -25,12 +26,15 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *             examples:
  *               ok:
  *                 value:
- *                   user:
- *                     user_id: 45
- *                     name: gimgahui
- *                     email: user@example.com
- *                     description: 안녕하세요
- *                     image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     user:
+ *                       user_id: 45
+ *                       name: gimgahui
+ *                       email: user@example.com
+ *                       description: 안녕하세요
+ *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *       401:
  *         description: 인증 필요
  *         content:
@@ -40,7 +44,9 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -50,7 +56,9 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch user
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch user
+ *                   data: {}
  *   patch:
  *     tags: [Users]
  *     summary: 내 정보 수정
@@ -85,7 +93,10 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: name 누락
  *         content:
@@ -95,7 +106,9 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: name is required
+ *                   errorCode: SU000
+ *                   msg: name is required
+ *                   data: {}
  *       401:
  *         description: 인증 필요
  *         content:
@@ -105,7 +118,9 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 수정 실패
  *         content:
@@ -115,7 +130,9 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to update user
+ *                   errorCode: SU000
+ *                   msg: Failed to update user
+ *                   data: {}
  */
 // GET /api/users/me — getUserInfo
 export async function GET(request: NextRequest) {
@@ -130,10 +147,10 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("getUserInfo error:", error);
-    return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
+    return apiError("Failed to fetch user", 500);
   }
 
-  return NextResponse.json({ user: data });
+  return apiResponse({ user: data });
 }
 
 // PATCH /api/users/me — editUserInfo
@@ -148,7 +165,7 @@ export async function PATCH(request: NextRequest) {
   const imageFile = formData.get("image") as File | null;
 
   if (!name) {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
+    return apiError("name is required", 400);
   }
 
   const updates: Record<string, unknown> = {
@@ -175,7 +192,7 @@ export async function PATCH(request: NextRequest) {
       );
       updates.image_id = imageId;
     } catch {
-      return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
+      return apiError("Failed to upload image", 500);
     }
   }
 
@@ -186,8 +203,8 @@ export async function PATCH(request: NextRequest) {
 
   if (error) {
     console.error("editUserInfo error:", error);
-    return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
+    return apiError("Failed to update user", 500);
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }

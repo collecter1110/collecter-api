@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
@@ -38,10 +39,13 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               ok:
  *                 value:
- *                   collections:
- *                     - collection_id: 123
- *                       collection_title: My collection
- *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     collections:
+ *                       - collection_id: 123
+ *                         collection_title: My collection
+ *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *       500:
  *         description: Failed to fetch ranking collections
  *         content:
@@ -51,7 +55,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch ranking collections
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch ranking collections
+ *                   data: {}
  */
 // GET /api/collections/ranking — getRankingCollections
 // category_id별 무작위 최대 10개 (public, 이미지 있는 것만)
@@ -72,7 +78,7 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("getRankingCollections error:", error);
-    return NextResponse.json({ error: "Failed to fetch ranking collections" }, { status: 500 });
+    return apiError("Failed to fetch ranking collections", 500);
   }
 
   type CollectionRow = {
@@ -108,5 +114,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ collections });
+  return apiResponse({ collections });
 }

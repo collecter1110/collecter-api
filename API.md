@@ -9,14 +9,25 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `POST /api/auth/otp/verify` → `verified_token` 발급 (단기)
   - `POST /api/auth/login` 또는 `POST /api/signup` → `access_token` + `refresh_token` 발급
 - **토큰 필요 여부 표기**
-  - **필수**: 토큰 없으면 `401 { error: "Unauthorized" }`
+  - **필수**: 토큰 없으면 `401 { "errorCode": "SU000", "msg": "Unauthorized", "data": {} }`
   - **선택**: 토큰이 있으면 개인화(예: 차단 유저 제외, 좋아요 여부 계산) 반영
   - **불필요**: 인증 없이 호출 가능
 
-## 공통 에러 응답
+## 공통 응답 형식
 
-- **401 Unauthorized**: `{ "error": "Unauthorized" }`
-- 그 외 `400/404/500`은 라우트별로 `{ "error": "<message>" }` 형태를 주로 사용합니다.
+모든 API 응답은 아래 형식을 따릅니다:
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {}
+}
+```
+
+- `errorCode`: 현재 모두 `"SU000"` 으로 통일
+- `msg`: 성공 시 `"ok"`, 에러 시 에러 메시지
+- `data`: 성공 시 응답 데이터, 에러 시 `{}`
 
 ## 이미지 업로드 공통 사항
 
@@ -40,9 +51,9 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Query**
   - `email` (string, required)
 - **응답 200**
-  - `{ success: boolean }` (`true`면 사용 가능, `false`면 이미 사용 중)
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": boolean } }` (`true`면 사용 가능, `false`면 이미 사용 중)
 - **에러**
-  - 400 `{ error: "email parameter is required" }`
+  - 400 `{ "errorCode": "SU000", "msg": "email parameter is required", "data": {} }`
 
 ### GET `/api/auth/check-username`
 
@@ -50,9 +61,9 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Query**
   - `username` (string, required)
 - **응답 200**
-  - `{ success: boolean }` (`true`면 사용 가능, `false`면 이미 사용 중)
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": boolean } }` (`true`면 사용 가능, `false`면 이미 사용 중)
 - **에러**
-  - 400 `{ error: "username parameter is required" }`
+  - 400 `{ "errorCode": "SU000", "msg": "username parameter is required", "data": {} }`
 
 ### POST `/api/auth/otp/send`
 
@@ -61,10 +72,10 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `email` (string, required)
   - `shouldCreateUser` (boolean, optional, default `false`) — `true`면 해당 이메일 유저가 없을 때 생성
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 - **에러**
-  - 400 `{ error: "email is required" }`
-  - 500 `{ error: "Failed to send OTP" }`
+  - 400 `{ "errorCode": "SU000", "msg": "email is required", "data": {} }`
+  - 500 `{ "errorCode": "SU000", "msg": "Failed to send OTP", "data": {} }`
 
 ### POST `/api/auth/otp/verify`
 
@@ -73,12 +84,12 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `email` (string, required)
   - `token` (string, required) — 이메일 OTP 코드
 - **응답 200**
-  - `{ verified_token: string, is_new_user: boolean }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "verified_token": string, "is_new_user": boolean } }`
 - **에러**
-  - 400 `{ error: "email and token are required" }`
-  - 400 `{ error: "Invalid OTP" }`
-  - 404 `{ error: "User info not found" }`
-  - 500 `{ error: "Server error" }`
+  - 400 `{ "errorCode": "SU000", "msg": "email and token are required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "Invalid OTP", "data": {} }`
+  - 404 `{ "errorCode": "SU000", "msg": "User info not found", "data": {} }`
+  - 500 `{ "errorCode": "SU000", "msg": "Server error", "data": {} }`
 
 ### POST `/api/auth/login`
 
@@ -86,10 +97,10 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Body**
   - `verified_token` (string, required) — `POST /api/auth/otp/verify` 결과
 - **응답 200**
-  - `{ access_token: string, refresh_token: string }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "access_token": string, "refresh_token": string } }`
 - **에러**
-  - 400 `{ error: "verified_token is required" }`
-  - 400 `{ error: "Invalid or expired verified_token" }` 또는 `{ error: "Invalid verified_token" }`
+  - 400 `{ "errorCode": "SU000", "msg": "verified_token is required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "Invalid or expired verified_token", "data": {} }` 또는 `{ "errorCode": "SU000", "msg": "Invalid verified_token", "data": {} }`
 
 ### POST `/api/auth/logout`
 
@@ -97,11 +108,11 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Body**
   - `refresh_token` (string, required)
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 - **에러**
-  - 400 `{ error: "refresh_token is required" }`
-  - 400 `{ error: "Invalid refresh token" }`
-  - 500 `{ error: "Failed to logout" }`
+  - 400 `{ "errorCode": "SU000", "msg": "refresh_token is required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "Invalid refresh token", "data": {} }`
+  - 500 `{ "errorCode": "SU000", "msg": "Failed to logout", "data": {} }`
 
 ### POST `/api/auth/refresh`
 
@@ -109,19 +120,19 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Body**
   - `refresh_token` (string, required)
 - **응답 200**
-  - `{ access_token: string, refresh_token: string }` (refresh 토큰은 회전되어 새로 발급됩니다)
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "access_token": string, "refresh_token": string } }` (refresh 토큰은 회전되어 새로 발급됩니다)
 - **에러**
-  - 400 `{ error: "refresh_token is required" }` 또는 `{ error: "Invalid refresh token" }`
-  - 401 `{ error: "Unauthorized" }` (세션 만료/폐기 등)
+  - 400 `{ "errorCode": "SU000", "msg": "refresh_token is required", "data": {} }` 또는 `{ "errorCode": "SU000", "msg": "Invalid refresh token", "data": {} }`
+  - 401 `{ "errorCode": "SU000", "msg": "Unauthorized", "data": {} }` (세션 만료/폐기 등)
 
 ### DELETE `/api/auth/delete`
 
 - **토큰**: 필수
 - **Body**: 없음
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 - **에러**
-  - 500 `{ error: "Failed to delete user" }`
+  - 500 `{ "errorCode": "SU000", "msg": "Failed to delete user", "data": {} }`
 
 ---
 
@@ -131,7 +142,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ user: { user_id, name, email, description, image_id } }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { user: { user_id, name, email, description, image_id } } }`
 
 ### PATCH `/api/users/me` (프로필 수정)
 
@@ -142,10 +153,10 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `description` (string, optional)
   - `image` (File, optional) — 새 프로필 이미지. 기존 이미지는 자동 삭제됩니다.
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 - **에러**
-  - 400 `{ error: "name is required" }`
-  - 500 `{ error: "Failed to upload image" }`
+  - 400 `{ "errorCode": "SU000", "msg": "name is required", "data": {} }`
+  - 500 `{ "errorCode": "SU000", "msg": "Failed to upload image", "data": {} }`
 
 ### GET `/api/users/me/likes`
 
@@ -153,13 +164,13 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **동작**
   - 차단한 유저의 컬렉션 제외
 - **응답 200**
-  - `{ collections: any[] }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { collections: any[] } }`
 
 ### GET `/api/users/me/blocks`
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ blocked_user_ids: number[] }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { blocked_user_ids: number[] } }`
 
 ### POST `/api/users/me/blocks`
 
@@ -167,15 +178,15 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Body**
   - `blocked_user_id` (number, required)
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 - **에러**
-  - 400 `{ error: "blocked_user_id is required" }`
+  - 400 `{ "errorCode": "SU000", "msg": "blocked_user_id is required", "data": {} }`
 
 ### GET `/api/users/me/collections`
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ collections: any[] }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { collections: any[] } }`
 
 ---
 
@@ -192,13 +203,13 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `description` (string, optional)
   - `image` (File, optional) — 프로필 이미지
 - **응답 200**
-  - `{ access_token: string, refresh_token: string }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "access_token": string, "refresh_token": string } }`
 - **에러**
-  - 400 `{ error: "verified_token is required" }`
-  - 400 `{ error: "email and name are required" }`
-  - 400 `{ error: "Invalid or expired verified_token" }` 또는 `{ error: "Invalid verified_token" }`
-  - 500 `{ error: "Failed to upload image" }`
-  - 500 `{ error: "Failed to signup" }`
+  - 400 `{ "errorCode": "SU000", "msg": "verified_token is required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "email and name are required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "Invalid or expired verified_token", "data": {} }` 또는 `{ "errorCode": "SU000", "msg": "Invalid verified_token", "data": {} }`
+  - 500 `{ "errorCode": "SU000", "msg": "Failed to upload image", "data": {} }`
+  - 500 `{ "errorCode": "SU000", "msg": "Failed to signup", "data": {} }`
 
 ### GET `/api/users/search`
 
@@ -210,9 +221,9 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - 로그인 시: 본인 제외, 차단한 유저 제외
   - **소프트 삭제된 유저 제외**
 - **응답 200**
-  - `{ users: UserInfo[] }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { users: UserInfo[] } }`
 - **에러**
-  - 400 `{ error: "Query parameter 'q' is required" }`
+  - 400 `{ "errorCode": "SU000", "msg": "Query parameter 'q' is required", "data": {} }`
 
 ### GET `/api/users/ranking`
 
@@ -223,7 +234,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - 로그인 시: 차단한 유저 제외
   - **소프트 삭제된 유저 제외**
 - **응답 200**
-  - `{ users: any[] }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "users": any[] } }`
 
 ### GET `/api/user/detail`
 
@@ -243,29 +254,33 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 
 ```json
 {
-  "user_id": 45,
-  "user_name": "gimgahui",
-  "image_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "description": "안녕하세요",
-  "collections": [
-    {
-      "collection_id": 123,
-      "collection_title": "내 컬렉션",
-      "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
-    },
-    {
-      "collection_id": 124,
-      "collection_title": "커버 없는 컬렉션",
-      "image_id": null
-    }
-  ]
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "user_id": 45,
+    "user_name": "gimgahui",
+    "image_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "description": "안녕하세요",
+    "collections": [
+      {
+        "collection_id": 123,
+        "collection_title": "내 컬렉션",
+        "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+      },
+      {
+        "collection_id": 124,
+        "collection_title": "커버 없는 컬렉션",
+        "image_id": null
+      }
+    ]
+  }
 }
 ```
 
 - **에러**
-  - 400 `{ "error": "Invalid user ID" }`
-  - 404 `{ "error": "User not found" }` (소프트 삭제 포함)
-  - 500 `{ "error": "Failed to fetch user detail" }`
+  - 400 `{ "errorCode": "SU000", "msg": "Invalid user ID", "data": {} }`
+  - 404 `{ "errorCode": "SU000", "msg": "User not found", "data": {} }` (소프트 삭제 포함)
+  - 500 `{ "errorCode": "SU000", "msg": "Failed to fetch user detail", "data": {} }`
 
 ### GET `/api/users/{userId}/collections`
 
@@ -276,10 +291,10 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - 본인 요청 시: `is_public` 관계없이 전체 반환
   - 타인 요청 시: `is_public: true`인 컬렉션만 반환
 - **응답 200**
-  - `{ collections: any[] }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { collections: any[] } }`
 - **에러**
-  - 400 `{ error: "Invalid user ID" }`
-  - 404 `{ error: "User not found" }` (소프트 삭제 포함)
+  - 400 `{ "errorCode": "SU000", "msg": "Invalid user ID", "data": {} }`
+  - 404 `{ "errorCode": "SU000", "msg": "User not found", "data": {} }` (소프트 삭제 포함)
 
 ## Keywords
 
@@ -293,9 +308,9 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `keywords` (string[], required)
   - `category_id` (number, required)
 - **응답 200**
-  - `{ keywords: { keyword_name: string, keyword_id: number }[] }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { keywords: { keyword_name: string, keyword_id: number }[] } }`
 - **에러**
-  - 400 `{ error: "keywords array and category_id are required" }`
+  - 400 `{ "errorCode": "SU000", "msg": "keywords array and category_id are required", "data": {} }`
 
 ---
 
@@ -315,9 +330,9 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - 컬렉션 커버(`collections.image_id`)는 **셀렉션 이미지(`selection_images.image_id`)를 재사용**하도록 서버에서 자동 설정합니다.
   - 따라서 컬렉션 생성 시 `image` 파일 업로드는 사용하지 않습니다.
 - **응답 201**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 - **에러**
-  - 400 `{ error: "category_id and title are required" }`
+  - 400 `{ "errorCode": "SU000", "msg": "category_id and title are required", "data": {} }`
 
 ### GET `/api/collections/{collectionId}`
 
@@ -327,10 +342,10 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **동작**
   - `is_public: false`인 컬렉션은 소유자 본인만 조회 가능, 타인 요청 시 404
 - **응답 200**
-  - `{ collection: { ..., image_id, has_liked: boolean } }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { collection: { ..., image_id, has_liked: boolean } } }`
 - **에러**
-  - 400 `{ error: "Invalid collection ID" }`
-  - 404 `{ error: "Collection not found" }`
+  - 400 `{ "errorCode": "SU000", "msg": "Invalid collection ID", "data": {} }`
+  - 404 `{ "errorCode": "SU000", "msg": "Collection not found", "data": {} }`
 
 ### PATCH `/api/collections/{collectionId}`
 
@@ -345,7 +360,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **커버 이미지**
   - 컬렉션 커버는 서버에서 자동으로 관리하므로 `image` 업로드로 변경하지 않습니다.
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 
 ### DELETE `/api/collections/{collectionId}`
 
@@ -354,25 +369,25 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **동작**
   - 컬렉션 대표 이미지 및 하위 셀렉션 이미지 전체 삭제 (S3 + DB)
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 
 ### POST `/api/collections/{collectionId}/like`
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 
 ### DELETE `/api/collections/{collectionId}/like`
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 
 ### GET `/api/collections/{collectionId}/title`
 
 - **토큰**: 불필요
 - **응답 200**
-  - `{ title: string }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { title: string } }`
 
 ### GET `/api/collections/search`
 
@@ -385,7 +400,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `tag`: `tags @> ["q"]` (exact match, public만)
   - 로그인 시: 차단한 유저 제외, 본인 제외
 - **응답 200**
-  - `{ collections: any[] }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { collections: any[] } }`
 
 ### GET `/api/collections/ranking`
 
@@ -395,7 +410,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - category_id별 무작위 최대 10개 (Fisher-Yates shuffle)
   - 로그인 시: 차단한 유저 제외
 - **응답 200**
-  - `{ collections: any[] }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { collections: any[] } }`
 
 ---
 
@@ -407,7 +422,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **동작**
   - 부모 컬렉션이 `is_public: false`이면 소유자 본인만 조회 가능, 타인 요청 시 404
 - **응답 200**
-  - `{ selections: SelectionListItem[] }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { selections: SelectionListItem[] } }`
   - 각 항목 필드:
     - `category_id` (number)
     - `collection_id` (number)
@@ -438,19 +453,19 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - 전달된 키워드 이름을 `keywordinfo` 테이블에 upsert 후 `keyword_id`를 조회
   - `selections.keywords`에 `[{"keyword_id": N, "keyword_name": "..."}]` 형식으로 저장
 - **응답 201**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 - **에러**
-  - 400 `{ error: "category_id and title are required" }`
-  - 400 `{ error: "keywords is required" }`
-  - 400 `{ error: "keywords must be a non-empty JSON array of strings" }`
+  - 400 `{ "errorCode": "SU000", "msg": "category_id and title are required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "keywords is required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "keywords must be a non-empty JSON array of strings", "data": {} }`
 
 ### GET `/api/collections/{collectionId}/selections/{selectionId}`
 
 - **토큰**: 불필요
 - **응답 200**
-  - `{ selection: { ..., selection_images: { image_id, sort_order }[] } }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { selection: { ..., selection_images: { image_id, sort_order }[] } } }`
 - **에러**
-  - 404 `{ error: "Selection not found" }`
+  - 404 `{ "errorCode": "SU000", "msg": "Selection not found", "data": {} }`
 
 ### PATCH `/api/collections/{collectionId}/selections/{selectionId}`
 
@@ -470,7 +485,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **keywords 저장 방식**
   - 전달된 키워드 이름을 `keywordinfo`에 upsert 후 `[{"keyword_id": N, "keyword_name": "..."}]` 형식으로 저장
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 - **이미지 업데이트 예시**
   - 이미지 추가만: `images`만 전송
   - 특정 이미지 삭제: `keep_image_ids`에 유지할 ID만 포함
@@ -482,10 +497,10 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **동작**
   - 셀렉션 이미지 전체 삭제 (S3 + DB) 후 셀렉션 삭제
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
  - **에러**
-  - 400 `{ error: "keywords is required" }`
-  - 400 `{ error: "keywords must be a non-empty JSON array of strings" }`
+  - 400 `{ "errorCode": "SU000", "msg": "keywords is required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "keywords must be a non-empty JSON array of strings", "data": {} }`
 
 ### PATCH `/api/collections/{collectionId}/selections/{selectionId}/move`
 
@@ -494,7 +509,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `new_collection_id` (number, required)
   - `category_id` (number, optional)
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 
 ---
 
@@ -509,7 +524,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `keywordinfo` ILIKE `%q%` → `keywords @> [{"keyword_id": N}]`
   - 로그인 시: 본인 제외, 차단한 유저 제외
 - **응답 200**
-  - `{ selections: any[] }` (`image_id` 포함)
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { selections: any[] } }` (`image_id` 포함)
 
 ### GET `/api/selections/ranking`
 
@@ -519,7 +534,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - category_id별 상위 10개
   - 로그인 시: 차단한 유저 제외
 - **응답 200**
-  - `{ selections: any[] }` (`image_id` 포함)
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { selections: any[] } }` (`image_id` 포함)
 
 ---
 
@@ -531,7 +546,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **Query**
   - `properties` (string, optional, default `"*"`) — `selectingview`에서 select할 컬럼
 - **응답 200**
-  - `{ selectings: any[] }` (항상 배열)
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { selectings: any[] } }` (항상 배열)
 
 ### POST `/api/selectings` (셀렉션 퍼오기)
 
@@ -542,9 +557,9 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `selected_collection_id` (number)
   - `selected_selection_id` (number)
 - **응답 201**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 - **에러**
-  - 404 `{ error: "Source selection not found" }`
+  - 404 `{ "errorCode": "SU000", "msg": "Source selection not found", "data": {} }`
 
 ---
 
@@ -558,7 +573,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `reported_post_id` (object, required) — `{ [key: string]: number }`
   - `report_reason` (string, required)
 - **응답 201**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 
 ---
 
@@ -568,7 +583,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ success: true }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
 - **동작**
   - 프로필 이미지 삭제 (S3 + DB)
   - 유저를 **소프트 삭제** 처리합니다(`userinfo.deleted_at` 설정)

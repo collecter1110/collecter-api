@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
@@ -41,27 +42,30 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               ok:
  *                 value:
- *                   selection:
- *                     category_id: 1
- *                     collection_id: 123
- *                     selection_id: 456
- *                     user_id: 45
- *                     owner_id: 45
- *                     title: 내 셀렉션
- *                     description: 셀렉션 설명
- *                     is_ordered: false
- *                     link: null
- *                     items: null
- *                     keywords:
- *                       - keyword_id: 7
- *                         keyword_name: 키워드
- *                     created_at: "2026-04-06T12:34:56.000Z"
- *                     owner_name: gimgahui
- *                     is_selectable: true
- *                     is_selecting: false
- *                     selection_images:
- *                       - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
- *                         sort_order: 0
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selection:
+ *                       category_id: 1
+ *                       collection_id: 123
+ *                       selection_id: 456
+ *                       user_id: 45
+ *                       owner_id: 45
+ *                       title: 내 셀렉션
+ *                       description: 셀렉션 설명
+ *                       is_ordered: false
+ *                       link: null
+ *                       items: null
+ *                       keywords:
+ *                         - keyword_id: 7
+ *                           keyword_name: 키워드
+ *                       created_at: "2026-04-06T12:34:56.000Z"
+ *                       owner_name: gimgahui
+ *                       is_selectable: true
+ *                       is_selecting: false
+ *                       selection_images:
+ *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                           sort_order: 0
  *       404:
  *         description: 셀렉션을 찾을 수 없음
  *         content:
@@ -71,7 +75,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Selection not found
+ *                   errorCode: SU000
+ *                   msg: Selection not found
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -81,7 +87,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch selection
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch selection
+ *                   data: {}
  *   patch:
  *     tags: [Selections]
  *     summary: 셀렉션 수정
@@ -148,7 +156,10 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       401:
  *         description: 인증 필요
  *         content:
@@ -158,7 +169,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 수정 실패
  *         content:
@@ -168,7 +181,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to update selection
+ *                   errorCode: SU000
+ *                   msg: Failed to update selection
+ *                   data: {}
  *   delete:
  *     tags: [Selections]
  *     summary: 셀렉션 삭제
@@ -201,7 +216,10 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       401:
  *         description: 인증 필요
  *         content:
@@ -211,7 +229,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 삭제 실패
  *         content:
@@ -221,7 +241,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to delete selection
+ *                   errorCode: SU000
+ *                   msg: Failed to delete selection
+ *                   data: {}
  */
 
 type Params = { params: Promise<{ collectionId: string; selectionId: string }> };
@@ -233,7 +255,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   const selectionId = parseInt(sIdParam, 10);
 
   if (isNaN(collectionId) || isNaN(selectionId)) {
-    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    return apiError("Invalid ID", 400);
   }
 
   const { data, error } = await getSupabase()
@@ -249,13 +271,13 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   if (error) {
     if (error.code === "PGRST116") {
-      return NextResponse.json({ error: "Selection not found" }, { status: 404 });
+      return apiError("Selection not found", 404);
     }
     console.error("getSelectionDetail error:", error);
-    return NextResponse.json({ error: "Failed to fetch selection" }, { status: 500 });
+    return apiError("Failed to fetch selection", 500);
   }
 
-  return NextResponse.json({ selection: data });
+  return apiResponse({ selection: data });
 }
 
 // PATCH /api/collections/:collectionId/selections/:selectionId — editSelection
@@ -270,7 +292,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const selectionId = parseInt(sIdParam, 10);
 
   if (isNaN(collectionId) || isNaN(selectionId)) {
-    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    return apiError("Invalid ID", 400);
   }
 
   const formData = await request.formData();
@@ -295,17 +317,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (is_selectableRaw !== null) updates.is_selectable = is_selectableRaw !== "false";
 
   if (keywordsRaw === null) {
-    return NextResponse.json({ error: "keywords is required" }, { status: 400 });
+    return apiError("keywords is required", 400);
   }
 
   // 키워드를 keywordinfo에 저장하고 {keyword_id, keyword_name}[] 형식으로 업데이트
   if (keywordsRaw !== null) {
     const parsedNames = parseKeywordsJson(keywordsRaw);
     if (!parsedNames || parsedNames.length === 0) {
-      return NextResponse.json(
-        { error: "keywords must be a non-empty JSON array of strings" },
-        { status: 400 }
-      );
+      return apiError("keywords must be a non-empty JSON array of strings", 400);
     }
 
     try {
@@ -322,13 +341,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             ).data?.category_id;
 
       if (!categoryIdForKeywords) {
-        return NextResponse.json({ error: "Selection not found" }, { status: 404 });
+        return apiError("Selection not found", 404);
       }
 
       updates.keywords = await ensureKeywordsInCategory(categoryIdForKeywords, parsedNames);
     } catch (err) {
       console.error("Failed to save keywords:", err);
-      return NextResponse.json({ error: "Failed to save keywords" }, { status: 500 });
+      return apiError("Failed to save keywords", 500);
     }
   }
 
@@ -341,7 +360,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     if (error) {
       console.error("editSelection error:", error);
-      return NextResponse.json({ error: "Failed to update selection" }, { status: 500 });
+      return apiError("Failed to update selection", 500);
     }
   }
 
@@ -402,7 +421,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }
 
 // DELETE /api/collections/:collectionId/selections/:selectionId — deleteSelection
@@ -415,7 +434,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const selectionId = parseInt(sIdParam, 10);
 
   if (isNaN(collectionId) || isNaN(selectionId)) {
-    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    return apiError("Invalid ID", 400);
   }
 
   const { data: selImgs } = await getSupabase()
@@ -437,11 +456,11 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("deleteSelection error:", error);
-    return NextResponse.json({ error: "Failed to delete selection" }, { status: 500 });
+    return apiError("Failed to delete selection", 500);
   }
 
   // 커버가 방금 지운 이미지였으면 다른 셀렉션 이미지로 복구
   await repairCollectionCoverIfUsingDeletedImage(collectionId, deletedIds);
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }

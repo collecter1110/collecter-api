@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 
@@ -36,14 +37,17 @@ import { getAuthContext } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   user_id: 45
- *                   user_name: gimgahui
- *                   image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
- *                   description: 안녕하세요
- *                   collections:
- *                     - collection_id: 123
- *                       collection_title: 내 컬렉션
- *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     user_id: 45
+ *                     user_name: gimgahui
+ *                     image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                     description: 안녕하세요
+ *                     collections:
+ *                       - collection_id: 123
+ *                         collection_title: 내 컬렉션
+ *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *       400:
  *         description: user_id 누락/오류
  *         content:
@@ -53,7 +57,9 @@ import { getAuthContext } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Invalid user ID
+ *                   errorCode: SU000
+ *                   msg: Invalid user ID
+ *                   data: {}
  *       404:
  *         description: 유저를 찾을 수 없음
  *         content:
@@ -63,7 +69,9 @@ import { getAuthContext } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: User not found
+ *                   errorCode: SU000
+ *                   msg: User not found
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -73,14 +81,16 @@ import { getAuthContext } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch user detail
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch user detail
+ *                   data: {}
  */
 export async function GET(request: NextRequest) {
   const userIdParam = request.nextUrl.searchParams.get("user_id");
   const userId = userIdParam ? parseInt(userIdParam, 10) : NaN;
 
   if (isNaN(userId)) {
-    return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+    return apiError("Invalid user ID", 400);
   }
 
   const { data: userRow, error: userError } = await getSupabase()
@@ -92,14 +102,11 @@ export async function GET(request: NextRequest) {
 
   if (userError) {
     console.error("getUserDetail user lookup error:", userError);
-    return NextResponse.json(
-      { error: "Failed to fetch user detail" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch user detail", 500);
   }
 
   if (!userRow) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return apiError("User not found", 404);
   }
 
   const auth = await getAuthContext(request);
@@ -118,10 +125,7 @@ export async function GET(request: NextRequest) {
 
   if (collectionsError) {
     console.error("getUserDetail collections error:", collectionsError);
-    return NextResponse.json(
-      { error: "Failed to fetch user detail" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch user detail", 500);
   }
 
   const collections = (collectionsRows ?? []).map((c) => ({
@@ -130,7 +134,7 @@ export async function GET(request: NextRequest) {
     image_id: (c.image_id as string | null) ?? null,
   }));
 
-  return NextResponse.json({
+  return apiResponse({
     user_id: userRow.user_id as number,
     user_name: userRow.name as string,
     image_id: (userRow.image_id as string | null) ?? null,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
@@ -57,7 +58,10 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: new_collection_id 누락
  *         content:
@@ -67,7 +71,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: new_collection_id is required
+ *                   errorCode: SU000
+ *                   msg: new_collection_id is required
+ *                   data: {}
  *       401:
  *         description: 인증 필요
  *         content:
@@ -77,7 +83,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 이동 실패
  *         content:
@@ -87,7 +95,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to move selection
+ *                   errorCode: SU000
+ *                   msg: Failed to move selection
+ *                   data: {}
  */
 // PATCH /api/collections/:collectionId/selections/:selectionId/move — moveSelection
 // body: { category_id: number, new_collection_id: number }
@@ -105,17 +115,14 @@ export async function PATCH(
   const selectionId = parseInt(sIdParam, 10);
 
   if (isNaN(collectionId) || isNaN(selectionId)) {
-    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    return apiError("Invalid ID", 400);
   }
 
   const body = await request.json();
   const { category_id, new_collection_id } = body;
 
   if (!new_collection_id) {
-    return NextResponse.json(
-      { error: "new_collection_id is required" },
-      { status: 400 }
-    );
+    return apiError("new_collection_id is required", 400);
   }
 
   const { error } = await getSupabase()
@@ -130,11 +137,8 @@ export async function PATCH(
 
   if (error) {
     console.error("moveSelection error:", error);
-    return NextResponse.json(
-      { error: "Failed to move selection" },
-      { status: 500 }
-    );
+    return apiError("Failed to move selection", 500);
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }

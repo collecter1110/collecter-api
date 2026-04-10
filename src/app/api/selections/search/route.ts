@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
@@ -42,16 +43,22 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               ok:
  *                 value:
- *                   selections:
- *                     - selection_id: 456
- *                       selection_title: 내 셀렉션
- *                       image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
- *                       collection_id: 123
- *                       collection_title: 내 컬렉션
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selections:
+ *                       - selection_id: 456
+ *                         selection_title: 내 셀렉션
+ *                         image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                         collection_id: 123
+ *                         collection_title: 내 컬렉션
  *               empty:
  *                 summary: 검색 결과 없음
  *                 value:
- *                   selections: []
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selections: []
  *       400:
  *         description: q 파라미터 누락
  *         content:
@@ -61,7 +68,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               error:
  *                 value:
- *                   error: "Query parameter 'q' is required"
+ *                   errorCode: SU000
+ *                   msg: "Query parameter 'q' is required"
+ *                   data: {}
  *       500:
  *         description: 검색 실패
  *         content:
@@ -71,17 +80,16 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to search selections
+ *                   errorCode: SU000
+ *                   msg: Failed to search selections
+ *                   data: {}
  */
 // GET /api/selections/search?q=... — searchSelections
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q");
 
   if (!q || q.trim() === "") {
-    return NextResponse.json(
-      { error: "Query parameter 'q' is required" },
-      { status: 400 }
-    );
+    return apiError("Query parameter 'q' is required", 400);
   }
 
   const auth = await getAuthContext(request);
@@ -96,7 +104,7 @@ export async function GET(request: NextRequest) {
 
   const kwIds = (kwData ?? []).map((k) => k.keyword_id as number);
   if (kwIds.length === 0) {
-    return NextResponse.json({ selections: [] });
+    return apiResponse({ selections: [] });
   }
 
   let dbQuery = getSupabase()
@@ -119,7 +127,7 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("searchSelections error:", error);
-    return NextResponse.json({ error: "Failed to search selections" }, { status: 500 });
+    return apiError("Failed to search selections", 500);
   }
 
   type SearchRow = {
@@ -145,5 +153,5 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  return NextResponse.json({ selections });
+  return apiResponse({ selections });
 }

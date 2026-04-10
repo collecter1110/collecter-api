@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import {
   createRefreshSession,
   isRefreshSessionValid,
@@ -51,8 +52,11 @@ import {
  *             examples:
  *               ok:
  *                 value:
- *                   access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIn0.newSignature
- *                   refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoibmV3LXNlc3Npb24tdXVpZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.newSignature
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIn0.newSignature
+ *                     refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoibmV3LXNlc3Npb24tdXVpZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.newSignature
  *       400:
  *         description: 잘못된 refresh_token
  *         content:
@@ -62,7 +66,9 @@ import {
  *             examples:
  *               error:
  *                 value:
- *                   error: Invalid refresh token
+ *                   errorCode: SU000
+ *                   msg: Invalid refresh token
+ *                   data: {}
  *       401:
  *         description: 세션이 만료되었거나 폐기됨
  *         content:
@@ -72,7 +78,9 @@ import {
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  */
 // POST /api/auth/refresh
 // body: { refresh_token: string }
@@ -81,23 +89,23 @@ export async function POST(request: NextRequest) {
   const refresh_token = body?.refresh_token as string | undefined;
 
   if (!refresh_token) {
-    return NextResponse.json({ error: "refresh_token is required" }, { status: 400 });
+    return apiError("refresh_token is required", 400);
   }
 
   let claims: RefreshTokenClaims;
   try {
     claims = await verifyJwt<RefreshTokenClaims>(refresh_token);
   } catch {
-    return NextResponse.json({ error: "Invalid refresh token" }, { status: 400 });
+    return apiError("Invalid refresh token", 400);
   }
 
   if (!claims || claims.typ !== "refresh" || !claims.sid || !claims.user_id || !claims.email) {
-    return NextResponse.json({ error: "Invalid refresh token" }, { status: 400 });
+    return apiError("Invalid refresh token", 400);
   }
 
   const ok = await isRefreshSessionValid({ session_id: claims.sid, refresh_token });
   if (!ok) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("Unauthorized", 401);
   }
 
   // Token rotation: 기존 session 폐기 후 새 session 발급
@@ -124,5 +132,5 @@ export async function POST(request: NextRequest) {
   });
   await revokeRefreshSessionById(claims.sid);
 
-  return NextResponse.json({ access_token: new_access_token, refresh_token: new_refresh_token });
+  return apiResponse({ access_token: new_access_token, refresh_token: new_refresh_token });
 }

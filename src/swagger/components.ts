@@ -7,14 +7,33 @@
  *       scheme: bearer
  *       bearerFormat: JWT
  *   schemas:
+ *     ApiResponse:
+ *       type: object
+ *       required: [errorCode, msg, data]
+ *       properties:
+ *         errorCode:
+ *           type: string
+ *           example: SU000
+ *         msg:
+ *           type: string
+ *           example: ok
+ *         data:
+ *           type: object
  *     ErrorResponse:
  *       type: object
- *       required: [error]
+ *       required: [errorCode, msg, data]
  *       properties:
- *         error:
+ *         errorCode:
  *           type: string
+ *           example: SU000
+ *         msg:
+ *           type: string
+ *         data:
+ *           type: object
  *       example:
- *         error: Failed to fetch ranking collections
+ *         errorCode: SU000
+ *         msg: Failed to fetch ranking collections
+ *         data: {}
  *
  *     UserDetailCollection:
  *       type: object

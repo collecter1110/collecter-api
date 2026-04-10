@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { createRefreshSession, newSessionId } from "@/lib/authStore";
 import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims } from "@/lib/jwt";
@@ -47,8 +48,11 @@ import { uploadImageAndSave } from "@/lib/storage";
  *             examples:
  *               ok:
  *                 value:
- *                   access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NiwiZW1haWwiOiJuZXd1c2VyQGV4YW1wbGUuY29tIn0.signature
- *                   refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoibmV3LXNlc3Npb24tdXVpZCIsInVzZXJfaWQiOjQ2LCJlbWFpbCI6Im5ld3VzZXJAZXhhbXBsZS5jb20ifQ.signature
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NiwiZW1haWwiOiJuZXd1c2VyQGV4YW1wbGUuY29tIn0.signature
+ *                     refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoibmV3LXNlc3Npb24tdXVpZCIsInVzZXJfaWQiOjQ2LCJlbWFpbCI6Im5ld3VzZXJAZXhhbXBsZS5jb20ifQ.signature
  *       400:
  *         description: 잘못된 요청
  *         content:
@@ -58,7 +62,9 @@ import { uploadImageAndSave } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Invalid or expired verified_token
+ *                   errorCode: SU000
+ *                   msg: Invalid or expired verified_token
+ *                   data: {}
  *       500:
  *         description: 회원가입 실패
  *         content:
@@ -68,7 +74,9 @@ import { uploadImageAndSave } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to signup
+ *                   errorCode: SU000
+ *                   msg: Failed to signup
+ *                   data: {}
  */
 // POST /api/signup
 // body: multipart/form-data { verified_token, email, name, description?, image? }
@@ -76,7 +84,7 @@ import { uploadImageAndSave } from "@/lib/storage";
 export async function POST(request: NextRequest) {
   const formData = await request.formData().catch(() => null);
   if (!formData) {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    return apiError("Invalid request", 400);
   }
 
   const verified_token = formData.get("verified_token") as string | null;
@@ -86,21 +94,21 @@ export async function POST(request: NextRequest) {
   const imageFile = formData.get("image") as File | null;
 
   if (!verified_token) {
-    return NextResponse.json({ error: "verified_token is required" }, { status: 400 });
+    return apiError("verified_token is required", 400);
   }
   if (!email || !name) {
-    return NextResponse.json({ error: "email and name are required" }, { status: 400 });
+    return apiError("email and name are required", 400);
   }
 
   let claims: VerifiedTokenClaims;
   try {
     claims = await verifyJwt<VerifiedTokenClaims>(verified_token);
   } catch {
-    return NextResponse.json({ error: "Invalid or expired verified_token" }, { status: 400 });
+    return apiError("Invalid or expired verified_token", 400);
   }
 
   if (!claims || claims.typ !== "verified" || !claims.user_id || !claims.email) {
-    return NextResponse.json({ error: "Invalid verified_token" }, { status: 400 });
+    return apiError("Invalid verified_token", 400);
   }
 
   let image_id: string | null = null;
@@ -113,7 +121,7 @@ export async function POST(request: NextRequest) {
       );
       image_id = result.imageId;
     } catch {
-      return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
+      return apiError("Failed to upload image", 500);
     }
   }
 
@@ -127,7 +135,7 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error("signup error:", error);
-    return NextResponse.json({ error: "Failed to signup" }, { status: 500 });
+    return apiError("Failed to signup", 500);
   }
 
   const sessionId = newSessionId();
@@ -143,5 +151,5 @@ export async function POST(request: NextRequest) {
     expiresAt: new Date(Date.now() + refreshTtl * 1000),
   });
 
-  return NextResponse.json({ access_token, refresh_token });
+  return apiResponse({ access_token, refresh_token });
 }

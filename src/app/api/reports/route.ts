@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
@@ -57,7 +58,10 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: 필수 필드 누락
  *         content:
@@ -67,7 +71,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: report_type, reported_post_id, report_reason are required
+ *                   errorCode: SU000
+ *                   msg: report_type, reported_post_id, report_reason are required
+ *                   data: {}
  *       401:
  *         description: 인증 필요
  *         content:
@@ -77,7 +83,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 신고 접수 실패
  *         content:
@@ -87,7 +95,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to submit report
+ *                   errorCode: SU000
+ *                   msg: Failed to submit report
+ *                   data: {}
  */
 // POST /api/reports — report
 // body: { report_type: number, reported_post_id: { [key: string]: number }, report_reason: string }
@@ -99,10 +109,7 @@ export async function POST(request: NextRequest) {
   const { report_type, reported_post_id, report_reason } = body;
 
   if (!report_type || !reported_post_id || !report_reason) {
-    return NextResponse.json(
-      { error: "report_type, reported_post_id, report_reason are required" },
-      { status: 400 }
-    );
+    return apiError("report_type, reported_post_id, report_reason are required", 400);
   }
 
   const { error } = await getSupabase().from("reports").insert({
@@ -114,8 +121,8 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error("report error:", error);
-    return NextResponse.json({ error: "Failed to submit report" }, { status: 500 });
+    return apiError("Failed to submit report", 500);
   }
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  return apiResponse({ success: true }, 201);
 }

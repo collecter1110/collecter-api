@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
@@ -27,7 +28,10 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       401:
  *         description: 인증 실패
  *         content:
@@ -37,7 +41,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 삭제 실패
  *         content:
@@ -47,7 +53,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to delete user
+ *                   errorCode: SU000
+ *                   msg: Failed to delete user
+ *                   data: {}
  */
 // DELETE /api/auth/delete
 // deleteAuthUser (Local Auth): delete by user_id/email (and revoke sessions)
@@ -70,11 +78,8 @@ export async function DELETE(request: NextRequest) {
 
   if (error) {
     console.error("deleteAuthUser error:", error);
-    return NextResponse.json(
-      { error: "Failed to delete user" },
-      { status: 500 }
-    );
+    return apiError("Failed to delete user", 500);
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }

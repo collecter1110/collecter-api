@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
@@ -27,23 +28,29 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   collections:
- *                     - category_id: 1
- *                       id: 123
- *                       title: 내 컬렉션
- *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
- *                       user_id: 45
- *                       user_name: gimgahui
- *                       primary_keywords:
- *                         - keyword_id: 7
- *                           keyword_name: 키워드
- *                           count: 3
- *                       selection_num: 12
- *                       is_public: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     collections:
+ *                       - category_id: 1
+ *                         id: 123
+ *                         title: 내 컬렉션
+ *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                         user_id: 45
+ *                         user_name: gimgahui
+ *                         primary_keywords:
+ *                           - keyword_id: 7
+ *                             keyword_name: 키워드
+ *                             count: 3
+ *                         selection_num: 12
+ *                         is_public: true
  *               empty:
  *                 summary: 컬렉션 없음
  *                 value:
- *                   collections: []
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     collections: []
  *       401:
  *         description: 인증 필요
  *         content:
@@ -53,7 +60,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -63,7 +72,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch collections
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch collections
+ *                   data: {}
  */
 // GET /api/users/me/collections — initializeMyCollections
 export async function GET(request: NextRequest) {
@@ -79,11 +90,8 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("initializeMyCollections error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch collections" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch collections", 500);
   }
 
-  return NextResponse.json({ collections: data });
+  return apiResponse({ collections: data });
 }

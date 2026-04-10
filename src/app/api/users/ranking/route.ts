@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 
@@ -35,14 +36,17 @@ import { getAuthContext } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   users:
- *                     - user_id: 45
- *                       name: gimgahui
- *                       email: user@example.com
- *                       description: 안녕하세요
- *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
- *                       created_at: "2026-04-06T12:34:56.000Z"
- *                       deleted_at: null
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     users:
+ *                       - user_id: 45
+ *                         name: gimgahui
+ *                         email: user@example.com
+ *                         description: 안녕하세요
+ *                         image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                         created_at: "2026-04-06T12:34:56.000Z"
+ *                         deleted_at: null
  *       500:
  *         description: 서버 오류
  *         content:
@@ -52,7 +56,9 @@ import { getAuthContext } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch ranking users
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch ranking users
+ *                   data: {}
  */
 // GET /api/users/ranking — getRankingUsers
 export async function GET(request: NextRequest) {
@@ -82,11 +88,8 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("getRankingUsers error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch ranking users" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch ranking users", 500);
   }
 
-  return NextResponse.json({ users: data });
+  return apiResponse({ users: data });
 }

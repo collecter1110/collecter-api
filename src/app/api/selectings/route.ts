@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
@@ -39,22 +40,28 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *             examples:
  *               ok:
  *                 value:
- *                   selectings:
- *                     - user_id: 45
- *                       collection_id: 123
- *                       selection_id: 456
- *                       selecting_collection_id: 200
- *                       selected_collection_id: 123
- *                       selected_selection_id: 456
- *                       selected_user_id: 99
- *                       title: 퍼온 셀렉션
- *                       owner_id: 99
- *                       owner_name: otheruser
- *                       is_selecting: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selectings:
+ *                       - user_id: 45
+ *                         collection_id: 123
+ *                         selection_id: 456
+ *                         selecting_collection_id: 200
+ *                         selected_collection_id: 123
+ *                         selected_selection_id: 456
+ *                         selected_user_id: 99
+ *                         title: 퍼온 셀렉션
+ *                         owner_id: 99
+ *                         owner_name: otheruser
+ *                         is_selecting: true
  *               empty:
  *                 summary: 셀렉팅 없음
  *                 value:
- *                   selectings: []
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selectings: []
  *       401:
  *         description: 인증 필요
  *         content:
@@ -64,7 +71,9 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -74,7 +83,9 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch selectings
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch selectings
+ *                   data: {}
  *   post:
  *     tags: [Selectings]
  *     summary: 셀렉션 퍼오기 (selecting)
@@ -126,7 +137,10 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       401:
  *         description: 인증 필요
  *         content:
@@ -136,7 +150,9 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       404:
  *         description: 원본 셀렉션을 찾을 수 없음
  *         content:
@@ -146,7 +162,9 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *             examples:
  *               error:
  *                 value:
- *                   error: Source selection not found
+ *                   errorCode: SU000
+ *                   msg: Source selection not found
+ *                   data: {}
  *       500:
  *         description: 셀렉팅 실패
  *         content:
@@ -156,7 +174,9 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to create selecting
+ *                   errorCode: SU000
+ *                   msg: Failed to create selecting
+ *                   data: {}
  */
 // GET /api/selectings?properties=... — getSelectings
 export async function GET(request: NextRequest) {
@@ -173,14 +193,14 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     if (error.code === "PGRST116") {
-      return NextResponse.json({ selectings: [] });
+      return apiResponse({ selectings: [] });
     }
     console.error("getSelectings error:", error);
-    return NextResponse.json({ error: "Failed to fetch selectings" }, { status: 500 });
+    return apiError("Failed to fetch selectings", 500);
   }
 
   // Client 호환성: 항상 배열 형태로 반환
-  return NextResponse.json({ selectings: data ? [data] : [] });
+  return apiResponse({ selectings: data ? [data] : [] });
 }
 
 // POST /api/selectings — selecting (셀렉션 퍼오기)
@@ -206,7 +226,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (fetchError || !selectedSelection) {
-    return NextResponse.json({ error: "Source selection not found" }, { status: 404 });
+    return apiError("Source selection not found", 404);
   }
 
   // 이미 selecting인 경우 원본 추적
@@ -250,7 +270,7 @@ export async function POST(request: NextRequest) {
 
   if (insertError || !newData) {
     console.error("selecting insert error:", insertError);
-    return NextResponse.json({ error: "Failed to create selecting" }, { status: 500 });
+    return apiError("Failed to create selecting", 500);
   }
 
   // selecting 테이블 업데이트
@@ -265,7 +285,7 @@ export async function POST(request: NextRequest) {
 
   if (updateError) {
     console.error("selecting update error:", updateError);
-    return NextResponse.json({ error: "Failed to update selecting" }, { status: 500 });
+    return apiError("Failed to update selecting", 500);
   }
 
   // 원본 셀렉션의 이미지를 새 셀렉션으로 복사 (같은 image_id 공유)
@@ -290,5 +310,5 @@ export async function POST(request: NextRequest) {
     await ensureCollectionCoverIfEmpty(selecting_collection_id, sourceImages[0].image_id);
   }
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  return apiResponse({ success: true }, 201);
 }

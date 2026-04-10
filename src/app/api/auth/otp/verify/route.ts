@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { consumeOtp, getOrCreateUserIdByEmail } from "@/lib/authStore";
 import { signVerifiedToken } from "@/lib/jwt";
 
@@ -48,13 +49,19 @@ import { signVerifiedToken } from "@/lib/jwt";
  *               existing_user:
  *                 summary: 기존 유저
  *                 value:
- *                   verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.signature
- *                   is_new_user: false
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.signature
+ *                     is_new_user: false
  *               new_user:
  *                 summary: 신규 유저
  *                 value:
- *                   verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ2LCJlbWFpbCI6Im5ld3VzZXJAZXhhbXBsZS5jb20ifQ.signature
- *                   is_new_user: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ2LCJlbWFpbCI6Im5ld3VzZXJAZXhhbXBsZS5jb20ifQ.signature
+ *                     is_new_user: true
  *       400:
  *         description: 잘못된 OTP 또는 파라미터
  *         content:
@@ -64,7 +71,9 @@ import { signVerifiedToken } from "@/lib/jwt";
  *             examples:
  *               invalid_otp:
  *                 value:
- *                   error: Invalid OTP
+ *                   errorCode: SU000
+ *                   msg: Invalid OTP
+ *                   data: {}
  *       404:
  *         description: 유저 정보 없음
  *         content:
@@ -74,7 +83,9 @@ import { signVerifiedToken } from "@/lib/jwt";
  *             examples:
  *               not_found:
  *                 value:
- *                   error: User info not found
+ *                   errorCode: SU000
+ *                   msg: User info not found
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -84,7 +95,9 @@ import { signVerifiedToken } from "@/lib/jwt";
  *             examples:
  *               error:
  *                 value:
- *                   error: Server error
+ *                   errorCode: SU000
+ *                   msg: Server error
+ *                   data: {}
  */
 // POST /api/auth/otp/verify
 // body: { email: string, token: string }
@@ -94,13 +107,13 @@ export async function POST(request: NextRequest) {
   const { email, token } = body;
 
   if (!email || !token) {
-    return NextResponse.json({ error: "email and token are required" }, { status: 400 });
+    return apiError("email and token are required", 400);
   }
 
   try {
     const consumed = await consumeOtp({ email: String(email), code: String(token) });
     if (!consumed) {
-      return NextResponse.json({ error: "Invalid OTP" }, { status: 400 });
+      return apiError("Invalid OTP", 400);
     }
 
     const userId = await getOrCreateUserIdByEmail({
@@ -109,7 +122,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!userId) {
-      return NextResponse.json({ error: "User info not found" }, { status: 404 });
+      return apiError("User info not found", 404);
     }
 
     const verified_token = await signVerifiedToken({
@@ -118,9 +131,9 @@ export async function POST(request: NextRequest) {
       email: consumed.email,
     });
 
-    return NextResponse.json({ verified_token, is_new_user: consumed.create_user });
+    return apiResponse({ verified_token, is_new_user: consumed.create_user });
   } catch (e) {
     console.error("verifyOtp error:", e);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return apiError("Server error", 500);
   }
 }
