@@ -36,17 +36,10 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                       - id: 123
  *                         category_id: 1
  *                         title: 좋아요한 컬렉션
- *                         description: 컬렉션 설명
  *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
- *                         tags: ["태그1"]
  *                         user_id: 99
  *                         user_name: otheruser
- *                         primary_keywords:
- *                           - keyword_id: 3
- *                             keyword_name: 여행
- *                             count: 2
  *                         selection_num: 8
- *                         like_num: 21
  *                         is_public: true
  *               empty:
  *                 summary: 좋아요한 컬렉션 없음
@@ -87,7 +80,9 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await getSupabase()
     .from("likes")
-    .select("collections(id, category_id, title, description, image_id, tags, user_id, user_name, primary_keywords, selection_num, like_num, is_public)")
+    .select(
+      "collections(id, category_id, title, image_id, user_id, user_name, selection_num, is_public)"
+    )
     .eq("user_id", auth.userId);
 
   if (error) {

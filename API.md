@@ -50,8 +50,26 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 불필요
 - **Query**
   - `email` (string, required)
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": boolean } }` (`true`면 사용 가능, `false`면 이미 사용 중)
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/auth/check-email?email=user@example.com"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
+> `true`면 사용 가능, `false`면 이미 사용 중
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "email parameter is required", "data": {} }`
 
@@ -60,8 +78,26 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 불필요
 - **Query**
   - `username` (string, required)
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": boolean } }` (`true`면 사용 가능, `false`면 이미 사용 중)
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/auth/check-username?username=gimgahui"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
+> `true`면 사용 가능, `false`면 이미 사용 중
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "username parameter is required", "data": {} }`
 
@@ -71,8 +107,29 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Body**
   - `email` (string, required)
   - `shouldCreateUser` (boolean, optional, default `false`) — `true`면 해당 이메일 유저가 없을 때 생성
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/auth/otp/send" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "shouldCreateUser": false
+  }'
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "email is required", "data": {} }`
   - 500 `{ "errorCode": "SU000", "msg": "Failed to send OTP", "data": {} }`
@@ -83,8 +140,30 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Body**
   - `email` (string, required)
   - `token` (string, required) — 이메일 OTP 코드
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "verified_token": string, "is_new_user": boolean } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/auth/otp/verify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "token": "123456"
+  }'
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "verified_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "is_new_user": false
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "email and token are required", "data": {} }`
   - 400 `{ "errorCode": "SU000", "msg": "Invalid OTP", "data": {} }`
@@ -96,8 +175,29 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 불필요
 - **Body**
   - `verified_token` (string, required) — `POST /api/auth/otp/verify` 결과
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "access_token": string, "refresh_token": string } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "verified_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh..."
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "verified_token is required", "data": {} }`
   - 400 `{ "errorCode": "SU000", "msg": "Invalid or expired verified_token", "data": {} }` 또는 `{ "errorCode": "SU000", "msg": "Invalid verified_token", "data": {} }`
@@ -107,8 +207,29 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 필수
 - **Body**
   - `refresh_token` (string, required)
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/auth/logout" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh..."
+  }'
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "refresh_token is required", "data": {} }`
   - 400 `{ "errorCode": "SU000", "msg": "Invalid refresh token", "data": {} }`
@@ -119,8 +240,31 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 불필요
 - **Body**
   - `refresh_token` (string, required)
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "access_token": string, "refresh_token": string } }` (refresh 토큰은 회전되어 새로 발급됩니다)
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh..."
+  }'
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.newaccess...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.newrefresh..."
+  }
+}
+```
+
+> refresh 토큰은 회전되어 새로 발급됩니다.
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "refresh_token is required", "data": {} }` 또는 `{ "errorCode": "SU000", "msg": "Invalid refresh token", "data": {} }`
   - 401 `{ "errorCode": "SU000", "msg": "Unauthorized", "data": {} }` (세션 만료/폐기 등)
@@ -129,8 +273,25 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 - **토큰**: 필수
 - **Body**: 없음
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X DELETE "https://<host>/api/auth/delete" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
 - **에러**
   - 500 `{ "errorCode": "SU000", "msg": "Failed to delete user", "data": {} }`
 
@@ -141,8 +302,32 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 ### GET `/api/users/me`
 
 - **토큰**: 필수
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { user: { user_id, user_name, email, description, image_id } } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/users/me" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+> DB `name` → 응답 `user_name`으로 변환됩니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "user": {
+      "user_id": 45,
+      "user_name": "gimgahui",
+      "email": "user@example.com",
+      "description": "안녕하세요",
+      "image_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    }
+  }
+}
+```
 
 ### PATCH `/api/users/me` (프로필 수정)
 
@@ -152,8 +337,28 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `name` (string, required)
   - `description` (string, optional)
   - `image` (File, optional) — 새 프로필 이미지. 기존 이미지는 자동 삭제됩니다.
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X PATCH "https://<host>/api/users/me" \
+  -H "Authorization: Bearer <access_token>" \
+  -F "name=김가희" \
+  -F "description=프로필 소개글" \
+  -F "image=@/path/to/profile.jpg"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "name is required", "data": {} }`
   - 500 `{ "errorCode": "SU000", "msg": "Failed to upload image", "data": {} }`
@@ -163,30 +368,125 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **토큰**: 필수
 - **동작**
   - 차단한 유저의 컬렉션 제외
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { collections: any[] } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/users/me/likes" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+> `collections`에서 목록에 필요한 컬럼만 select합니다. 필드명은 DB 컬럼명(`snake_case`) 그대로입니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "collections": [
+      {
+        "id": 10,
+        "category_id": 1,
+        "title": "좋아요한 컬렉션",
+        "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1",
+        "user_id": 12,
+        "user_name": "other_user",
+        "selection_num": 5,
+        "is_public": true
+      }
+    ]
+  }
+}
+```
 
 ### GET `/api/users/me/blocks`
 
 - **토큰**: 필수
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { blocked_user_ids: number[] } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/users/me/blocks" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "blocked_user_ids": [3, 15, 42]
+  }
+}
+```
 
 ### POST `/api/users/me/blocks`
 
 - **토큰**: 필수
 - **Body**
   - `blocked_user_id` (number, required)
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/users/me/blocks" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "blocked_user_id": 42
+  }'
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "blocked_user_id is required", "data": {} }`
 
 ### GET `/api/users/me/collections`
 
 - **토큰**: 필수
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { collections: any[] } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/users/me/collections" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+> DB 컬럼명 그대로 반환됩니다 (`title`, `id`).
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "collections": [
+      {
+        "category_id": 1,
+        "id": 10,
+        "title": "내 컬렉션",
+        "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1",
+        "user_id": 45,
+        "user_name": "gimgahui",
+        "selection_num": 3,
+        "is_public": true
+      }
+    ]
+  }
+}
+```
 
 ---
 
@@ -202,8 +502,30 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `user_name` (string, required)
   - `description` (string, optional)
   - `image` (File, optional) — 프로필 이미지
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "access_token": string, "refresh_token": string } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/signup" \
+  -F "verified_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -F "email=user@example.com" \
+  -F "user_name=gimgahui" \
+  -F "description=안녕하세요" \
+  -F "image=@/path/to/profile.jpg"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh..."
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "verified_token is required", "data": {} }`
   - 400 `{ "errorCode": "SU000", "msg": "email and user_name are required", "data": {} }`
@@ -220,8 +542,33 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - `userinfo.name` textSearch (`simple` config, plain query)
   - 로그인 시: 본인 제외, 차단한 유저 제외
   - **소프트 삭제된 유저 제외**
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { users: UserInfo[] } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/users/search?q=가희"
+```
+
+- **응답 200 예시**
+
+> DB `name` → 응답 `user_name`으로 변환됩니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "users": [
+      {
+        "user_id": 45,
+        "user_name": "gimgahui",
+        "description": "안녕하세요",
+        "image_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      }
+    ]
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "Query parameter 'q' is required", "data": {} }`
 
@@ -233,8 +580,35 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
   - 최근 가입순 최대 10명
   - 로그인 시: 차단한 유저 제외
   - **소프트 삭제된 유저 제외**
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "users": any[] } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/users/ranking"
+```
+
+- **응답 200 예시**
+
+> DB `name` → 응답 `user_name`으로 변환됩니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "users": [
+      {
+        "user_id": 45,
+        "user_name": "gimgahui",
+        "email": "user@example.com",
+        "description": "안녕하세요",
+        "image_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "created_at": "2025-01-15T09:30:00.000Z",
+        "deleted_at": null
+      }
+    ]
+  }
+}
+```
 
 ### GET `/api/user/detail`
 
@@ -251,6 +625,8 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 ```
 
 - **응답 200 예시**
+
+> DB `name` → `user_name`, DB `id`/`title` → `collection_id`/`collection_title`로 변환됩니다.
 
 ```json
 {
@@ -290,8 +666,38 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **동작**
   - 본인 요청 시: `is_public` 관계없이 전체 반환
   - 타인 요청 시: `is_public: true`인 컬렉션만 반환
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { collections: any[] } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/users/45/collections" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+> DB 컬럼명 그대로 반환됩니다 (`title`, `id`).
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "collections": [
+      {
+        "category_id": 1,
+        "id": 10,
+        "title": "내 컬렉션",
+        "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1",
+        "user_id": 45,
+        "user_name": "gimgahui",
+        "selection_num": 3,
+        "is_public": true
+      }
+    ]
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "Invalid user ID", "data": {} }`
   - 404 `{ "errorCode": "SU000", "msg": "User not found", "data": {} }` (소프트 삭제 포함)
@@ -307,8 +713,33 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **Body**
   - `keywords` (string[], required)
   - `category_id` (number, required)
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { keywords: { keyword_name: string, keyword_id: number }[] } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/keywords" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "keywords": ["카페", "디저트"],
+    "category_id": 1
+  }'
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "keywords": [
+      { "keyword_name": "카페", "keyword_id": 101 },
+      { "keyword_name": "디저트", "keyword_id": 102 }
+    ]
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "keywords array and category_id are required", "data": {} }`
 
@@ -329,8 +760,30 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **커버 이미지**
   - 컬렉션 커버(`collections.image_id`)는 **셀렉션 이미지(`selection_images.image_id`)를 재사용**하도록 서버에서 자동 설정합니다.
   - 따라서 컬렉션 생성 시 `image` 파일 업로드는 사용하지 않습니다.
-- **응답 201**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/collections" \
+  -H "Authorization: Bearer <access_token>" \
+  -F "category_id=1" \
+  -F "title=내 컬렉션" \
+  -F 'description=컬렉션 설명' \
+  -F 'tags=["태그1","태그2"]' \
+  -F "is_public=true"
+```
+
+- **응답 201 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "category_id and title are required", "data": {} }`
 
@@ -341,8 +794,44 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `collectionId` (number)
 - **동작**
   - `is_public: false`인 컬렉션은 소유자 본인만 조회 가능, 타인 요청 시 404
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { collection: { ..., collection_title, image_id, has_liked: boolean } } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/collections/123" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+> DB `title` → 응답 `collection_title`로 변환됩니다. `likes` 조인 데이터에서 `has_liked` boolean을 계산합니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "collection": {
+      "category_id": 1,
+      "id": 123,
+      "description": "컬렉션 설명",
+      "created_at": "2025-01-15T09:30:00.000Z",
+      "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1",
+      "tags": ["태그1", "태그2"],
+      "user_id": 45,
+      "user_name": "gimgahui",
+      "primary_keywords": [
+        { "keyword_id": 1, "keyword_name": "카페", "count": 3 }
+      ],
+      "selection_num": 5,
+      "like_num": 10,
+      "is_public": true,
+      "collection_title": "내 컬렉션",
+      "has_liked": true
+    }
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "Invalid collection ID", "data": {} }`
   - 404 `{ "errorCode": "SU000", "msg": "Collection not found", "data": {} }`
@@ -359,8 +848,27 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `is_public` (string `"true"` | `"false"`, optional)
 - **커버 이미지**
   - 컬렉션 커버는 서버에서 자동으로 관리하므로 `image` 업로드로 변경하지 않습니다.
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X PATCH "https://<host>/api/collections/123" \
+  -H "Authorization: Bearer <access_token>" \
+  -F "title=수정된 컬렉션 제목" \
+  -F 'tags=["새태그1","새태그2"]' \
+  -F "is_public=false"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
 
 ### DELETE `/api/collections/{collectionId}`
 
@@ -368,26 +876,89 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **Body**: 없음
 - **동작**
   - 컬렉션 대표 이미지 및 하위 셀렉션 이미지 전체 삭제 (S3 + DB)
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X DELETE "https://<host>/api/collections/123" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
 
 ### POST `/api/collections/{collectionId}/like`
 
 - **토큰**: 필수
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/collections/123/like" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
 
 ### DELETE `/api/collections/{collectionId}/like`
 
 - **토큰**: 필수
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X DELETE "https://<host>/api/collections/123/like" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
 
 ### GET `/api/collections/{collectionId}/title`
 
 - **토큰**: 불필요
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { title: string } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/collections/123/title"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "title": "내 컬렉션"
+  }
+}
+```
 
 ### GET `/api/collections/search`
 
@@ -399,8 +970,31 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `keyword`: `keywordinfo` ILIKE `%q%` → `primary_keywords @> [{"keyword_id": N}]` (public만)
   - `tag`: `tags @> ["q"]` (exact match, public만)
   - 로그인 시: 차단한 유저 제외, 본인 제외
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { collections: any[] } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/collections/search?q=카페&type=keyword"
+```
+
+- **응답 200 예시**
+
+> `mapSearchCollection()`에서 DB `id` → `collection_id`, DB `title` → `collection_title`로 변환됩니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "collections": [
+      {
+        "collection_id": 123,
+        "collection_title": "카페 컬렉션",
+        "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+      }
+    ]
+  }
+}
+```
 
 ### GET `/api/collections/ranking`
 
@@ -409,8 +1003,31 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `is_public: true` 조건
   - category_id별 무작위 최대 10개 (Fisher-Yates shuffle)
   - 로그인 시: 차단한 유저 제외
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { collections: any[] } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/collections/ranking"
+```
+
+- **응답 200 예시**
+
+> DB `id` → `collection_id`, DB `title` → `collection_title`로 변환됩니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "collections": [
+      {
+        "collection_id": 123,
+        "collection_title": "인기 컬렉션",
+        "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+      }
+    ]
+  }
+}
+```
 
 ---
 
@@ -421,19 +1038,45 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **토큰**: 선택
 - **동작**
   - 부모 컬렉션이 `is_public: false`이면 소유자 본인만 조회 가능, 타인 요청 시 404
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { selections: SelectionListItem[] } }`
-  - 각 항목 필드:
-    - `category_id` (number)
-    - `collection_id` (number)
-    - `selection_id` (number)
-    - `selection_title` (string)
-    - `keywords` (object[]) — `[{ keyword_id, keyword_name }]`
-    - `owner_name` (string)
-    - `owner_id` (number)
-    - `is_selecting` (boolean)
-    - `selection_images` (object[]) — `[{ image_id, sort_order }]`
-    - `thumb_image_id` (string | null) — `selection_images` 중 `sort_order`가 가장 낮은 이미지의 `image_id`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/collections/123/selections" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+> DB `title` → `selection_title`로 변환됩니다. `selection_images`에서 `sort_order`가 가장 낮은 `image_id`가 `thumb_image_id`로 추출됩니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "selections": [
+      {
+        "category_id": 1,
+        "collection_id": 123,
+        "selection_id": 456,
+        "selection_title": "셀렉션 제목",
+        "keywords": [
+          { "keyword_id": 101, "keyword_name": "카페" },
+          { "keyword_id": 102, "keyword_name": "디저트" }
+        ],
+        "owner_name": "gimgahui",
+        "owner_id": 45,
+        "is_selecting": false,
+        "selection_images": [
+          { "image_id": "c3d4e5f6-7890-abcd-ef12-345678901234", "sort_order": 0 },
+          { "image_id": "d4e5f6a7-8901-bcde-f123-456789012345", "sort_order": 1 }
+        ],
+        "thumb_image_id": "c3d4e5f6-7890-abcd-ef12-345678901234"
+      }
+    ]
+  }
+}
+```
 
 ### POST `/api/collections/{collectionId}/selections`
 
@@ -452,8 +1095,34 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **keywords 저장 방식**
   - 전달된 키워드 이름을 `keywordinfo` 테이블에 upsert 후 `keyword_id`를 조회
   - `selections.keywords`에 `[{"keyword_id": N, "keyword_name": "..."}]` 형식으로 저장
-- **응답 201**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/collections/123/selections" \
+  -H "Authorization: Bearer <access_token>" \
+  -F "category_id=1" \
+  -F "title=셀렉션 제목" \
+  -F "description=셀렉션 설명" \
+  -F 'keywords=["카페","디저트"]' \
+  -F "link=https://example.com" \
+  -F "is_ordered=false" \
+  -F "is_selectable=true" \
+  -F "images=@/path/to/image1.jpg" \
+  -F "images=@/path/to/image2.jpg"
+```
+
+- **응답 201 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "category_id and title are required", "data": {} }`
   - 400 `{ "errorCode": "SU000", "msg": "keywords is required", "data": {} }`
@@ -462,8 +1131,49 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 ### GET `/api/collections/{collectionId}/selections/{selectionId}`
 
 - **토큰**: 불필요
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { selection: { ..., selection_title, selection_images: { image_id, sort_order }[] } } }`
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/collections/123/selections/456"
+```
+
+- **응답 200 예시**
+
+> DB `title` → 응답 `selection_title`로 변환됩니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "selection": {
+      "category_id": 1,
+      "collection_id": 123,
+      "selection_id": 456,
+      "user_id": 45,
+      "owner_id": 45,
+      "selection_title": "셀렉션 제목",
+      "description": "셀렉션 설명",
+      "is_ordered": false,
+      "link": "https://example.com",
+      "items": null,
+      "keywords": [
+        { "keyword_id": 101, "keyword_name": "카페" },
+        { "keyword_id": 102, "keyword_name": "디저트" }
+      ],
+      "created_at": "2025-01-15T09:30:00.000Z",
+      "owner_name": "gimgahui",
+      "is_selectable": true,
+      "is_selecting": false,
+      "selection_images": [
+        { "image_id": "c3d4e5f6-7890-abcd-ef12-345678901234", "sort_order": 0 },
+        { "image_id": "d4e5f6a7-8901-bcde-f123-456789012345", "sort_order": 1 }
+      ]
+    }
+  }
+}
+```
+
 - **에러**
   - 404 `{ "errorCode": "SU000", "msg": "Selection not found", "data": {} }`
 
@@ -484,23 +1194,60 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `keep_image_ids` (JSON string, optional) — 유지할 기존 `image_id` 배열. 명시된 ID 외 기존 이미지는 삭제됨. 필드 자체가 없으면 이미지 변경 없음. 빈 배열(`"[]"`)이면 기존 이미지 전체 삭제.
 - **keywords 저장 방식**
   - 전달된 키워드 이름을 `keywordinfo`에 upsert 후 `[{"keyword_id": N, "keyword_name": "..."}]` 형식으로 저장
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X PATCH "https://<host>/api/collections/123/selections/456" \
+  -H "Authorization: Bearer <access_token>" \
+  -F "title=수정된 셀렉션 제목" \
+  -F 'keywords=["카페","베이커리"]' \
+  -F 'keep_image_ids=["c3d4e5f6-7890-abcd-ef12-345678901234"]' \
+  -F "images=@/path/to/new_image.jpg"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
 - **이미지 업데이트 예시**
   - 이미지 추가만: `images`만 전송
   - 특정 이미지 삭제: `keep_image_ids`에 유지할 ID만 포함
   - 전체 교체: `keep_image_ids: "[]"` + `images`
+- **에러**
+  - 400 `{ "errorCode": "SU000", "msg": "keywords is required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "keywords must be a non-empty JSON array of strings", "data": {} }`
 
 ### DELETE `/api/collections/{collectionId}/selections/{selectionId}`
 
 - **토큰**: 필수
 - **동작**
   - 셀렉션 이미지 전체 삭제 (S3 + DB) 후 셀렉션 삭제
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
- - **에러**
-  - 400 `{ "errorCode": "SU000", "msg": "keywords is required", "data": {} }`
-  - 400 `{ "errorCode": "SU000", "msg": "keywords must be a non-empty JSON array of strings", "data": {} }`
+- **요청 예시**
+
+```bash
+curl -X DELETE "https://<host>/api/collections/123/selections/456" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
 
 ### PATCH `/api/collections/{collectionId}/selections/{selectionId}/move`
 
@@ -508,8 +1255,29 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **Body**
   - `new_collection_id` (number, required)
   - `category_id` (number, optional)
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X PATCH "https://<host>/api/collections/123/selections/456/move" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_collection_id": 200,
+    "category_id": 2
+  }'
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
 
 ---
 
@@ -523,8 +1291,33 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **동작**
   - `keywordinfo` ILIKE `%q%` → `keywords @> [{"keyword_id": N}]`
   - 로그인 시: 본인 제외, 차단한 유저 제외
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { selections: any[] } }` (`image_id` 포함)
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/selections/search?q=카페"
+```
+
+- **응답 200 예시**
+
+> DB `title` → `selection_title`, `collection_title`로 변환됩니다. `image_id`는 `selection_images` 중 `sort_order`가 가장 낮은 것입니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "selections": [
+      {
+        "selection_id": 456,
+        "selection_title": "카페 셀렉션",
+        "image_id": "c3d4e5f6-7890-abcd-ef12-345678901234",
+        "collection_id": 123,
+        "collection_title": "카페 컬렉션"
+      }
+    ]
+  }
+}
+```
 
 ### GET `/api/selections/ranking`
 
@@ -533,8 +1326,34 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - public 컬렉션 소속 셀렉션, `select_num` 내림차순
   - category_id별 상위 10개
   - 로그인 시: 차단한 유저 제외
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { selections: any[] } }` (`image_id` 포함)
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/selections/ranking"
+```
+
+- **응답 200 예시**
+
+> DB `title` → `selection_title`로 변환됩니다. `image_id`는 `selection_images` 중 `sort_order === 0`인 것입니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "selections": [
+      {
+        "selection_id": 456,
+        "selection_title": "인기 셀렉션",
+        "image_id": "c3d4e5f6-7890-abcd-ef12-345678901234",
+        "keywords": [
+          { "keyword_id": 101, "keyword_name": "카페" }
+        ]
+      }
+    ]
+  }
+}
+```
 
 ---
 
@@ -545,8 +1364,26 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **토큰**: 필수
 - **Query**
   - `properties` (string, optional, default `"*"`) — `selectingview`에서 select할 컬럼
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { selectings: any[] } }` (항상 배열)
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/selectings?properties=*" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+> `selectingview`에서 `.single()`로 가져온 뒤, 결과가 없으면 빈 배열, 있으면 `[data]` 형태로 반환합니다.
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "selectings": []
+  }
+}
+```
 
 ### POST `/api/selectings` (셀렉션 퍼오기)
 
@@ -556,8 +1393,32 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `selecting_collection_id` (number)
   - `selected_collection_id` (number)
   - `selected_selection_id` (number)
-- **응답 201**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/selectings" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "category_id": 1,
+    "selecting_collection_id": 200,
+    "selected_collection_id": 123,
+    "selected_selection_id": 456
+  }'
+```
+
+- **응답 201 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
 - **에러**
   - 404 `{ "errorCode": "SU000", "msg": "Source selection not found", "data": {} }`
 
@@ -572,8 +1433,30 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
   - `report_type` (number, required)
   - `reported_post_id` (object, required) — `{ [key: string]: number }`
   - `report_reason` (string, required)
-- **응답 201**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X POST "https://<host>/api/reports" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "report_type": 1,
+    "reported_post_id": { "collection_id": 123 },
+    "report_reason": "부적절한 콘텐츠"
+  }'
+```
+
+- **응답 201 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
 
 ---
 
@@ -582,8 +1465,25 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 ### DELETE `/api/membership` (회원 탈퇴)
 
 - **토큰**: 필수
-- **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { "success": true } }`
+- **요청 예시**
+
+```bash
+curl -X DELETE "https://<host>/api/membership" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "success": true
+  }
+}
+```
+
 - **동작**
   - 프로필 이미지 삭제 (S3 + DB)
   - 유저를 **소프트 삭제** 처리합니다(`userinfo.deleted_at` 설정)

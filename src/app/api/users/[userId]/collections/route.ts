@@ -53,10 +53,6 @@ import { getAuthContext } from "@/lib/auth";
  *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *                         user_id: 45
  *                         user_name: gimgahui
- *                         primary_keywords:
- *                           - keyword_id: 7
- *                             keyword_name: 키워드
- *                             count: 3
  *                         selection_num: 12
  *                         is_public: true
  *               empty:
@@ -125,7 +121,7 @@ export async function GET(
   let query = getSupabase()
     .from("collections")
     .select(
-      "category_id, id, title, image_id, user_id, user_name, primary_keywords, selection_num, is_public"
+      "category_id, id, title, image_id, user_id, user_name, selection_num, is_public"
     )
     .eq("user_id", userId);
 
