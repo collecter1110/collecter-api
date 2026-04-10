@@ -142,7 +142,7 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 
 - **토큰**: 필수
 - **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { user: { user_id, name, email, description, image_id } } }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { user: { user_id, user_name, email, description, image_id } } }`
 
 ### PATCH `/api/users/me` (프로필 수정)
 
@@ -199,14 +199,14 @@ Next.js App Router 기반 API 문서입니다. (경로: `src/app/api/**/route.ts
 - **Body**
   - `verified_token` (string, required) — `POST /api/auth/otp/verify` 결과
   - `email` (string, required)
-  - `name` (string, required)
+  - `user_name` (string, required)
   - `description` (string, optional)
   - `image` (File, optional) — 프로필 이미지
 - **응답 200**
   - `{ "errorCode": "SU000", "msg": "ok", "data": { "access_token": string, "refresh_token": string } }`
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "verified_token is required", "data": {} }`
-  - 400 `{ "errorCode": "SU000", "msg": "email and name are required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "email and user_name are required", "data": {} }`
   - 400 `{ "errorCode": "SU000", "msg": "Invalid or expired verified_token", "data": {} }` 또는 `{ "errorCode": "SU000", "msg": "Invalid verified_token", "data": {} }`
   - 500 `{ "errorCode": "SU000", "msg": "Failed to upload image", "data": {} }`
   - 500 `{ "errorCode": "SU000", "msg": "Failed to signup", "data": {} }`
@@ -342,7 +342,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 - **동작**
   - `is_public: false`인 컬렉션은 소유자 본인만 조회 가능, 타인 요청 시 404
 - **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { collection: { ..., image_id, has_liked: boolean } } }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { collection: { ..., collection_title, image_id, has_liked: boolean } } }`
 - **에러**
   - 400 `{ "errorCode": "SU000", "msg": "Invalid collection ID", "data": {} }`
   - 404 `{ "errorCode": "SU000", "msg": "Collection not found", "data": {} }`
@@ -427,7 +427,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
     - `category_id` (number)
     - `collection_id` (number)
     - `selection_id` (number)
-    - `title` (string)
+    - `selection_title` (string)
     - `keywords` (object[]) — `[{ keyword_id, keyword_name }]`
     - `owner_name` (string)
     - `owner_id` (number)
@@ -463,7 +463,7 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
 
 - **토큰**: 불필요
 - **응답 200**
-  - `{ "errorCode": "SU000", "msg": "ok", "data": { selection: { ..., selection_images: { image_id, sort_order }[] } } }`
+  - `{ "errorCode": "SU000", "msg": "ok", "data": { selection: { ..., selection_title, selection_images: { image_id, sort_order }[] } } }`
 - **에러**
   - 404 `{ "errorCode": "SU000", "msg": "Selection not found", "data": {} }`
 

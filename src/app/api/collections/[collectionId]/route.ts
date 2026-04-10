@@ -252,8 +252,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     ? (data.likes as { user_id: number }[]).some((l) => l.user_id === auth.userId)
     : false;
 
-  const { likes: _likes, ...rest } = data;
-  return apiResponse({ collection: { ...rest, has_liked: hasLiked } });
+  const { likes: _likes, title, ...rest } = data;
+  return apiResponse({ collection: { ...rest, collection_title: title, has_liked: hasLiked } });
 }
 
 // PATCH /api/collections/:collectionId — editCollection

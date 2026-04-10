@@ -227,10 +227,12 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   const selections = (data ?? []).map((item) => {
+    const { title, ...rest } = item;
     const imgs = (item.selection_images as unknown as { image_id: string; sort_order: number }[])
       .sort((a, b) => a.sort_order - b.sort_order);
     return {
-      ...item,
+      ...rest,
+      selection_title: title,
       thumb_image_id: imgs[0]?.image_id ?? null,
     };
   });

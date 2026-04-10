@@ -91,5 +91,6 @@ export async function GET(request: NextRequest) {
     return apiError("Failed to fetch ranking users", 500);
   }
 
-  return apiResponse({ users: data });
+  const users = (data ?? []).map(({ name, ...rest }) => ({ ...rest, user_name: name }));
+  return apiResponse({ users });
 }

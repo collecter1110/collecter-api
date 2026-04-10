@@ -18,14 +18,14 @@ import { uploadImageAndSave } from "@/lib/storage";
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [verified_token, email, name]
+ *             required: [verified_token, email, user_name]
  *             properties:
  *               verified_token:
  *                 type: string
  *               email:
  *                 type: string
  *                 format: email
- *               name:
+ *               user_name:
  *                 type: string
  *               description:
  *                 type: string
@@ -79,7 +79,7 @@ import { uploadImageAndSave } from "@/lib/storage";
  *                   data: {}
  */
 // POST /api/signup
-// body: multipart/form-data { verified_token, email, name, description?, image? }
+// body: multipart/form-data { verified_token, email, user_name, description?, image? }
 // OTP 인증 후 발급된 verified_token으로 프로필 설정 + access_token + refresh_token 반환 (신규 유저)
 export async function POST(request: NextRequest) {
   const formData = await request.formData().catch(() => null);
@@ -89,15 +89,15 @@ export async function POST(request: NextRequest) {
 
   const verified_token = formData.get("verified_token") as string | null;
   const email = formData.get("email") as string | null;
-  const name = formData.get("name") as string | null;
+  const user_name = formData.get("user_name") as string | null;
   const description = (formData.get("description") as string | null) ?? null;
   const imageFile = formData.get("image") as File | null;
 
   if (!verified_token) {
     return apiError("verified_token is required", 400);
   }
-  if (!email || !name) {
-    return apiError("email and name are required", 400);
+  if (!email || !user_name) {
+    return apiError("email and user_name are required", 400);
   }
 
   let claims: VerifiedTokenClaims;
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const updateData: Record<string, unknown> = { name, description };
+  const updateData: Record<string, unknown> = { name: user_name, description };
   if (image_id) updateData.image_id = image_id;
 
   const { error } = await getSupabase()

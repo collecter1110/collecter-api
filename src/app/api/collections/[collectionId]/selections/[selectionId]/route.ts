@@ -277,7 +277,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
     return apiError("Failed to fetch selection", 500);
   }
 
-  return apiResponse({ selection: data });
+  const { title, ...rest } = data;
+  return apiResponse({ selection: { ...rest, selection_title: title } });
 }
 
 // PATCH /api/collections/:collectionId/selections/:selectionId — editSelection

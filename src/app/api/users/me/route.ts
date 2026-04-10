@@ -150,7 +150,8 @@ export async function GET(request: NextRequest) {
     return apiError("Failed to fetch user", 500);
   }
 
-  return apiResponse({ user: data });
+  const { name, ...rest } = data;
+  return apiResponse({ user: { ...rest, user_name: name } });
 }
 
 // PATCH /api/users/me — editUserInfo
