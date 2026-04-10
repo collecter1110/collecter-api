@@ -31,7 +31,7 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *                   data:
  *                     user:
  *                       user_id: 45
- *                       name: gimgahui
+ *                       user_name: gimgahui
  *                       email: user@example.com
  *                       description: 안녕하세요
  *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
@@ -70,9 +70,9 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [name]
+ *             required: [user_name]
  *             properties:
- *               name:
+ *               user_name:
  *                 type: string
  *               description:
  *                 type: string
@@ -107,7 +107,7 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *               error:
  *                 value:
  *                   errorCode: SU000
- *                   msg: name is required
+ *                   msg: user_name is required
  *                   data: {}
  *       401:
  *         description: 인증 필요
@@ -161,16 +161,16 @@ export async function PATCH(request: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const formData = await request.formData();
-  const name = formData.get("name") as string | null;
+  const user_name = formData.get("user_name") as string | null;
   const description = formData.get("description") as string | null;
   const imageFile = formData.get("image") as File | null;
 
-  if (!name) {
-    return apiError("name is required", 400);
+  if (!user_name) {
+    return apiError("user_name is required", 400);
   }
 
   const updates: Record<string, unknown> = {
-    name,
+    name: user_name,
     description: description ?? null,
   };
 

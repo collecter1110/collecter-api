@@ -22,9 +22,9 @@ import { getSupabase } from "@/lib/supabase";
  *           application/json:
  *             schema:
  *               type: object
- *               required: [title]
+ *               required: [collection_title]
  *               properties:
- *                 title:
+ *                 collection_title:
  *                   type: string
  *             examples:
  *               ok:
@@ -32,7 +32,7 @@ import { getSupabase } from "@/lib/supabase";
  *                   errorCode: SU000
  *                   msg: ok
  *                   data:
- *                     title: 내 컬렉션
+ *                     collection_title: 내 컬렉션
  *       404:
  *         description: 컬렉션을 찾을 수 없음
  *         content:
@@ -84,5 +84,5 @@ export async function GET(
     return apiError("Failed to fetch title", 500);
   }
 
-  return apiResponse({ title: data.title });
+  return apiResponse({ collection_title: data.title });
 }

@@ -50,7 +50,7 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                       - category_id: 1
  *                         collection_id: 123
  *                         selection_id: 456
- *                         title: 내 셀렉션
+ *                         selection_title: 내 셀렉션
  *                         keywords:
  *                           - keyword_id: 7
  *                             keyword_name: 키워드

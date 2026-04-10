@@ -51,7 +51,7 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                       selection_id: 456
  *                       user_id: 45
  *                       owner_id: 45
- *                       title: 내 셀렉션
+ *                       selection_title: 내 셀렉션
  *                       description: 셀렉션 설명
  *                       is_ordered: false
  *                       link: null
@@ -333,13 +333,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         category_idRaw !== null
           ? parseInt(category_idRaw, 10)
           : (
-              await getSupabase()
-                .from("selections")
-                .select("category_id")
-                .eq("collection_id", collectionId)
-                .eq("selection_id", selectionId)
-                .single()
-            ).data?.category_id;
+            await getSupabase()
+              .from("selections")
+              .select("category_id")
+              .eq("collection_id", collectionId)
+              .eq("selection_id", selectionId)
+              .single()
+          ).data?.category_id;
 
       if (!categoryIdForKeywords) {
         return apiError("Selection not found", 404);

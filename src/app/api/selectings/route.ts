@@ -51,7 +51,7 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *                         selected_collection_id: 123
  *                         selected_selection_id: 456
  *                         selected_user_id: 99
- *                         title: 퍼온 셀렉션
+ *                         selection_title: 퍼온 셀렉션
  *                         owner_id: 99
  *                         owner_name: otheruser
  *                         is_selecting: true
@@ -199,7 +199,12 @@ export async function GET(request: NextRequest) {
     return apiError("Failed to fetch selectings", 500);
   }
 
-  // Client 호환성: 항상 배열 형태로 반환
+  // title → selection_title 변환
+  if (data && "title" in data) {
+    const { title, ...rest } = data as Record<string, unknown>;
+    return apiResponse({ selectings: [{ ...rest, selection_title: title }] });
+  }
+
   return apiResponse({ selectings: data ? [data] : [] });
 }
 

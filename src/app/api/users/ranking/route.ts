@@ -41,7 +41,7 @@ import { getAuthContext } from "@/lib/auth";
  *                   data:
  *                     users:
  *                       - user_id: 45
- *                         name: gimgahui
+ *                         user_name: gimgahui
  *                         email: user@example.com
  *                         description: 안녕하세요
  *                         image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"

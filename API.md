@@ -334,7 +334,7 @@ curl -X GET "https://<host>/api/users/me" \
 - **토큰**: 필수
 - **Content-Type**: `multipart/form-data`
 - **Body**
-  - `name` (string, required)
+  - `user_name` (string, required)
   - `description` (string, optional)
   - `image` (File, optional) — 새 프로필 이미지. 기존 이미지는 자동 삭제됩니다.
 - **요청 예시**
@@ -342,7 +342,7 @@ curl -X GET "https://<host>/api/users/me" \
 ```bash
 curl -X PATCH "https://<host>/api/users/me" \
   -H "Authorization: Bearer <access_token>" \
-  -F "name=김가희" \
+  -F "user_name=김가희" \
   -F "description=프로필 소개글" \
   -F "image=@/path/to/profile.jpg"
 ```
@@ -360,7 +360,7 @@ curl -X PATCH "https://<host>/api/users/me" \
 ```
 
 - **에러**
-  - 400 `{ "errorCode": "SU000", "msg": "name is required", "data": {} }`
+  - 400 `{ "errorCode": "SU000", "msg": "user_name is required", "data": {} }`
   - 500 `{ "errorCode": "SU000", "msg": "Failed to upload image", "data": {} }`
 
 ### GET `/api/users/me/likes`
@@ -377,7 +377,7 @@ curl -X GET "https://<host>/api/users/me/likes" \
 
 - **응답 200 예시**
 
-> `collections`에서 목록에 필요한 컬럼만 select합니다. 필드명은 DB 컬럼명(`snake_case`) 그대로입니다.
+> 목록용 컬럼만 조회하며, 컬렉션 식별자·제목은 `collection_id`, `collection_title`입니다.
 
 ```json
 {
@@ -386,9 +386,9 @@ curl -X GET "https://<host>/api/users/me/likes" \
   "data": {
     "collections": [
       {
-        "id": 10,
+        "collection_id": 10,
         "category_id": 1,
-        "title": "좋아요한 컬렉션",
+        "collection_title": "좋아요한 컬렉션",
         "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1",
         "user_id": 12,
         "user_name": "other_user",
@@ -465,7 +465,7 @@ curl -X GET "https://<host>/api/users/me/collections" \
 
 - **응답 200 예시**
 
-> DB 컬럼명 그대로 반환됩니다 (`title`, `id`).
+> 컬렉션 식별자·제목은 `collection_id`, `collection_title`입니다.
 
 ```json
 {
@@ -475,8 +475,8 @@ curl -X GET "https://<host>/api/users/me/collections" \
     "collections": [
       {
         "category_id": 1,
-        "id": 10,
-        "title": "내 컬렉션",
+        "collection_id": 10,
+        "collection_title": "내 컬렉션",
         "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1",
         "user_id": 45,
         "user_name": "gimgahui",
@@ -675,7 +675,7 @@ curl -X GET "https://<host>/api/users/45/collections" \
 
 - **응답 200 예시**
 
-> DB 컬럼명 그대로 반환됩니다 (`title`, `id`).
+> 컬렉션 식별자·제목은 `collection_id`, `collection_title`입니다.
 
 ```json
 {
@@ -685,8 +685,8 @@ curl -X GET "https://<host>/api/users/45/collections" \
     "collections": [
       {
         "category_id": 1,
-        "id": 10,
-        "title": "내 컬렉션",
+        "collection_id": 10,
+        "collection_title": "내 컬렉션",
         "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1",
         "user_id": 45,
         "user_name": "gimgahui",
@@ -747,6 +747,16 @@ curl -X POST "https://<host>/api/keywords" \
 
 ## Collections
 
+**응답 JSON에서 컬렉션 리소스 필드명 (요청 body의 폼 필드명과 별개)**
+
+- 식별자: DB `collections.id` → **`collection_id`** (응답에 `id`로 내리지 않음)
+- 제목: DB `collections.title` → **`collection_title`** (응답에 `title`로 내리지 않음)
+- 소유자 표기는 **`user_id`**, **`user_name`** 처럼 리소스가 드러나는 이름만 사용합니다.
+
+`POST` / `PATCH /api/collections` 등 **쓰기 요청**은 기존과 같이 multipart 필드 `title` 등 DB 컬럼에 대응하는 이름을 씁니다. 위 규칙은 **조회 응답**에만 적용됩니다.
+
+`GET /api/collections/{collectionId}/title` 응답의 `data`는 **`collection_title`** 만 포함합니다.
+
 ### POST `/api/collections`
 
 - **토큰**: 필수
@@ -803,7 +813,7 @@ curl -X GET "https://<host>/api/collections/123" \
 
 - **응답 200 예시**
 
-> DB `title` → 응답 `collection_title`로 변환됩니다. `likes` 조인 데이터에서 `has_liked` boolean을 계산합니다.
+> DB `id` → 응답 `collection_id`, DB `title` → `collection_title`로 변환됩니다. `likes` 조인 데이터에서 `has_liked` boolean을 계산합니다.
 
 ```json
 {
@@ -812,7 +822,7 @@ curl -X GET "https://<host>/api/collections/123" \
   "data": {
     "collection": {
       "category_id": 1,
-      "id": 123,
+      "collection_id": 123,
       "description": "컬렉션 설명",
       "created_at": "2025-01-15T09:30:00.000Z",
       "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1",
@@ -955,7 +965,7 @@ curl -X GET "https://<host>/api/collections/123/title"
   "errorCode": "SU000",
   "msg": "ok",
   "data": {
-    "title": "내 컬렉션"
+    "collection_title": "내 컬렉션"
   }
 }
 ```

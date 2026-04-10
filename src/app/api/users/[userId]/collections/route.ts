@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
+import { mapCollectionListRowToApi } from "@/lib/collectionResponse";
 
 /**
  * @openapi
@@ -48,8 +49,8 @@ import { getAuthContext } from "@/lib/auth";
  *                   data:
  *                     collections:
  *                       - category_id: 1
- *                         id: 123
- *                         title: 내 컬렉션
+ *                         collection_id: 123
+ *                         collection_title: 내 컬렉션
  *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *                         user_id: 45
  *                         user_name: gimgahui
@@ -136,5 +137,11 @@ export async function GET(
     return apiError("Failed to fetch collections", 500);
   }
 
-  return apiResponse({ collections: data });
+  return apiResponse({
+    collections: (data ?? []).map((row) =>
+      mapCollectionListRowToApi(
+        row as { id: number; title: string | null } & Record<string, unknown>
+      )
+    ),
+  });
 }

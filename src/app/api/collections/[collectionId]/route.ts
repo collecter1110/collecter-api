@@ -43,9 +43,8 @@ import { deleteImageById } from "@/lib/storage";
  *                   msg: ok
  *                   data:
  *                     collection:
- *                       id: 123
+ *                       collection_id: 123
  *                       category_id: 1
- *                       title: 내 컬렉션
  *                       description: 컬렉션 설명
  *                       created_at: "2026-04-06T12:34:56.000Z"
  *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
@@ -58,8 +57,9 @@ import { deleteImageById } from "@/lib/storage";
  *                           count: 3
  *                       selection_num: 12
  *                       like_num: 34
- *                       has_liked: false
  *                       is_public: true
+ *                       collection_title: 내 컬렉션
+ *                       has_liked: false
  *       404:
  *         description: 컬렉션을 찾을 수 없음
  *         content:
@@ -252,8 +252,15 @@ export async function GET(request: NextRequest, { params }: Params) {
     ? (data.likes as { user_id: number }[]).some((l) => l.user_id === auth.userId)
     : false;
 
-  const { likes: _likes, title, ...rest } = data;
-  return apiResponse({ collection: { ...rest, collection_title: title, has_liked: hasLiked } });
+  const { likes: _likes, title, id, ...rest } = data;
+  return apiResponse({
+    collection: {
+      ...rest,
+      collection_id: id,
+      collection_title: title,
+      has_liked: hasLiked,
+    },
+  });
 }
 
 // PATCH /api/collections/:collectionId — editCollection

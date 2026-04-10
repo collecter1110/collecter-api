@@ -261,13 +261,13 @@
  *             required:
  *               - verified_token
  *               - email
- *               - name
+ *               - user_name
  *             properties:
  *               verified_token:
  *                 type: string
  *               email:
  *                 type: string
- *               name:
+ *               user_name:
  *                 type: string
  *               description:
  *                 type: string
@@ -496,7 +496,7 @@
  *             schema:
  *               type: object
  *               properties:
- *                 title:
+ *                 collection_title:
  *                   type: string
  *       400:
  *         description: 잘못된 ID
@@ -1115,9 +1115,9 @@
  *           schema:
  *             type: object
  *             required:
- *               - name
+ *               - user_name
  *             properties:
- *               name:
+ *               user_name:
  *                 type: string
  *               description:
  *                 type: string

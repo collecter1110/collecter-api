@@ -3,6 +3,7 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
+import { mapCollectionListRowToApi } from "@/lib/collectionResponse";
 
 /**
  * @openapi
@@ -33,9 +34,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   msg: ok
  *                   data:
  *                     collections:
- *                       - id: 123
+ *                       - collection_id: 123
  *                         category_id: 1
- *                         title: 좋아요한 컬렉션
+ *                         collection_title: 좋아요한 컬렉션
  *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *                         user_id: 99
  *                         user_name: otheruser
@@ -93,10 +94,18 @@ export async function GET(request: NextRequest) {
   const blockedIds = await getBlockedUserIds(auth.userId);
 
   const collections = (data ?? [])
-    .filter((item) => item.collections !== null)
-    .map((item) => item.collections)
+    .map((item) => {
+      let raw: unknown = item.collections;
+      if (raw == null) return null;
+      if (Array.isArray(raw)) raw = raw[0];
+      if (!raw || typeof raw !== "object" || !("id" in raw)) return null;
+      return mapCollectionListRowToApi(
+        raw as { id: number; title: string | null } & Record<string, unknown>
+      );
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null)
     .filter((c) =>
-      blockedIds.length === 0 || !blockedIds.includes((c as { user_id: number }).user_id)
+      blockedIds.length === 0 || !blockedIds.includes(c.user_id as number)
     );
 
   return apiResponse({ collections });
