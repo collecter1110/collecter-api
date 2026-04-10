@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getAuthContext } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/blocks";
 import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
 import {
   ensureCollectionCoverIfEmpty,
@@ -249,13 +250,38 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 type Params = { params: Promise<{ collectionId: string; selectionId: string }> };
 
 // GET /api/collections/:collectionId/selections/:selectionId — getSelectionDetail
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
   const { collectionId: cIdParam, selectionId: sIdParam } = await params;
   const collectionId = parseInt(cIdParam, 10);
   const selectionId = parseInt(sIdParam, 10);
 
   if (isNaN(collectionId) || isNaN(selectionId)) {
     return apiError("Invalid ID", 400);
+  }
+
+  const auth = await getAuthContext(request);
+
+  // 비공개 컬렉션 체크
+  const { data: collection, error: colError } = await getSupabase()
+    .from("collections")
+    .select("user_id, is_public")
+    .eq("id", collectionId)
+    .single();
+
+  if (colError) {
+    return apiError("Selection not found", 404);
+  }
+
+  if (!collection.is_public && auth?.userId !== collection.user_id) {
+    return apiError("Selection not found", 404);
+  }
+
+  // 차단 체크
+  if (auth && auth.userId !== collection.user_id) {
+    const blockedIds = await getBlockedUserIds(auth.userId);
+    if (blockedIds.includes(collection.user_id as number)) {
+      return apiError("Selection not found", 404);
+    }
   }
 
   const { data, error } = await getSupabase()

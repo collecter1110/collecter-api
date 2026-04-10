@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/blocks";
 
 /**
  * @openapi
@@ -63,25 +64,17 @@ import { getAuthContext } from "@/lib/auth";
 // GET /api/users/ranking — getRankingUsers
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
+  const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
 
   let query = getSupabase()
     .from("userinfo")
-    .select("user_id, name, email, description, image_id, created_at, deleted_at")
+    .select("user_id, name, description, image_id, created_at")
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(10);
 
-  // 차단한 유저 제외
-  if (auth) {
-    const { data: blockedData } = await getSupabase()
-      .from("block")
-      .select("blocked_user_id")
-      .eq("blocker_user_id", auth.userId);
-
-    const blockedIds = (blockedData ?? []).map((b) => b.blocked_user_id);
-    if (blockedIds.length > 0) {
-      query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
-    }
+  if (blockedIds.length > 0) {
+    query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
   }
 
   const { data, error } = await query;

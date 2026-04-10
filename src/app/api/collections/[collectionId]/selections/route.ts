@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/blocks";
 import { uploadImageAndSave } from "@/lib/storage";
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
@@ -211,6 +212,13 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (!collection.is_public && auth?.userId !== collection.user_id) {
     return apiError("Collection not found", 404);
+  }
+
+  if (auth && auth.userId !== collection.user_id) {
+    const blockedIds = await getBlockedUserIds(auth.userId);
+    if (blockedIds.includes(collection.user_id as number)) {
+      return apiError("Collection not found", 404);
+    }
   }
 
   const { data, error } = await getSupabase()

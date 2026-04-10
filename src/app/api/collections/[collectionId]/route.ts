@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/blocks";
 import { deleteImageById } from "@/lib/storage";
 
 /**
@@ -246,6 +247,13 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (!data.is_public && auth?.userId !== data.user_id) {
     return apiError("Collection not found", 404);
+  }
+
+  if (auth && auth.userId !== data.user_id) {
+    const blockedIds = await getBlockedUserIds(auth.userId);
+    if (blockedIds.includes(data.user_id as number)) {
+      return apiError("Collection not found", 404);
+    }
   }
 
   const hasLiked = auth

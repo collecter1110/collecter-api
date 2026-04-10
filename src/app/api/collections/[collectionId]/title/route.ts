@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
+import { getAuthContext } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/blocks";
 
 /**
  * @openapi
@@ -60,7 +62,7 @@ import { getSupabase } from "@/lib/supabase";
  */
 // GET /api/collections/:collectionId/title — getCollectionTitle
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ collectionId: string }> }
 ) {
   const { collectionId: idParam } = await params;
@@ -72,7 +74,7 @@ export async function GET(
 
   const { data, error } = await getSupabase()
     .from("collections")
-    .select("title")
+    .select("title, user_id, is_public")
     .eq("id", collectionId)
     .single();
 
@@ -82,6 +84,19 @@ export async function GET(
     }
     console.error("getCollectionTitle error:", error);
     return apiError("Failed to fetch title", 500);
+  }
+
+  const auth = await getAuthContext(request);
+
+  if (!data.is_public && auth?.userId !== data.user_id) {
+    return apiError("Collection not found", 404);
+  }
+
+  if (auth && auth.userId !== data.user_id) {
+    const blockedIds = await getBlockedUserIds(auth.userId);
+    if (blockedIds.includes(data.user_id as number)) {
+      return apiError("Collection not found", 404);
+    }
   }
 
   return apiResponse({ collection_title: data.title });

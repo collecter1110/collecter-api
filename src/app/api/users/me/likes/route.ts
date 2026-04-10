@@ -104,6 +104,7 @@ export async function GET(request: NextRequest) {
       );
     })
     .filter((c): c is NonNullable<typeof c> => c !== null)
+    .filter((c) => (c as Record<string, unknown>).is_public !== false)
     .filter((c) =>
       blockedIds.length === 0 || !blockedIds.includes(c.user_id as number)
     );

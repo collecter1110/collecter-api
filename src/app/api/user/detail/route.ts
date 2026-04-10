@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/blocks";
 
 /**
  * @openapi
@@ -111,6 +112,13 @@ export async function GET(request: NextRequest) {
 
   const auth = await getAuthContext(request);
   const isOwner = auth?.userId === userId;
+
+  if (auth && !isOwner) {
+    const blockedIds = await getBlockedUserIds(auth.userId);
+    if (blockedIds.includes(userId)) {
+      return apiError("User not found", 404);
+    }
+  }
 
   let colQuery = getSupabase()
     .from("collections")

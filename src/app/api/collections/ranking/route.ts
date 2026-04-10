@@ -70,6 +70,9 @@ export async function GET(request: NextRequest) {
     .select("id, title, category_id, user_id, image_id")
     .eq("is_public", true);
 
+  if (auth) {
+    dbQuery = dbQuery.neq("user_id", auth.userId);
+  }
   if (blockedIds.length > 0) {
     dbQuery = dbQuery.not("user_id", "in", `(${blockedIds.join(",")})`);
   }

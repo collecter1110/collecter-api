@@ -110,8 +110,9 @@ export async function GET(request: NextRequest) {
   let dbQuery = getSupabase()
     .from("selections")
     .select(
-      "collection_id, selection_id, user_id, title, keywords, selection_images(image_id, sort_order), collections(title)"
+      "collection_id, selection_id, user_id, title, keywords, selection_images(image_id, sort_order), collections!inner(title, is_public)"
     )
+    .eq("collections.is_public", true)
     .or(
       kwIds.map((id) => `keywords.cs.${JSON.stringify([{ keyword_id: id }])}`).join(",")
     );

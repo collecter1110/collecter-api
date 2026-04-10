@@ -80,6 +80,9 @@ export async function GET(request: NextRequest) {
     .eq("collections.is_public", true)
     .order("select_num", { ascending: false });
 
+  if (auth) {
+    dbQuery = dbQuery.neq("user_id", auth.userId);
+  }
   if (blockedIds.length > 0) {
     dbQuery = dbQuery.not("user_id", "in", `(${blockedIds.join(",")})`);
   }
