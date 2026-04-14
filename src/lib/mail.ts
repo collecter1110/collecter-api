@@ -1,5 +1,3 @@
-import nodemailer from "nodemailer";
-
 export async function sendOtpEmail(to: string, code: string) {
   const mode = (process.env.SMTP_MODE ?? "").toLowerCase();
   if (mode === "log") {
@@ -7,31 +5,29 @@ export async function sendOtpEmail(to: string, code: string) {
     return;
   }
 
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT ?? 587);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.SMTP_FROM;
 
-  if (!host || !user || !pass || !from) {
-    throw new Error("Missing SMTP_* environment variables");
+  if (!apiKey || !from) {
+    throw new Error("Missing RESEND_API_KEY or SMTP_FROM environment variable");
   }
 
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      from,
+      to,
+      subject: "Your verification code",
+      text: `Your verification code is: ${code}\n\nThis code expires soon.`,
+    }),
   });
 
-  const subject = "Your verification code";
-  const text = `Your verification code is: ${code}\n\nThis code expires soon.`;
-
-  await transporter.sendMail({
-    from,
-    to,
-    subject,
-    text,
-  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend API error (${res.status}): ${body}`);
+  }
 }
-
