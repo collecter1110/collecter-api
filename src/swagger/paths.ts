@@ -1039,38 +1039,6 @@
  *       500:
  *         description: 서버 오류
  *
- * /users/{userId}/collections:
- *   get:
- *     tags:
- *       - Users
- *     summary: 특정 유저의 컬렉션 목록
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: 성공
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 collections:
- *                   type: array
- *                   items:
- *                     type: object
- *       400:
- *         description: 잘못된 ID
- *       404:
- *         description: 유저 없음
- *       500:
- *         description: 서버 오류
- *
  * /users/me:
  *   get:
  *     tags:
