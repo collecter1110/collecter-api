@@ -1,6 +1,6 @@
 /**
  * @openapi
- * /api/auth/check-email:
+ * /auth/check-email:
  *   get:
  *     tags:
  *       - Auth
@@ -26,7 +26,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/auth/check-username:
+ * /auth/check-username:
  *   get:
  *     tags:
  *       - Auth
@@ -52,7 +52,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/auth/delete:
+ * /auth/delete:
  *   delete:
  *     tags:
  *       - Auth
@@ -74,7 +74,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/auth/login:
+ * /auth/login:
  *   post:
  *     tags:
  *       - Auth
@@ -106,7 +106,7 @@
  *       400:
  *         description: 잘못된 토큰
  *
- * /api/auth/logout:
+ * /auth/logout:
  *   post:
  *     tags:
  *       - Auth
@@ -141,7 +141,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/auth/otp/send:
+ * /auth/otp/send:
  *   post:
  *     tags:
  *       - Auth
@@ -175,7 +175,7 @@
  *       500:
  *         description: 발송 실패
  *
- * /api/auth/otp/verify:
+ * /auth/otp/verify:
  *   post:
  *     tags:
  *       - Auth
@@ -214,7 +214,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/auth/refresh:
+ * /auth/refresh:
  *   post:
  *     tags:
  *       - Auth
@@ -247,7 +247,7 @@
  *       401:
  *         description: 세션 만료 또는 폐기됨
  *
- * /api/signup:
+ * /signup:
  *   post:
  *     tags:
  *       - Signup
@@ -291,7 +291,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/collections/ranking:
+ * /collections/ranking:
  *   get:
  *     tags:
  *       - Collections
@@ -329,7 +329,7 @@
  *             schema:
  *               $ref: "#/components/schemas/ErrorResponse"
  *
- * /api/collections/search:
+ * /collections/search:
  *   get:
  *     tags:
  *       - Collections
@@ -371,7 +371,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/collections/{collectionId}:
+ * /collections/{collectionId}:
  *   get:
  *     tags:
  *       - Collections
@@ -477,7 +477,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/collections/{collectionId}/title:
+ * /collections/{collectionId}/title:
  *   get:
  *     tags:
  *       - Collections
@@ -505,7 +505,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/collections/{collectionId}/like:
+ * /collections/{collectionId}/like:
  *   post:
  *     tags:
  *       - Collections
@@ -563,7 +563,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/collections/{collectionId}/selections:
+ * /collections/{collectionId}/selections:
  *   get:
  *     tags:
  *       - Selections
@@ -657,7 +657,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/collections/{collectionId}/selections/{selectionId}:
+ * /collections/{collectionId}/selections/{selectionId}:
  *   get:
  *     tags:
  *       - Selections
@@ -790,7 +790,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/collections/{collectionId}/selections/{selectionId}/move:
+ * /collections/{collectionId}/selections/{selectionId}/move:
  *   patch:
  *     tags:
  *       - Selections
@@ -838,7 +838,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/selections/ranking:
+ * /selections/ranking:
  *   get:
  *     tags:
  *       - Selections
@@ -877,7 +877,7 @@
  *             schema:
  *               $ref: "#/components/schemas/ErrorResponse"
  *
- * /api/selections/search:
+ * /selections/search:
  *   get:
  *     tags:
  *       - Selections
@@ -915,7 +915,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/selectings:
+ * /selectings:
  *   get:
  *     tags:
  *       - Selectings
@@ -990,7 +990,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/users/ranking:
+ * /users/ranking:
  *   get:
  *     tags:
  *       - Users
@@ -1012,7 +1012,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/users/search:
+ * /users/search:
  *   get:
  *     tags:
  *       - Users
@@ -1049,7 +1049,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/users/{userId}/collections:
+ * /users/{userId}/collections:
  *   get:
  *     tags:
  *       - Users
@@ -1081,7 +1081,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/users/me:
+ * /users/me:
  *   get:
  *     tags:
  *       - Users
@@ -1141,7 +1141,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/users/me/blocks:
+ * /users/me/blocks:
  *   get:
  *     tags:
  *       - Users
@@ -1198,7 +1198,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/users/me/collections:
+ * /users/me/collections:
  *   get:
  *     tags:
  *       - Users
@@ -1222,7 +1222,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/users/me/likes:
+ * /users/me/likes:
  *   get:
  *     tags:
  *       - Users
@@ -1246,7 +1246,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/keywords:
+ * /keywords:
  *   post:
  *     tags:
  *       - Keywords
@@ -1288,7 +1288,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/reports:
+ * /reports:
  *   post:
  *     tags:
  *       - Reports
@@ -1330,7 +1330,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/membership:
+ * /membership:
  *   delete:
  *     tags:
  *       - Membership
@@ -1352,7 +1352,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /api/user/detail:
+ * /user/detail:
  *   get:
  *     tags:
  *       - Users
