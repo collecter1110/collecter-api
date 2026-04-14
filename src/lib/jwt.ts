@@ -51,7 +51,7 @@ export async function signVerifiedToken(payload: VerifiedTokenClaims) {
   return await new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuedAt(nowSeconds())
-    .setExpirationTime(nowSeconds() + 300) // 5분
+    .setExpirationTime(nowSeconds() + 180) // 3분
     .sign(getSecretKey());
 }
 
