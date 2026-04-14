@@ -22,13 +22,17 @@ import { uploadImageAndSave } from "@/lib/storage";
  *             properties:
  *               verified_token:
  *                 type: string
+ *                 example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *               email:
  *                 type: string
  *                 format: email
+ *                 example: newuser@example.com
  *               user_name:
  *                 type: string
+ *                 example: collector123
  *               description:
  *                 type: string
+ *                 example: 안녕하세요! 컬렉터입니다.
  *               image:
  *                 type: string
  *                 format: binary
