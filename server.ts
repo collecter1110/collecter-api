@@ -28,5 +28,7 @@ void nextApp.prepare().then(() => {
   app.listen(port, () => {
     console.log(`Ready on http://${host}:${port}`);
     console.log(`Swagger UI: http://${host}:${port}/api-docs`);
+    console.log(`SUPABASE_URL: ${process.env.SUPABASE_URL ? "SET" : "NOT SET"}`);
+    console.log(`SUPABASE_SERVICE_ROLE_KEY: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? "SET" : "NOT SET"}`);
   });
 });
