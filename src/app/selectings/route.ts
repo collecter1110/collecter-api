@@ -102,11 +102,8 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *         application/json:
  *           schema:
  *             type: object
- *             required: [category_id, selecting_collection_id, selected_collection_id, selected_selection_id]
+ *             required: [selecting_collection_id, selected_collection_id, selected_selection_id]
  *             properties:
- *               category_id:
- *                 type: integer
- *                 description: 내 컬렉션의 카테고리 ID
  *               selecting_collection_id:
  *                 type: integer
  *                 description: 퍼올 내 컬렉션 ID
@@ -119,7 +116,6 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *           examples:
  *             ok:
  *               value:
- *                 category_id: 1
  *                 selecting_collection_id: 200
  *                 selected_collection_id: 123
  *                 selected_selection_id: 456
@@ -209,18 +205,30 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /selectings — selecting (셀렉션 퍼오기)
-// body: { category_id, selecting_collection_id, selected_collection_id, selected_selection_id, owner_id }
+// body: { selecting_collection_id, selected_collection_id, selected_selection_id }
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json();
   const {
-    category_id,
     selecting_collection_id,
     selected_collection_id,
     selected_selection_id,
   } = body;
+
+  // 퍼올 컬렉션의 category_id 조회
+  const { data: targetCollection, error: colError } = await getSupabase()
+    .from("collections")
+    .select("category_id")
+    .eq("id", selecting_collection_id)
+    .single();
+
+  if (colError || !targetCollection) {
+    return apiError("Target collection not found", 404);
+  }
+
+  const category_id = targetCollection.category_id;
 
   // 원본 셀렉션 조회
   const { data: selectedSelection, error: fetchError } = await getSupabase()

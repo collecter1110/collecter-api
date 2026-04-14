@@ -950,13 +950,10 @@
  *           schema:
  *             type: object
  *             required:
- *               - category_id
  *               - selecting_collection_id
  *               - selected_collection_id
  *               - selected_selection_id
  *             properties:
- *               category_id:
- *                 type: integer
  *               selecting_collection_id:
  *                 type: integer
  *                 description: 퍼올 내 컬렉션 ID
