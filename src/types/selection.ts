@@ -7,8 +7,7 @@ export interface Selection {
   owner_name?: string;
   title: string;
   description?: string | null;
-  image_file_paths?: string[] | null;
-  thumb_file_path?: string | null;
+  thumb_image_id?: string | null;
   keywords?: Record<string, unknown>[];
   link?: string | null;
   items?: Record<string, unknown>[] | null;

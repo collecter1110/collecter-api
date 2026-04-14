@@ -5,7 +5,7 @@ export interface Collection {
   user_name?: string;
   title: string;
   description?: string | null;
-  image_file_path?: string | null;
+  image_id?: string | null;
   tags?: string[] | null;
   is_public: boolean;
   primary_keywords?: string[] | null;

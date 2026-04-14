@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { requireAuth } from "@/lib/auth";
 import { revokeRefreshSessionByToken } from "@/lib/authStore";
 import { verifyJwt, type RefreshTokenClaims } from "@/lib/jwt";
@@ -40,7 +41,10 @@ import { verifyJwt, type RefreshTokenClaims } from "@/lib/jwt";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: refresh_token 누락 또는 유효하지 않음
  *         content:
@@ -50,7 +54,9 @@ import { verifyJwt, type RefreshTokenClaims } from "@/lib/jwt";
  *             examples:
  *               error:
  *                 value:
- *                   error: refresh_token is required
+ *                   errorCode: SU000
+ *                   msg: refresh_token is required
+ *                   data: {}
  *       401:
  *         description: 인증 실패
  *         content:
@@ -60,7 +66,9 @@ import { verifyJwt, type RefreshTokenClaims } from "@/lib/jwt";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -70,7 +78,9 @@ import { verifyJwt, type RefreshTokenClaims } from "@/lib/jwt";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to logout
+ *                   errorCode: SU000
+ *                   msg: Failed to logout
+ *                   data: {}
  */
 // POST /api/auth/logout
 export async function POST(request: NextRequest) {
@@ -81,22 +91,22 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const refresh_token = body?.refresh_token as string | undefined;
   if (!refresh_token) {
-    return NextResponse.json(
-      { error: "refresh_token is required" },
-      { status: 400 }
-    );
+    return apiError("refresh_token is required", 400);
   }
 
   try {
     const claims = await verifyJwt<RefreshTokenClaims>(refresh_token);
     if (!claims || claims.typ !== "refresh") {
-      return NextResponse.json({ error: "Invalid refresh token" }, { status: 400 });
+      return apiError("Invalid refresh token", 400);
+    }
+    if (claims.user_id !== auth.userId) {
+      return apiError("Refresh token does not belong to this user", 403);
     }
     await revokeRefreshSessionByToken(refresh_token);
   } catch (e) {
     console.error("logout error:", e);
-    return NextResponse.json({ error: "Failed to logout" }, { status: 500 });
+    return apiError("Failed to logout", 500);
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }

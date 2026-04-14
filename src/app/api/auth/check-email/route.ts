@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 
 /**
@@ -31,11 +32,17 @@ import { getSupabase } from "@/lib/supabase";
  *               available:
  *                 summary: 사용 가능한 이메일
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *               taken:
  *                 summary: 이미 사용 중인 이메일
  *                 value:
- *                   success: false
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: false
  *       400:
  *         description: email 파라미터 누락
  *         content:
@@ -45,7 +52,9 @@ import { getSupabase } from "@/lib/supabase";
  *             examples:
  *               error:
  *                 value:
- *                   error: email parameter is required
+ *                   errorCode: SU000
+ *                   msg: email parameter is required
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -55,7 +64,9 @@ import { getSupabase } from "@/lib/supabase";
  *             examples:
  *               error:
  *                 value:
- *                   error: Server error
+ *                   errorCode: SU000
+ *                   msg: Server error
+ *                   data: {}
  */
 // GET /api/auth/check-email?email=...
 // success: true = 사용 가능, false = 이미 존재
@@ -63,10 +74,7 @@ export async function GET(request: NextRequest) {
   const email = request.nextUrl.searchParams.get("email");
 
   if (!email) {
-    return NextResponse.json(
-      { error: "email parameter is required" },
-      { status: 400 }
-    );
+    return apiError("email parameter is required", 400);
   }
 
   const { data, error } = await getSupabase()
@@ -77,8 +85,8 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("checkEmailDuplicate error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return apiError("Server error", 500);
   }
 
-  return NextResponse.json({ success: data === null });
+  return apiResponse({ success: data === null });
 }

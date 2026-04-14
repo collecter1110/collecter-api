@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { deleteImageById } from "@/lib/storage";
@@ -28,7 +29,10 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       401:
  *         description: 인증 필요
  *         content:
@@ -38,7 +42,9 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 탈퇴 처리 실패
  *         content:
@@ -48,7 +54,9 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to cancel membership
+ *                   errorCode: SU000
+ *                   msg: Failed to cancel membership
+ *                   data: {}
  */
 // DELETE /api/membership — cancelMembership
 export async function DELETE(request: NextRequest) {
@@ -82,11 +90,8 @@ export async function DELETE(request: NextRequest) {
 
   if (error) {
     console.error("cancelMembership soft-delete error:", error);
-    return NextResponse.json(
-      { error: "Failed to cancel membership" },
-      { status: 500 }
-    );
+    return apiError("Failed to cancel membership", 500);
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }

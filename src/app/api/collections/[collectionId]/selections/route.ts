@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/blocks";
 import { uploadImageAndSave } from "@/lib/storage";
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
@@ -42,23 +44,24 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               ok:
  *                 value:
- *                   selections:
- *                     - category_id: 1
- *                       collection_id: 123
- *                       selection_id: 456
- *                       title: 내 셀렉션
- *                       keywords:
- *                         - keyword_id: 7
- *                           keyword_name: 키워드
- *                       owner_name: gimgahui
- *                       owner_id: 45
- *                       is_selecting: false
- *                       thumb_file_path: "https://cdn.example.com/selections/img1.jpg"
- *                       selection_images:
- *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
- *                           sort_order: 0
- *                           images:
- *                             - file_path: "https://cdn.example.com/selections/img1.jpg"
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selections:
+ *                       - category_id: 1
+ *                         collection_id: 123
+ *                         selection_id: 456
+ *                         selection_title: 내 셀렉션
+ *                         keywords:
+ *                           - keyword_id: 7
+ *                             keyword_name: 키워드
+ *                         owner_name: gimgahui
+ *                         owner_id: 45
+ *                         is_selecting: false
+ *                         thumb_image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                         selection_images:
+ *                           - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                             sort_order: 0
  *       404:
  *         description: 컬렉션을 찾을 수 없음
  *         content:
@@ -68,7 +71,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Collection not found
+ *                   errorCode: SU000
+ *                   msg: Collection not found
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -78,7 +83,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch selections
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch selections
+ *                   data: {}
  *   post:
  *     tags: [Selections]
  *     summary: 셀렉션 추가
@@ -138,7 +145,10 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: 잘못된 요청
  *         content:
@@ -148,7 +158,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: category_id and title are required
+ *                   errorCode: SU000
+ *                   msg: category_id and title are required
+ *                   data: {}
  *       401:
  *         description: 인증 필요
  *         content:
@@ -158,7 +170,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 셀렉션 추가 실패
  *         content:
@@ -168,7 +182,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to create selection
+ *                   errorCode: SU000
+ *                   msg: Failed to create selection
+ *                   data: {}
  */
 
 type Params = { params: Promise<{ collectionId: string }> };
@@ -179,7 +195,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const collectionId = parseInt(idParam, 10);
 
   if (isNaN(collectionId)) {
-    return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+    return apiError("Invalid collection ID", 400);
   }
 
   const auth = await getAuthContext(request);
@@ -191,36 +207,45 @@ export async function GET(request: NextRequest, { params }: Params) {
     .single();
 
   if (collectionError) {
-    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    return apiError("Collection not found", 404);
   }
 
   if (!collection.is_public && auth?.userId !== collection.user_id) {
-    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    return apiError("Collection not found", 404);
+  }
+
+  if (auth && auth.userId !== collection.user_id) {
+    const blockedIds = await getBlockedUserIds(auth.userId);
+    if (blockedIds.includes(collection.user_id as number)) {
+      return apiError("Collection not found", 404);
+    }
   }
 
   const { data, error } = await getSupabase()
     .from("selections")
     .select(
       `category_id, collection_id, selection_id, title, keywords, owner_name, owner_id, is_selecting,
-       selection_images(image_id, sort_order, images(file_path))`
+       selection_images(image_id, sort_order)`
     )
     .eq("collection_id", collectionId);
 
   if (error) {
     console.error("getSelections error:", error);
-    return NextResponse.json({ error: "Failed to fetch selections" }, { status: 500 });
+    return apiError("Failed to fetch selections", 500);
   }
 
   const selections = (data ?? []).map((item) => {
-    const imgs = (item.selection_images as unknown as { image_id: string; sort_order: number; images: { file_path: string }[] }[])
+    const { title, ...rest } = item;
+    const imgs = (item.selection_images as unknown as { image_id: string; sort_order: number }[])
       .sort((a, b) => a.sort_order - b.sort_order);
     return {
-      ...item,
-      thumb_file_path: imgs[0]?.images?.[0]?.file_path ?? null,
+      ...rest,
+      selection_title: title,
+      thumb_image_id: imgs[0]?.image_id ?? null,
     };
   });
 
-  return NextResponse.json({ selections });
+  return apiResponse({ selections });
 }
 
 // POST /api/collections/:collectionId/selections — addSelections
@@ -233,7 +258,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const collectionId = parseInt(idParam, 10);
 
   if (isNaN(collectionId)) {
-    return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+    return apiError("Invalid collection ID", 400);
   }
 
   const formData = await request.formData();
@@ -250,19 +275,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   const imageFiles = formData.getAll("images") as File[];
 
   if (!category_id || !title) {
-    return NextResponse.json(
-      { error: "category_id and title are required" },
-      { status: 400 }
-    );
+    return apiError("category_id and title are required", 400);
   }
   if (keywordsRaw === null) {
-    return NextResponse.json({ error: "keywords is required" }, { status: 400 });
+    return apiError("keywords is required", 400);
   }
   if (!keywords || keywords.length === 0) {
-    return NextResponse.json(
-      { error: "keywords must be a non-empty JSON array of strings" },
-      { status: 400 }
-    );
+    return apiError("keywords must be a non-empty JSON array of strings", 400);
   }
 
   let keywordEntries;
@@ -270,7 +289,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     keywordEntries = await ensureKeywordsInCategory(category_id, keywords);
   } catch (err) {
     console.error("Failed to save keywords:", err);
-    return NextResponse.json({ error: "Failed to save keywords" }, { status: 500 });
+    return apiError("Failed to save keywords", 500);
   }
 
   const { data: newSelection, error } = await getSupabase()
@@ -294,7 +313,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   if (error || !newSelection) {
     console.error("addSelections error:", error);
-    return NextResponse.json({ error: "Failed to create selection" }, { status: 500 });
+    return apiError("Failed to create selection", 500);
   }
 
   for (let i = 0; i < imageFiles.length; i++) {
@@ -322,5 +341,5 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
   }
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  return apiResponse({ success: true }, 201);
 }

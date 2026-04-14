@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
+import { getAuthContext } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/blocks";
 
 /**
  * @openapi
@@ -21,14 +24,17 @@ import { getSupabase } from "@/lib/supabase";
  *           application/json:
  *             schema:
  *               type: object
- *               required: [title]
+ *               required: [collection_title]
  *               properties:
- *                 title:
+ *                 collection_title:
  *                   type: string
  *             examples:
  *               ok:
  *                 value:
- *                   title: 내 컬렉션
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     collection_title: 내 컬렉션
  *       404:
  *         description: 컬렉션을 찾을 수 없음
  *         content:
@@ -38,7 +44,9 @@ import { getSupabase } from "@/lib/supabase";
  *             examples:
  *               error:
  *                 value:
- *                   error: Collection not found
+ *                   errorCode: SU000
+ *                   msg: Collection not found
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -48,33 +56,48 @@ import { getSupabase } from "@/lib/supabase";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch title
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch title
+ *                   data: {}
  */
 // GET /api/collections/:collectionId/title — getCollectionTitle
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ collectionId: string }> }
 ) {
   const { collectionId: idParam } = await params;
   const collectionId = parseInt(idParam, 10);
 
   if (isNaN(collectionId)) {
-    return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+    return apiError("Invalid collection ID", 400);
   }
 
   const { data, error } = await getSupabase()
     .from("collections")
-    .select("title")
+    .select("title, user_id, is_public")
     .eq("id", collectionId)
     .single();
 
   if (error) {
     if (error.code === "PGRST116") {
-      return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+      return apiError("Collection not found", 404);
     }
     console.error("getCollectionTitle error:", error);
-    return NextResponse.json({ error: "Failed to fetch title" }, { status: 500 });
+    return apiError("Failed to fetch title", 500);
   }
 
-  return NextResponse.json({ title: data.title });
+  const auth = await getAuthContext(request);
+
+  if (!data.is_public && auth?.userId !== data.user_id) {
+    return apiError("Collection not found", 404);
+  }
+
+  if (auth && auth.userId !== data.user_id) {
+    const blockedIds = await getBlockedUserIds(auth.userId);
+    if (blockedIds.includes(data.user_id as number)) {
+      return apiError("Collection not found", 404);
+    }
+  }
+
+  return apiResponse({ collection_title: data.title });
 }

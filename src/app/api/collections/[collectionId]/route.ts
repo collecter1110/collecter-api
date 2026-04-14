@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/blocks";
 import { deleteImageById } from "@/lib/storage";
 
 /**
@@ -38,28 +40,27 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               ok:
  *                 value:
- *                   collection:
- *                     id: 123
- *                     category_id: 1
- *                     title: 내 컬렉션
- *                     description: 컬렉션 설명
- *                     created_at: "2026-04-06T12:34:56.000Z"
- *                     image_file_path: "https://cdn.example.com/collections/cover.jpg"
- *                     image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
- *                     tags: ["태그1", "태그2"]
- *                     user_id: 45
- *                     user_name: gimgahui
- *                     primary_keywords:
- *                       - keyword_id: 7
- *                         keyword_name: 키워드
- *                         count: 3
- *                     selection_num: 12
- *                     like_num: 34
- *                     has_liked: false
- *                     is_public: true
- *                     images:
- *                       - image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
- *                         file_path: "https://cdn.example.com/collections/cover.jpg"
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     collection:
+ *                       collection_id: 123
+ *                       category_id: 1
+ *                       description: 컬렉션 설명
+ *                       created_at: "2026-04-06T12:34:56.000Z"
+ *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                       tags: ["태그1", "태그2"]
+ *                       user_id: 45
+ *                       user_name: gimgahui
+ *                       primary_keywords:
+ *                         - keyword_id: 7
+ *                           keyword_name: 키워드
+ *                           count: 3
+ *                       selection_num: 12
+ *                       like_num: 34
+ *                       is_public: true
+ *                       collection_title: 내 컬렉션
+ *                       has_liked: false
  *       404:
  *         description: 컬렉션을 찾을 수 없음
  *         content:
@@ -69,7 +70,9 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Collection not found
+ *                   errorCode: SU000
+ *                   msg: Collection not found
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -79,7 +82,9 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch collection
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch collection
+ *                   data: {}
  *   patch:
  *     tags: [Collections]
  *     summary: 컬렉션 수정
@@ -125,7 +130,10 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       401:
  *         description: 인증 필요
  *         content:
@@ -135,7 +143,9 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 수정 실패
  *         content:
@@ -145,7 +155,9 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to update collection
+ *                   errorCode: SU000
+ *                   msg: Failed to update collection
+ *                   data: {}
  *   delete:
  *     tags: [Collections]
  *     summary: 컬렉션 삭제
@@ -173,7 +185,10 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       404:
  *         description: 컬렉션을 찾을 수 없음
  *         content:
@@ -183,7 +198,9 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Collection not found
+ *                   errorCode: SU000
+ *                   msg: Collection not found
+ *                   data: {}
  *       500:
  *         description: 삭제 실패
  *         content:
@@ -193,7 +210,9 @@ import { deleteImageById } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to delete collection
+ *                   errorCode: SU000
+ *                   msg: Failed to delete collection
+ *                   data: {}
  */
 
 type Params = { params: Promise<{ collectionId: string }> };
@@ -203,7 +222,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const { collectionId: idParam } = await params;
   const collectionId = parseInt(idParam, 10);
   if (isNaN(collectionId)) {
-    return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+    return apiError("Invalid collection ID", 400);
   }
 
   const auth = await getAuthContext(request);
@@ -211,31 +230,45 @@ export async function GET(request: NextRequest, { params }: Params) {
   const { data, error } = await getSupabase()
     .from("collections")
     .select(
-      `category_id, id, title, description, created_at, image_file_path, image_id,
+      `category_id, id, title, description, created_at, image_id,
        tags, user_id, user_name, primary_keywords, selection_num, like_num,
-       likes(user_id), is_public, images(image_id, file_path)`
+       likes(user_id), is_public`
     )
     .eq("id", collectionId)
     .single();
 
   if (error) {
     if (error.code === "PGRST116") {
-      return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+      return apiError("Collection not found", 404);
     }
     console.error("getCollectionDetail error:", error);
-    return NextResponse.json({ error: "Failed to fetch collection" }, { status: 500 });
+    return apiError("Failed to fetch collection", 500);
   }
 
   if (!data.is_public && auth?.userId !== data.user_id) {
-    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    return apiError("Collection not found", 404);
+  }
+
+  if (auth && auth.userId !== data.user_id) {
+    const blockedIds = await getBlockedUserIds(auth.userId);
+    if (blockedIds.includes(data.user_id as number)) {
+      return apiError("Collection not found", 404);
+    }
   }
 
   const hasLiked = auth
     ? (data.likes as { user_id: number }[]).some((l) => l.user_id === auth.userId)
     : false;
 
-  const { likes: _likes, ...rest } = data;
-  return NextResponse.json({ collection: { ...rest, has_liked: hasLiked } });
+  const { likes: _likes, title, id, ...rest } = data;
+  return apiResponse({
+    collection: {
+      ...rest,
+      collection_id: id,
+      collection_title: title,
+      has_liked: hasLiked,
+    },
+  });
 }
 
 // PATCH /api/collections/:collectionId — editCollection
@@ -247,7 +280,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const { collectionId: idParam } = await params;
   const collectionId = parseInt(idParam, 10);
   if (isNaN(collectionId)) {
-    return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+    return apiError("Invalid collection ID", 400);
   }
 
   const formData = await request.formData();
@@ -271,10 +304,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("editCollection error:", error);
-    return NextResponse.json({ error: "Failed to update collection" }, { status: 500 });
+    return apiError("Failed to update collection", 500);
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }
 
 // DELETE /api/collections/:collectionId — deleteCollection
@@ -285,7 +318,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const { collectionId: idParam } = await params;
   const collectionId = parseInt(idParam, 10);
   if (isNaN(collectionId)) {
-    return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+    return apiError("Invalid collection ID", 400);
   }
 
   const { data: collection, error: fetchError } = await getSupabase()
@@ -295,7 +328,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     .single();
 
   if (fetchError) {
-    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    return apiError("Collection not found", 404);
   }
 
   // 컬렉션 대표 이미지 삭제
@@ -320,8 +353,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("deleteCollection error:", error);
-    return NextResponse.json({ error: "Failed to delete collection" }, { status: 500 });
+    return apiError("Failed to delete collection", 500);
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }

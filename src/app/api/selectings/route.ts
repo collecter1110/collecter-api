@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
+import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 
 /**
  * @openapi
@@ -38,22 +40,28 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   selectings:
- *                     - user_id: 45
- *                       collection_id: 123
- *                       selection_id: 456
- *                       selecting_collection_id: 200
- *                       selected_collection_id: 123
- *                       selected_selection_id: 456
- *                       selected_user_id: 99
- *                       title: 퍼온 셀렉션
- *                       owner_id: 99
- *                       owner_name: otheruser
- *                       is_selecting: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selectings:
+ *                       - user_id: 45
+ *                         collection_id: 123
+ *                         selection_id: 456
+ *                         selecting_collection_id: 200
+ *                         selected_collection_id: 123
+ *                         selected_selection_id: 456
+ *                         selected_user_id: 99
+ *                         selection_title: 퍼온 셀렉션
+ *                         owner_id: 99
+ *                         owner_name: otheruser
+ *                         is_selecting: true
  *               empty:
  *                 summary: 셀렉팅 없음
  *                 value:
- *                   selectings: []
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selectings: []
  *       401:
  *         description: 인증 필요
  *         content:
@@ -63,7 +71,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -73,13 +83,17 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch selectings
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch selectings
+ *                   data: {}
  *   post:
  *     tags: [Selectings]
  *     summary: 셀렉션 퍼오기 (selecting)
  *     description: |
  *       다른 유저의 셀렉션을 내 컬렉션으로 퍼옵니다.
  *       이미 퍼온 셀렉션(is_selecting=true)인 경우 원본을 추적해 저장합니다.
+ *       원본의 `selection_images`를 새 셀렉션으로 복사하며(동일 image_id 공유),
+ *       퍼온 컬렉션에 커버가 없으면 첫 이미지로 자동 설정합니다.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -123,7 +137,10 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       401:
  *         description: 인증 필요
  *         content:
@@ -133,7 +150,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       404:
  *         description: 원본 셀렉션을 찾을 수 없음
  *         content:
@@ -143,7 +162,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Source selection not found
+ *                   errorCode: SU000
+ *                   msg: Source selection not found
+ *                   data: {}
  *       500:
  *         description: 셀렉팅 실패
  *         content:
@@ -153,7 +174,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to create selecting
+ *                   errorCode: SU000
+ *                   msg: Failed to create selecting
+ *                   data: {}
  */
 // GET /api/selectings?properties=... — getSelectings
 export async function GET(request: NextRequest) {
@@ -170,14 +193,19 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     if (error.code === "PGRST116") {
-      return NextResponse.json({ selectings: [] });
+      return apiResponse({ selectings: [] });
     }
     console.error("getSelectings error:", error);
-    return NextResponse.json({ error: "Failed to fetch selectings" }, { status: 500 });
+    return apiError("Failed to fetch selectings", 500);
   }
 
-  // Client 호환성: 항상 배열 형태로 반환
-  return NextResponse.json({ selectings: data ? [data] : [] });
+  // title → selection_title 변환
+  if (data && "title" in data) {
+    const { title, ...rest } = data as Record<string, unknown>;
+    return apiResponse({ selectings: [{ ...rest, selection_title: title }] });
+  }
+
+  return apiResponse({ selectings: data ? [data] : [] });
 }
 
 // POST /api/selectings — selecting (셀렉션 퍼오기)
@@ -203,7 +231,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (fetchError || !selectedSelection) {
-    return NextResponse.json({ error: "Source selection not found" }, { status: 404 });
+    return apiError("Source selection not found", 404);
   }
 
   // 이미 selecting인 경우 원본 추적
@@ -235,7 +263,6 @@ export async function POST(request: NextRequest) {
       user_id: auth.userId,
       title: selectedSelection.title,
       description: selectedSelection.description,
-      image_file_paths: selectedSelection.image_file_paths,
       keywords: selectedSelection.keywords,
       link: selectedSelection.link,
       items: selectedSelection.items,
@@ -248,7 +275,7 @@ export async function POST(request: NextRequest) {
 
   if (insertError || !newData) {
     console.error("selecting insert error:", insertError);
-    return NextResponse.json({ error: "Failed to create selecting" }, { status: 500 });
+    return apiError("Failed to create selecting", 500);
   }
 
   // selecting 테이블 업데이트
@@ -263,8 +290,30 @@ export async function POST(request: NextRequest) {
 
   if (updateError) {
     console.error("selecting update error:", updateError);
-    return NextResponse.json({ error: "Failed to update selecting" }, { status: 500 });
+    return apiError("Failed to update selecting", 500);
   }
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  // 원본 셀렉션의 이미지를 새 셀렉션으로 복사 (같은 image_id 공유)
+  const { data: sourceImages } = await getSupabase()
+    .from("selection_images")
+    .select("image_id, sort_order")
+    .eq("collection_id", selected_collection_id)
+    .eq("selection_id", selected_selection_id)
+    .order("sort_order", { ascending: true });
+
+  for (const img of sourceImages ?? []) {
+    await getSupabase().from("selection_images").insert({
+      collection_id: selecting_collection_id,
+      selection_id: newData.selection_id,
+      image_id: img.image_id,
+      sort_order: img.sort_order,
+    });
+  }
+
+  // 컬렉션 커버가 비어있으면 첫 이미지로 자동 설정
+  if (sourceImages && sourceImages.length > 0) {
+    await ensureCollectionCoverIfEmpty(selecting_collection_id, sourceImages[0].image_id);
+  }
+
+  return apiResponse({ success: true }, 201);
 }

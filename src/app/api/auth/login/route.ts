@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { createRefreshSession, newSessionId } from "@/lib/authStore";
 import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims } from "@/lib/jwt";
 
@@ -39,8 +40,11 @@ import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims 
  *             examples:
  *               ok:
  *                 value:
- *                   access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIn0.signature
- *                   refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoic2Vzc2lvbi11dWlkIiwidXNlcl9pZCI6NDUsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSJ9.signature
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIn0.signature
+ *                     refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoic2Vzc2lvbi11dWlkIiwidXNlcl9pZCI6NDUsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSJ9.signature
  *       400:
  *         description: 잘못된 토큰
  *         content:
@@ -50,7 +54,9 @@ import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims 
  *             examples:
  *               error:
  *                 value:
- *                   error: Invalid or expired verified_token
+ *                   errorCode: SU000
+ *                   msg: Invalid or expired verified_token
+ *                   data: {}
  */
 // POST /api/auth/login
 // body: { verified_token: string }
@@ -60,18 +66,18 @@ export async function POST(request: NextRequest) {
   const verified_token = body?.verified_token as string | undefined;
 
   if (!verified_token) {
-    return NextResponse.json({ error: "verified_token is required" }, { status: 400 });
+    return apiError("verified_token is required", 400);
   }
 
   let claims: VerifiedTokenClaims;
   try {
     claims = await verifyJwt<VerifiedTokenClaims>(verified_token);
   } catch {
-    return NextResponse.json({ error: "Invalid or expired verified_token" }, { status: 400 });
+    return apiError("Invalid or expired verified_token", 400);
   }
 
   if (!claims || claims.typ !== "verified" || !claims.user_id || !claims.email) {
-    return NextResponse.json({ error: "Invalid verified_token" }, { status: 400 });
+    return apiError("Invalid verified_token", 400);
   }
 
   const sessionId = newSessionId();
@@ -87,5 +93,5 @@ export async function POST(request: NextRequest) {
     expiresAt: new Date(Date.now() + refreshTtl * 1000),
   });
 
-  return NextResponse.json({ access_token, refresh_token });
+  return apiResponse({ access_token, refresh_token });
 }

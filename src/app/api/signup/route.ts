@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { createRefreshSession, newSessionId } from "@/lib/authStore";
 import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims } from "@/lib/jwt";
@@ -17,14 +18,14 @@ import { uploadImageAndSave } from "@/lib/storage";
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [verified_token, email, name]
+ *             required: [verified_token, email, user_name]
  *             properties:
  *               verified_token:
  *                 type: string
  *               email:
  *                 type: string
  *                 format: email
- *               name:
+ *               user_name:
  *                 type: string
  *               description:
  *                 type: string
@@ -47,8 +48,11 @@ import { uploadImageAndSave } from "@/lib/storage";
  *             examples:
  *               ok:
  *                 value:
- *                   access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NiwiZW1haWwiOiJuZXd1c2VyQGV4YW1wbGUuY29tIn0.signature
- *                   refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoibmV3LXNlc3Npb24tdXVpZCIsInVzZXJfaWQiOjQ2LCJlbWFpbCI6Im5ld3VzZXJAZXhhbXBsZS5jb20ifQ.signature
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NiwiZW1haWwiOiJuZXd1c2VyQGV4YW1wbGUuY29tIn0.signature
+ *                     refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoibmV3LXNlc3Npb24tdXVpZCIsInVzZXJfaWQiOjQ2LCJlbWFpbCI6Im5ld3VzZXJAZXhhbXBsZS5jb20ifQ.signature
  *       400:
  *         description: 잘못된 요청
  *         content:
@@ -58,7 +62,9 @@ import { uploadImageAndSave } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Invalid or expired verified_token
+ *                   errorCode: SU000
+ *                   msg: Invalid or expired verified_token
+ *                   data: {}
  *       500:
  *         description: 회원가입 실패
  *         content:
@@ -68,39 +74,41 @@ import { uploadImageAndSave } from "@/lib/storage";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to signup
+ *                   errorCode: SU000
+ *                   msg: Failed to signup
+ *                   data: {}
  */
 // POST /api/signup
-// body: multipart/form-data { verified_token, email, name, description?, image? }
+// body: multipart/form-data { verified_token, email, user_name, description?, image? }
 // OTP 인증 후 발급된 verified_token으로 프로필 설정 + access_token + refresh_token 반환 (신규 유저)
 export async function POST(request: NextRequest) {
   const formData = await request.formData().catch(() => null);
   if (!formData) {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    return apiError("Invalid request", 400);
   }
 
   const verified_token = formData.get("verified_token") as string | null;
   const email = formData.get("email") as string | null;
-  const name = formData.get("name") as string | null;
+  const user_name = formData.get("user_name") as string | null;
   const description = (formData.get("description") as string | null) ?? null;
   const imageFile = formData.get("image") as File | null;
 
   if (!verified_token) {
-    return NextResponse.json({ error: "verified_token is required" }, { status: 400 });
+    return apiError("verified_token is required", 400);
   }
-  if (!email || !name) {
-    return NextResponse.json({ error: "email and name are required" }, { status: 400 });
+  if (!email || !user_name) {
+    return apiError("email and user_name are required", 400);
   }
 
   let claims: VerifiedTokenClaims;
   try {
     claims = await verifyJwt<VerifiedTokenClaims>(verified_token);
   } catch {
-    return NextResponse.json({ error: "Invalid or expired verified_token" }, { status: 400 });
+    return apiError("Invalid or expired verified_token", 400);
   }
 
   if (!claims || claims.typ !== "verified" || !claims.user_id || !claims.email) {
-    return NextResponse.json({ error: "Invalid verified_token" }, { status: 400 });
+    return apiError("Invalid verified_token", 400);
   }
 
   let image_id: string | null = null;
@@ -113,11 +121,11 @@ export async function POST(request: NextRequest) {
       );
       image_id = result.imageId;
     } catch {
-      return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
+      return apiError("Failed to upload image", 500);
     }
   }
 
-  const updateData: Record<string, unknown> = { name, description };
+  const updateData: Record<string, unknown> = { name: user_name, description };
   if (image_id) updateData.image_id = image_id;
 
   const { error } = await getSupabase()
@@ -127,7 +135,7 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error("signup error:", error);
-    return NextResponse.json({ error: "Failed to signup" }, { status: 500 });
+    return apiError("Failed to signup", 500);
   }
 
   const sessionId = newSessionId();
@@ -143,5 +151,5 @@ export async function POST(request: NextRequest) {
     expiresAt: new Date(Date.now() + refreshTtl * 1000),
   });
 
-  return NextResponse.json({ access_token, refresh_token });
+  return apiResponse({ access_token, refresh_token });
 }

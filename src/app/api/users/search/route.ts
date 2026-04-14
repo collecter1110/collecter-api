@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
@@ -42,16 +43,21 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               ok:
  *                 value:
- *                   users:
- *                     - user_id: 45
- *                       name: gimgahui
- *                       description: 안녕하세요
- *                       image_file_path: "https://cdn.example.com/users/profile.jpg"
- *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     users:
+ *                       - user_id: 45
+ *                         user_name: gimgahui
+ *                         description: 안녕하세요
+ *                         image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *               empty:
  *                 summary: 검색 결과 없음
  *                 value:
- *                   users: []
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     users: []
  *       400:
  *         description: q 파라미터 누락
  *         content:
@@ -61,7 +67,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               error:
  *                 value:
- *                   error: "Query parameter 'q' is required"
+ *                   errorCode: SU000
+ *                   msg: "Query parameter 'q' is required"
+ *                   data: {}
  *       500:
  *         description: 검색 실패
  *         content:
@@ -71,17 +79,16 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to search users
+ *                   errorCode: SU000
+ *                   msg: Failed to search users
+ *                   data: {}
  */
 // GET /api/users/search?q=... — searchUsers
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q");
 
   if (!q || q.trim() === "") {
-    return NextResponse.json(
-      { error: "Query parameter 'q' is required" },
-      { status: 400 }
-    );
+    return apiError("Query parameter 'q' is required", 400);
   }
 
   const auth = await getAuthContext(request);
@@ -89,7 +96,7 @@ export async function GET(request: NextRequest) {
 
   let query = getSupabase()
     .from("userinfo")
-    .select("user_id, name, description, image_file_path, image_id")
+    .select("user_id, name, description, image_id")
     .textSearch("name", q.trim(), { type: "plain", config: "simple" })
     .is("deleted_at", null);
 
@@ -104,8 +111,15 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("searchUsers error:", error);
-    return NextResponse.json({ error: "Failed to search users" }, { status: 500 });
+    return apiError("Failed to search users", 500);
   }
 
-  return NextResponse.json({ users: data ?? [] });
+  const users = (data ?? []).map((u) => ({
+    user_id: u.user_id as number,
+    user_name: u.name as string,
+    description: (u.description as string | null) ?? null,
+    image_id: (u.image_id as string | null) ?? null,
+  }));
+
+  return apiResponse({ users });
 }

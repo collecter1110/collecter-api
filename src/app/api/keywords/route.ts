@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
@@ -51,11 +52,14 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   keywords:
- *                     - keyword_name: 키워드1
- *                       keyword_id: 7
- *                     - keyword_name: 키워드2
- *                       keyword_id: 8
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     keywords:
+ *                       - keyword_name: 키워드1
+ *                         keyword_id: 7
+ *                       - keyword_name: 키워드2
+ *                         keyword_id: 8
  *       400:
  *         description: 잘못된 요청
  *         content:
@@ -65,7 +69,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: keywords array and category_id are required
+ *                   errorCode: SU000
+ *                   msg: keywords array and category_id are required
+ *                   data: {}
  *       401:
  *         description: 인증 필요
  *         content:
@@ -75,7 +81,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -85,7 +93,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch keywords
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch keywords
+ *                   data: {}
  */
 // POST /api/keywords — addKeywords
 // body: { keywords: string[], category_id: number }
@@ -97,10 +107,7 @@ export async function POST(request: NextRequest) {
   const { keywords, category_id } = body;
 
   if (!keywords || !Array.isArray(keywords) || !category_id) {
-    return NextResponse.json(
-      { error: "keywords array and category_id are required" },
-      { status: 400 }
-    );
+    return apiError("keywords array and category_id are required", 400);
   }
 
   const entries = keywords.map((keyword: string) => ({
@@ -118,8 +125,8 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error("addKeywords error:", error);
-    return NextResponse.json({ error: "Failed to fetch keywords" }, { status: 500 });
+    return apiError("Failed to fetch keywords", 500);
   }
 
-  return NextResponse.json({ keywords: data });
+  return apiResponse({ keywords: data });
 }

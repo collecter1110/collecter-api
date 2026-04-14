@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
@@ -31,7 +32,10 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       401:
  *         description: 인증 필요
  *         content:
@@ -41,7 +45,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 좋아요 실패
  *         content:
@@ -51,7 +57,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to like
+ *                   errorCode: SU000
+ *                   msg: Failed to like
+ *                   data: {}
  *   delete:
  *     tags: [Collections]
  *     summary: 컬렉션 좋아요 취소
@@ -78,7 +86,10 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       401:
  *         description: 인증 필요
  *         content:
@@ -88,7 +99,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 좋아요 취소 실패
  *         content:
@@ -98,7 +111,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to unlike
+ *                   errorCode: SU000
+ *                   msg: Failed to unlike
+ *                   data: {}
  */
 
 type Params = { params: Promise<{ collectionId: string }> };
@@ -112,7 +127,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const collectionId = parseInt(idParam, 10);
 
   if (isNaN(collectionId)) {
-    return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+    return apiError("Invalid collection ID", 400);
   }
 
   const { error } = await getSupabase().from("likes").insert({
@@ -122,10 +137,10 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("actionLike error:", error);
-    return NextResponse.json({ error: "Failed to like" }, { status: 500 });
+    return apiError("Failed to like", 500);
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }
 
 // DELETE /api/collections/:collectionId/like — actionUnlike
@@ -137,7 +152,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const collectionId = parseInt(idParam, 10);
 
   if (isNaN(collectionId)) {
-    return NextResponse.json({ error: "Invalid collection ID" }, { status: 400 });
+    return apiError("Invalid collection ID", 400);
   }
 
   const { error } = await getSupabase()
@@ -148,8 +163,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("actionUnlike error:", error);
-    return NextResponse.json({ error: "Failed to unlike" }, { status: 500 });
+    return apiError("Failed to unlike", 500);
   }
 
-  return NextResponse.json({ success: true });
+  return apiResponse({ success: true });
 }

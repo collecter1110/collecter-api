@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
@@ -10,7 +11,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *     tags: [Collections]
  *     summary: Get ranking collections
  *     description: |
- *       `is_public: true` 이면서 `image_file_path`가 있는 컬렉션을 가져옵니다.
+ *       `is_public: true` 이면서 `image_id`가 있는 컬렉션을 가져옵니다.
  *       category_id별로 무작위 셔플(Fisher-Yates) 후 최대 10개씩 반환합니다.
  *
  *       - Authorization 헤더가 있으면 차단한 유저의 컬렉션을 제외합니다. (토큰 선택)
@@ -38,23 +39,13 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               ok:
  *                 value:
- *                   collections:
- *                     - id: 123
- *                       user_id: 45
- *                       title: My collection
- *                       description: null
- *                       created_at: "2026-04-06T12:34:56.000Z"
- *                       image_file_path: "https://cdn.example.com/collections/cover.jpg"
- *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
- *                       tags: ["tag1", "tag2"]
- *                       user_name: gimgahui
- *                       primary_keywords:
- *                         - keyword_id: 7
- *                           keyword_name: "키워드"
- *                       selection_num: 12
- *                       like_num: 34
- *                       is_public: true
- *                       category_id: 1
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     collections:
+ *                       - collection_id: 123
+ *                         collection_title: My collection
+ *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *       500:
  *         description: Failed to fetch ranking collections
  *         content:
@@ -64,7 +55,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to fetch ranking collections
+ *                   errorCode: SU000
+ *                   msg: Failed to fetch ranking collections
+ *                   data: {}
  */
 // GET /api/collections/ranking — getRankingCollections
 // category_id별 무작위 최대 10개 (public, 이미지 있는 것만)
@@ -74,13 +67,12 @@ export async function GET(request: NextRequest) {
 
   let dbQuery = getSupabase()
     .from("collections")
-    .select(
-      "id, user_id, title, description, created_at, image_file_path, image_id, " +
-      "tags, user_name, primary_keywords, selection_num, like_num, is_public, category_id"
-    )
-    .eq("is_public", true)
-    .not("image_file_path", "is", null);
+    .select("id, title, category_id, user_id, image_id")
+    .eq("is_public", true);
 
+  if (auth) {
+    dbQuery = dbQuery.neq("user_id", auth.userId);
+  }
   if (blockedIds.length > 0) {
     dbQuery = dbQuery.not("user_id", "in", `(${blockedIds.join(",")})`);
   }
@@ -89,10 +81,16 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("getRankingCollections error:", error);
-    return NextResponse.json({ error: "Failed to fetch ranking collections" }, { status: 500 });
+    return apiError("Failed to fetch ranking collections", 500);
   }
 
-  type CollectionRow = { category_id: number; [key: string]: unknown };
+  type CollectionRow = {
+    id: number;
+    title: string;
+    category_id: number;
+    user_id: number;
+    image_id: string | null;
+  };
   const rows = (data ?? []) as unknown as CollectionRow[];
 
   // category_id별로 그룹핑 후 무작위 셔플, 최대 10개 선택
@@ -103,15 +101,21 @@ export async function GET(request: NextRequest) {
     grouped.get(cat)!.push(col);
   }
 
-  const collections: CollectionRow[] = [];
+  const collections = [];
   for (const group of grouped.values()) {
     // Fisher-Yates shuffle
     for (let i = group.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [group[i], group[j]] = [group[j], group[i]];
     }
-    collections.push(...group.slice(0, 10));
+    for (const col of group.slice(0, 10)) {
+      collections.push({
+        collection_id: col.id,
+        collection_title: col.title,
+        image_id: col.image_id ?? null,
+      });
+    }
   }
 
-  return NextResponse.json({ collections });
+  return apiResponse({ collections });
 }

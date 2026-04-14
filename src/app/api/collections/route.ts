@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 
@@ -47,7 +48,10 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               ok:
  *                 value:
- *                   success: true
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: 잘못된 요청
  *         content:
@@ -57,7 +61,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: category_id and title are required
+ *                   errorCode: SU000
+ *                   msg: category_id and title are required
+ *                   data: {}
  *       401:
  *         description: 인증 필요
  *         content:
@@ -67,7 +73,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Unauthorized
+ *                   errorCode: SU000
+ *                   msg: Unauthorized
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
@@ -77,7 +85,9 @@ import { requireAuth } from "@/lib/auth";
  *             examples:
  *               error:
  *                 value:
- *                   error: Failed to create collection
+ *                   errorCode: SU000
+ *                   msg: Failed to create collection
+ *                   data: {}
  */
 // POST /api/collections — addCollection
 // body: multipart/form-data { category_id, title, description?, tags?, is_public? }
@@ -95,10 +105,7 @@ export async function POST(request: NextRequest) {
   const is_public = is_publicRaw !== null ? is_publicRaw !== "false" : true;
 
   if (!category_id || !title) {
-    return NextResponse.json(
-      { error: "category_id and title are required" },
-      { status: 400 }
-    );
+    return apiError("category_id and title are required", 400);
   }
 
   // 커버 이미지는 셀렉션 이미지(image_id)를 재사용하도록 서버에서 자동 설정합니다.
@@ -117,11 +124,8 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error("addCollection error:", error);
-    return NextResponse.json(
-      { error: "Failed to create collection" },
-      { status: 500 }
-    );
+    return apiError("Failed to create collection", 500);
   }
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  return apiResponse({ success: true }, 201);
 }

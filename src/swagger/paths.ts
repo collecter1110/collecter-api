@@ -261,13 +261,13 @@
  *             required:
  *               - verified_token
  *               - email
- *               - name
+ *               - user_name
  *             properties:
  *               verified_token:
  *                 type: string
  *               email:
  *                 type: string
- *               name:
+ *               user_name:
  *                 type: string
  *               description:
  *                 type: string
@@ -295,23 +295,39 @@
  *   get:
  *     tags:
  *       - Collections
- *     summary: 랭킹 컬렉션 목록
- *     security:
- *       - bearerAuth: []
+ *     summary: Get ranking collections
+ *     description: |
+ *       `is_public: true` 이면서 `image_id`가 있는 컬렉션을 가져옵니다.
+ *       category_id별로 무작위 셔플(Fisher-Yates) 후 최대 10개씩 반환합니다.
+ *
+ *       - Authorization 헤더가 있으면 차단한 유저의 컬렉션을 제외합니다. (토큰 선택)
+ *     parameters:
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
  *     responses:
  *       200:
- *         description: 성공
+ *         description: Ranking collections
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [collections]
  *               properties:
  *                 collections:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/RankingCollection"
  *       500:
- *         description: 서버 오류
+ *         description: Failed to fetch ranking collections
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *
  * /api/collections/search:
  *   get:
@@ -337,11 +353,19 @@
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [collections]
  *               properties:
  *                 collections:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/SearchCollection"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   collections:
+ *                     - collection_id: 123
+ *                       collection_title: "내 컬렉션"
+ *                       image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *       400:
  *         description: 쿼리 없음
  *       500:
@@ -472,7 +496,7 @@
  *             schema:
  *               type: object
  *               properties:
- *                 title:
+ *                 collection_title:
  *                   type: string
  *       400:
  *         description: 잘못된 ID
@@ -818,23 +842,40 @@
  *   get:
  *     tags:
  *       - Selections
- *     summary: 랭킹 셀렉션 목록
- *     security:
- *       - bearerAuth: []
+ *     summary: Get ranking selections
+ *     description: |
+ *       public 컬렉션(`collections.is_public = true`)에 속한 셀렉션을 `select_num` 내림차순으로 정렬 후,
+ *       category_id별 상위 10개씩 반환합니다.
+ *
+ *       - Authorization 헤더가 있으면 차단한 유저의 셀렉션을 제외합니다. (토큰 선택)
+ *       - `image_id`는 `selection_images` 중 `sort_order`가 0인 이미지의 `image_id`입니다.
+ *     parameters:
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
  *     responses:
  *       200:
- *         description: 성공
+ *         description: Ranking selections
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [selections]
  *               properties:
  *                 selections:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/RankingSelection"
  *       500:
- *         description: 서버 오류
+ *         description: Failed to fetch ranking selections
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *
  * /api/selections/search:
  *   get:
@@ -854,11 +895,21 @@
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [selections]
  *               properties:
  *                 selections:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/SearchSelection"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   selections:
+ *                     - selection_id: 456
+ *                       selection_title: "내 셀렉션"
+ *                       image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                       collection_id: 123
+ *                       collection_title: "내 컬렉션"
  *       400:
  *         description: 쿼리 없음
  *       500:
@@ -979,41 +1030,22 @@
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [users]
  *               properties:
  *                 users:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/SearchUser"
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   users:
+ *                     - user_id: 45
+ *                       user_name: "gimgahui"
+ *                       description: "안녕하세요"
+ *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *       400:
  *         description: 쿼리 없음
- *       500:
- *         description: 서버 오류
- *
- * /api/users/{userId}:
- *   get:
- *     tags:
- *       - Users
- *     summary: 다른 유저 정보 조회
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: 성공
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 user:
- *                   type: object
- *       400:
- *         description: 잘못된 ID
- *       404:
- *         description: 유저 없음
  *       500:
  *         description: 서버 오류
  *
@@ -1083,9 +1115,9 @@
  *           schema:
  *             type: object
  *             required:
- *               - name
+ *               - user_name
  *             properties:
- *               name:
+ *               user_name:
  *                 type: string
  *               description:
  *                 type: string
@@ -1319,5 +1351,50 @@
  *         description: 인증 필요
  *       500:
  *         description: 서버 오류
+ *
+ * /api/user/detail:
+ *   get:
+ *     tags:
+ *       - Users
+ *     summary: 유저 상세 조회 (프로필 + 컬렉션 요약)
+ *     parameters:
+ *       - in: query
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 45
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
+ *     responses:
+ *       200:
+ *         description: 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/UserDetailResponse"
+ *       400:
+ *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *       404:
+ *         description: 유저 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *       500:
+ *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  */
 export {};
