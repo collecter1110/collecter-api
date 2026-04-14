@@ -790,7 +790,7 @@
  *       500:
  *         description: 서버 오류
  *
- * /collections/{collectionId}/selections/{selectionId}/move:
+ * /selections/{selectionId}:
  *   patch:
  *     tags:
  *       - Selections
@@ -798,11 +798,6 @@
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: collectionId
- *         required: true
- *         schema:
- *           type: integer
  *       - in: path
  *         name: selectionId
  *         required: true
@@ -815,11 +810,9 @@
  *           schema:
  *             type: object
  *             required:
- *               - new_collection_id
+ *               - collectionId
  *             properties:
- *               new_collection_id:
- *                 type: integer
- *               category_id:
+ *               collectionId:
  *                 type: integer
  *     responses:
  *       200:
