@@ -35,6 +35,9 @@ import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
  *                       email: user@example.com
  *                       description: 안녕하세요
  *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                       selecting_count: 12
+ *                       selected_count: 5
+ *                       like_count: 30
  *       401:
  *         description: 인증 필요
  *         content:
@@ -139,19 +142,41 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
-  const { data, error } = await getSupabase()
-    .from("userinfo")
-    .select("user_id, name, email, description, image_id")
-    .eq("user_id", auth.userId)
-    .single();
+  const [userResult, selectingResult, selectedResult, likeResult] = await Promise.all([
+    getSupabase()
+      .from("userinfo")
+      .select("user_id, name, email, description, image_id")
+      .eq("user_id", auth.userId)
+      .single(),
+    getSupabase()
+      .from("selecting")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", auth.userId),
+    getSupabase()
+      .from("selecting")
+      .select("*", { count: "exact", head: true })
+      .eq("selected_user_id", auth.userId),
+    getSupabase()
+      .from("likes")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", auth.userId),
+  ]);
 
-  if (error) {
-    console.error("getUserInfo error:", error);
+  if (userResult.error) {
+    console.error("getUserInfo error:", userResult.error);
     return apiError("Failed to fetch user", 500);
   }
 
-  const { name, ...rest } = data;
-  return apiResponse({ user: { ...rest, user_name: name } });
+  const { name, ...rest } = userResult.data;
+  return apiResponse({
+    user: {
+      ...rest,
+      user_name: name,
+      selecting_count: selectingResult.count ?? 0,
+      selected_count: selectedResult.count ?? 0,
+      like_count: likeResult.count ?? 0,
+    },
+  });
 }
 
 // PATCH /users/me — editUserInfo
