@@ -286,36 +286,43 @@ export async function POST(request: NextRequest) {
     return apiError("Failed to create selecting", 500);
   }
 
-  // selecting 테이블 업데이트
-  const { error: updateError } = await getSupabase()
+  // selecting 테이블에 직접 삽입
+  const { error: selectingError } = await getSupabase()
     .from("selecting")
-    .update({
+    .insert({
+      uuid: newData.selecting_uuid,
+      selecting_collection_id,
+      selecting_selection_id: newData.selection_id,
+      selecting_user_id: auth.userId,
       selected_collection_id: finalCollectionId,
       selected_selection_id: finalSelectionId,
       selected_user_id: finalOwnerId,
-    })
-    .eq("uuid", newData.selecting_uuid);
+    });
 
-  if (updateError) {
-    console.error("selecting update error:", updateError);
-    return apiError("Failed to update selecting", 500);
+  if (selectingError) {
+    console.error("selecting insert error:", selectingError);
+    return apiError("Failed to create selecting", 500);
   }
 
   // 원본 셀렉션의 이미지를 새 셀렉션으로 복사 (같은 image_id 공유)
   const { data: sourceImages } = await getSupabase()
     .from("selection_images")
     .select("image_id, sort_order")
-    .eq("collection_id", selected_collection_id)
-    .eq("selection_id", selected_selection_id)
+    .eq("collection_id", finalCollectionId)
+    .eq("selection_id", finalSelectionId)
     .order("sort_order", { ascending: true });
 
-  for (const img of sourceImages ?? []) {
-    await getSupabase().from("selection_images").insert({
-      collection_id: selecting_collection_id,
-      selection_id: newData.selection_id,
-      image_id: img.image_id,
-      sort_order: img.sort_order,
-    });
+  if (sourceImages && sourceImages.length > 0) {
+    await getSupabase()
+      .from("selection_images")
+      .insert(
+        sourceImages.map((img) => ({
+          collection_id: selecting_collection_id,
+          selection_id: newData.selection_id,
+          image_id: img.image_id,
+          sort_order: img.sort_order,
+        }))
+      );
   }
 
   // 컬렉션 커버가 비어있으면 첫 이미지로 자동 설정
