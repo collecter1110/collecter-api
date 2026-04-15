@@ -31,8 +31,10 @@ import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims 
  *           application/json:
  *             schema:
  *               type: object
- *               required: [access_token, refresh_token]
+ *               required: [user_id, access_token, refresh_token]
  *               properties:
+ *                 user_id:
+ *                   type: integer
  *                 access_token:
  *                   type: string
  *                 refresh_token:
@@ -43,6 +45,7 @@ import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims 
  *                   errorCode: SU000
  *                   msg: ok
  *                   data:
+ *                     user_id: 45
  *                     access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIn0.signature
  *                     refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoic2Vzc2lvbi11dWlkIiwidXNlcl9pZCI6NDUsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSJ9.signature
  *       400:
@@ -93,5 +96,5 @@ export async function POST(request: NextRequest) {
     expiresAt: new Date(Date.now() + refreshTtl * 1000),
   });
 
-  return apiResponse({ access_token, refresh_token });
+  return apiResponse({ user_id: claims.user_id, access_token, refresh_token });
 }
