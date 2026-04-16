@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
     getSupabase()
       .from("selecting")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", auth.userId),
+      .eq("selecting_user_id", auth.userId),
     getSupabase()
       .from("selecting")
       .select("*", { count: "exact", head: true })

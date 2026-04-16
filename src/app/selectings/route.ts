@@ -9,21 +9,12 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  * /selectings:
  *   get:
  *     tags: [Selectings]
- *     summary: 내 셀렉팅 목록 조회
+ *     summary: 내가 셀렉팅한 목록 조회
  *     description: |
- *       `selectingview`에서 내가 퍼온 셀렉션(selectings) 목록을 조회합니다.
- *       `properties` 파라미터로 조회할 컬럼을 지정할 수 있습니다. (기본값: `*`)
+ *       `selecting` 테이블에서 내가 다른 유저의 셀렉션을 퍼온(selecting) 목록을 조회합니다.
+ *       토큰에서 user_id를 파싱하여 `selecting_user_id`로 필터합니다.
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: properties
- *         required: false
- *         schema:
- *           type: string
- *           default: "*"
- *         description: 조회할 컬럼 목록 (Supabase select 문법)
- *         example: "user_id,collection_id,selection_id"
  *     responses:
  *       200:
  *         description: 셀렉팅 목록
@@ -44,17 +35,16 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *                   msg: ok
  *                   data:
  *                     selectings:
- *                       - user_id: 45
- *                         collection_id: 123
- *                         selection_id: 456
- *                         selecting_collection_id: 200
- *                         selected_collection_id: 123
- *                         selected_selection_id: 456
- *                         selected_user_id: 99
- *                         selection_title: 퍼온 셀렉션
- *                         owner_id: 99
- *                         owner_name: otheruser
- *                         is_selecting: true
+ *                       - created_date: "2026-04-15"
+ *                         selections:
+ *                           - created_time: "16:31:27"
+ *                             selection_name: "일인칭 단수"
+ *                             user_name: "iris3455"
+ *                             image_id: null
+ *                             owner_name: "siriya"
+ *                             owner_id: 69
+ *                             collection_id: 636
+ *                             selection_id: 5
  *               empty:
  *                 summary: 셀렉팅 없음
  *                 value:
@@ -68,24 +58,12 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/ErrorResponse"
- *             examples:
- *               error:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Unauthorized
- *                   data: {}
  *       500:
  *         description: 서버 오류
  *         content:
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/ErrorResponse"
- *             examples:
- *               error:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Failed to fetch selectings
- *                   data: {}
  *   post:
  *     tags: [Selectings]
  *     summary: 셀렉션 퍼오기 (selecting)
@@ -174,34 +152,105 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
  *                   msg: Failed to create selecting
  *                   data: {}
  */
-// GET /selectings?properties=... — getSelectings
+// GET /selectings — 내가 셀렉팅한 목록
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
-  const properties = request.nextUrl.searchParams.get("properties") ?? "*";
-
   const { data, error } = await getSupabase()
-    .from("selectingview")
-    .select(properties)
-    .eq("user_id", auth.userId)
-    .single();
+    .from("selecting")
+    .select("selecting_collection_id, selecting_selection_id, selected_user_id, created_at")
+    .eq("selecting_user_id", auth.userId)
+    .order("created_at", { ascending: false });
 
   if (error) {
-    if (error.code === "PGRST116") {
-      return apiResponse({ selectings: [] });
-    }
     console.error("getSelectings error:", error);
     return apiError("Failed to fetch selectings", 500);
   }
 
-  // title → selection_title 변환
-  if (data && "title" in data) {
-    const { title, ...rest } = data as Record<string, unknown>;
-    return apiResponse({ selectings: [{ ...rest, selection_title: title }] });
+  if (!data || data.length === 0) {
+    return apiResponse({ selectings: [] });
   }
 
-  return apiResponse({ selectings: data ? [data] : [] });
+  // 셀렉션 제목 + image_id 조회
+  const selectionKeys = data.map((r) => ({
+    collection_id: r.selecting_collection_id,
+    selection_id: r.selecting_selection_id,
+  }));
+
+  const { data: selections } = await getSupabase()
+    .from("selections")
+    .select("collection_id, selection_id, title, owner_id, owner_name, selection_images(image_id, sort_order)")
+    .in(
+      "collection_id",
+      [...new Set(selectionKeys.map((k) => k.collection_id))]
+    )
+    .in(
+      "selection_id",
+      [...new Set(selectionKeys.map((k) => k.selection_id))]
+    );
+
+  const selectionMap = new Map<string, {
+    title: string;
+    owner_id: number;
+    owner_name: string;
+    image_id: string | null;
+  }>();
+
+  for (const s of selections ?? []) {
+    const imgs = (s.selection_images as { image_id: string; sort_order: number }[])
+      .sort((a, b) => a.sort_order - b.sort_order);
+    selectionMap.set(`${s.collection_id}-${s.selection_id}`, {
+      title: s.title,
+      owner_id: s.owner_id,
+      owner_name: s.owner_name,
+      image_id: imgs[0]?.image_id ?? null,
+    });
+  }
+
+  // 현재 유저 이름 조회
+  const { data: userInfo } = await getSupabase()
+    .from("userinfo")
+    .select("name")
+    .eq("user_id", auth.userId)
+    .single();
+
+  const userName = userInfo?.name ?? "";
+
+  // 날짜별 그룹핑
+  const grouped = new Map<string, Array<Record<string, unknown>>>();
+
+  for (const row of data) {
+    const createdAt = new Date(row.created_at);
+    const dateStr = createdAt.toISOString().slice(0, 10); // YYYY-MM-DD
+    const timeStr = createdAt.toTimeString().slice(0, 8);  // HH:MM:SS
+
+    const key = `${row.selecting_collection_id}-${row.selecting_selection_id}`;
+    const sel = selectionMap.get(key);
+
+    const item = {
+      created_time: timeStr,
+      selection_name: sel?.title ?? "",
+      user_name: userName,
+      image_id: sel?.image_id ?? null,
+      owner_name: sel?.owner_name ?? "",
+      owner_id: sel?.owner_id ?? null,
+      collection_id: row.selecting_collection_id,
+      selection_id: row.selecting_selection_id,
+    };
+
+    if (!grouped.has(dateStr)) {
+      grouped.set(dateStr, []);
+    }
+    grouped.get(dateStr)!.push(item);
+  }
+
+  const selectings = Array.from(grouped.entries()).map(([date, selections]) => ({
+    created_date: date,
+    selections,
+  }));
+
+  return apiResponse({ selectings });
 }
 
 // POST /selectings — selecting (셀렉션 퍼오기)
