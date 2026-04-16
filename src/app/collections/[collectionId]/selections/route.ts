@@ -274,7 +274,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const is_selectable = formData.get("is_selectable") !== "false";
   const imageFiles = formData.getAll("images") as File[];
 
-  if (!category_id || !title) {
+  if (isNaN(category_id) || !title) {
     return apiError("category_id and title are required", 400);
   }
   if (keywordsRaw === null) {

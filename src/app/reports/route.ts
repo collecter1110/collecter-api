@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { report_type, reported_post_id, report_reason } = body;
 
-  if (!report_type || !reported_post_id || !report_reason) {
+  if (report_type == null || reported_post_id == null || report_reason == null) {
     return apiError("report_type, reported_post_id, report_reason are required", 400);
   }
 

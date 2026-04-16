@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
   const is_publicRaw = formData.get("is_public") as string | null;
   const is_public = is_publicRaw !== null ? is_publicRaw !== "false" : true;
 
-  if (!category_id || !title) {
+  if (isNaN(category_id) || !title) {
     return apiError("category_id and title are required", 400);
   }
 
