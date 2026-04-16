@@ -912,15 +912,13 @@
  *   get:
  *     tags:
  *       - Selectings
- *     summary: 내 셀렉팅 목록 조회
+ *     summary: 내가 셀렉팅한 목록 조회
+ *     description: |
+ *       `selecting` 테이블에서 내가 다른 유저의 셀렉션을 퍼온 목록을 조회합니다.
+ *       토큰에서 user_id를 파싱하여 `selecting_user_id`로 필터합니다.
+ *       날짜별로 그룹핑하여 반환합니다.
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: properties
- *         schema:
- *           type: string
- *           default: "*"
  *     responses:
  *       200:
  *         description: 성공
@@ -933,6 +931,23 @@
  *                   type: array
  *                   items:
  *                     type: object
+ *                     properties:
+ *                       created_date:
+ *                         type: string
+ *                         example: "2026-04-15"
+ *                       selections:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             created_time: { type: string, example: "16:31:27" }
+ *                             selection_name: { type: string, example: "일인칭 단수" }
+ *                             user_name: { type: string, example: "iris3455" }
+ *                             image_id: { type: string, nullable: true }
+ *                             owner_name: { type: string, example: "siriya" }
+ *                             owner_id: { type: integer, example: 69 }
+ *                             collection_id: { type: integer, example: 636 }
+ *                             selection_id: { type: integer, example: 5 }
  *       401:
  *         description: 인증 필요
  *       500:
@@ -977,6 +992,51 @@
  *         description: 인증 필요
  *       404:
  *         description: 원본 셀렉션 없음
+ *       500:
+ *         description: 서버 오류
+ *
+ * /selected:
+ *   get:
+ *     tags:
+ *       - Selectings
+ *     summary: 셀렉팅 당한 목록 조회
+ *     description: |
+ *       `selecting` 테이블에서 다른 유저가 내 셀렉션을 퍼간 목록을 조회합니다.
+ *       토큰에서 user_id를 파싱하여 `selected_user_id`로 필터합니다.
+ *       날짜별로 그룹핑하여 반환합니다.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 selected:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       created_date:
+ *                         type: string
+ *                         example: "2026-04-15"
+ *                       selections:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             created_time: { type: string, example: "16:31:27" }
+ *                             selection_name: { type: string, example: "일인칭 단수" }
+ *                             user_name: { type: string, example: "iris3455" }
+ *                             image_id: { type: string, nullable: true }
+ *                             owner_name: { type: string, example: "siriya" }
+ *                             owner_id: { type: integer, example: 69 }
+ *                             collection_id: { type: integer, example: 636 }
+ *                             selection_id: { type: integer, example: 5 }
+ *       401:
+ *         description: 인증 필요
  *       500:
  *         description: 서버 오류
  *

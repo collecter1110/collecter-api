@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { blocked_user_id } = body;
 
-  if (!blocked_user_id) {
+  if (blocked_user_id === undefined || blocked_user_id === null) {
     return apiError("blocked_user_id is required", 400);
   }
 
