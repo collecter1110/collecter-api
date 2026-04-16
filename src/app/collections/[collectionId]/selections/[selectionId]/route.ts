@@ -403,9 +403,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const deletedIds: string[] = [];
     for (const si of existingImgs ?? []) {
       if (!keepIds.includes(si.image_id)) {
-        await deleteImageById(si.image_id);
         deletedIds.push(si.image_id);
       }
+    }
+
+    // selection_images 레코드만 삭제 (이미지 원본은 유지)
+    if (deletedIds.length > 0) {
+      await getSupabase()
+        .from("selection_images")
+        .delete()
+        .eq("collection_id", collectionId)
+        .eq("selection_id", selectionId)
+        .in("image_id", deletedIds);
     }
 
     // 커버가 삭제된 이미지였으면 다른 셀렉션 이미지로 복구
