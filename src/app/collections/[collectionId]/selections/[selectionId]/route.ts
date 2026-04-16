@@ -464,6 +464,16 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return apiError("Invalid ID", 400);
   }
 
+  // 셀렉팅 여부 확인
+  const { data: selection } = await getSupabase()
+    .from("selections")
+    .select("is_selecting")
+    .eq("collection_id", collectionId)
+    .eq("selection_id", selectionId)
+    .single();
+
+  const isSelecting = selection?.is_selecting === true;
+
   const { data: selImgs } = await getSupabase()
     .from("selection_images")
     .select("image_id")
@@ -471,8 +481,20 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     .eq("selection_id", selectionId);
 
   const deletedIds = (selImgs ?? []).map((x) => x.image_id);
-  for (const si of selImgs ?? []) {
-    await deleteImageById(si.image_id);
+
+  if (isSelecting) {
+    // 셀렉팅(퍼온) 셀렉션: 원본과 image_id를 공유하므로 실제 이미지는 삭제하지 않고
+    // selection_images 레코드만 제거
+    await getSupabase()
+      .from("selection_images")
+      .delete()
+      .eq("collection_id", collectionId)
+      .eq("selection_id", selectionId);
+  } else {
+    // 원본 셀렉션: 실제 이미지 삭제
+    for (const si of selImgs ?? []) {
+      await deleteImageById(si.image_id);
+    }
   }
 
   const { error } = await getSupabase()
