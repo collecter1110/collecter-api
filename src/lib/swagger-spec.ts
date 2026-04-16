@@ -3,7 +3,7 @@ import fs from "node:fs";
 import swaggerJsdoc from "swagger-jsdoc";
 
 const root = process.cwd();
-const apiDir = path.join(root, "src/app/api");
+const apiDir = path.join(root, "src/app");
 const httpMethods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"] as const;
 type HttpMethod = (typeof httpMethods)[number];
 
@@ -36,12 +36,12 @@ function toOpenApiPath(routeFilePath: string): string {
       return paramMatch ? `{${paramMatch[1]}}` : segment;
     });
 
-  if (segments.length === 0) return "/api";
-  return `/api/${segments.join("/")}`;
+  if (segments.length === 0) return "/";
+  return `/${segments.join("/")}`;
 }
 
 function toTagName(openApiPath: string): string {
-  const firstSegment = openApiPath.split("/").filter(Boolean)[1] ?? "General";
+  const firstSegment = openApiPath.split("/").filter(Boolean)[0] ?? "General";
   return firstSegment.charAt(0).toUpperCase() + firstSegment.slice(1);
 }
 
@@ -99,7 +99,7 @@ export function getSwaggerSpec() {
       servers: [{ url: "/", description: "Current host" }],
     },
     apis: [
-      path.join(root, "src/app/api/**/*.ts"),
+      path.join(root, "src/app/**/*.ts"),
       path.join(root, "src/swagger/**/*.ts"),
     ],
   });
