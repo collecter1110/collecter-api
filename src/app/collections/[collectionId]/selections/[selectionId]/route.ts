@@ -335,7 +335,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const keepImageIdsRaw = formData.get("keep_image_ids") as string | null;
 
   const updates: Record<string, unknown> = {};
-  if (category_idRaw) updates.category_id = parseInt(category_idRaw, 10);
+  if (category_idRaw !== null) updates.category_id = parseInt(category_idRaw, 10);
   if (title !== null) updates.title = title;
   if (description !== null) updates.description = description;
   if (linkRaw !== null) updates.link = linkRaw;
@@ -367,7 +367,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
               .single()
           ).data?.category_id;
 
-      if (!categoryIdForKeywords) {
+      if (categoryIdForKeywords === undefined || categoryIdForKeywords === null) {
         return apiError("Selection not found", 404);
       }
 

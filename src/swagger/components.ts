@@ -83,10 +83,12 @@
  *       type: object
  *       required:
  *         - selection_id
+ *         - collection_id
  *         - selection_title
  *         - keywords
  *       properties:
  *         selection_id: { type: integer, example: 456 }
+ *         collection_id: { type: integer, example: 123 }
  *         selection_title: { type: string, example: My selection }
  *         image_id: { type: string, nullable: true, example: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a" }
  *         keywords:
