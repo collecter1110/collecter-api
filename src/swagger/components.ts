@@ -35,6 +35,19 @@
  *         msg: Failed to fetch ranking collections
  *         data: {}
  *
+ *     MyUserInfo:
+ *       type: object
+ *       required: [user_id, user_name, email, selecting_count, selected_count, like_count]
+ *       properties:
+ *         user_id: { type: integer, example: 45 }
+ *         user_name: { type: string, example: "gimgahui" }
+ *         email: { type: string, format: email, example: "user@example.com" }
+ *         description: { type: string, nullable: true, example: "안녕하세요" }
+ *         image_id: { type: string, nullable: true, example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+ *         selecting_count: { type: integer, example: 12 }
+ *         selected_count: { type: integer, example: 5 }
+ *         like_count: { type: integer, example: 30 }
+ *
  *     UserDetailCollection:
  *       type: object
  *       required: [collection_id, collection_title, image_id]
