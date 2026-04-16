@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { keywords, category_id } = body;
 
-  if (!keywords || !Array.isArray(keywords) || !category_id) {
+  if (!keywords || !Array.isArray(keywords) || category_id == null || isNaN(category_id)) {
     return apiError("keywords array and category_id are required", 400);
   }
 
