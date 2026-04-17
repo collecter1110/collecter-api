@@ -218,7 +218,7 @@ import {
  *                   data: {}
  *   delete:
  *     tags: [Selections]
- *     summary: 셀렉션 삭제
+ *     summary: 셀렉션 삭제 (소유자만)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -228,12 +228,6 @@ import {
  *         schema:
  *           type: integer
  *         example: 789
- *       - in: query
- *         name: collection_id
- *         required: false
- *         schema:
- *           type: integer
- *         description: 매핑만 삭제할 컬렉션 ID (owner가 아닌 경우)
  *     responses:
  *       200:
  *         description: 삭제 성공
@@ -281,6 +275,12 @@ import {
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/ErrorResponse"
+ *       403:
+ *         description: 권한 없음 (소유자만 삭제 가능)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *       404:
  *         description: 셀렉션을 찾을 수 없음
  *         content:
@@ -304,11 +304,6 @@ import {
  *                 value:
  *                   errorCode: SU000
  *                   msg: Failed to delete selection
- *                   data: {}
- *               removeMappingFailed:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Failed to remove selection from collection
  *                   data: {}
  */
 
@@ -605,34 +600,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return apiError("Selection not found", 404);
   }
 
-  const isOwner = selection.owner_id === auth.userId;
-  const collectionIdParam = request.nextUrl.searchParams.get("collection_id");
-
-  if (!isOwner && collectionIdParam) {
-    // 소유자가 아니면 매핑만 삭제 (내 컬렉션에서 제거)
-    const collectionId = parseInt(collectionIdParam, 10);
-
-    // 삭제 전에 해당 셀렉션의 이미지 ID 조회 (커버 복구용)
-    const { data: selImgs } = await getSupabase()
-      .from("selection_images")
-      .select("image_id")
-      .eq("selection_id", id);
-    const imageIds = (selImgs ?? []).map((x) => x.image_id);
-
-    const { error } = await getSupabase()
-      .from("collection_selections")
-      .delete()
-      .eq("collection_id", collectionId)
-      .eq("selection_id", id);
-
-    if (error) {
-      console.error("deleteCollectionSelection error:", error);
-      return apiError("Failed to remove selection from collection", 500);
-    }
-
-    await recalcCollectionSelectionNums([collectionId]);
-    await repairCollectionCoverIfUsingDeletedImage(collectionId, imageIds);
-    return apiResponse({ success: true });
+  if (selection.owner_id !== auth.userId) {
+    return apiError("Only the owner can delete this selection", 403);
   }
 
   // 소유자인 경우: 셀렉션 자체 삭제 (cascade로 매핑도 삭제됨)

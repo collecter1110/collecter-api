@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
-import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
+import {
+  ensureCollectionCoverIfEmpty,
+  repairCollectionCoverIfUsingDeletedImage,
+} from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 import {
   getSelectionHomeMap,
@@ -183,6 +186,57 @@ import {
  *                   errorCode: SU000
  *                   msg: Failed to create selecting
  *                   data: {}
+ *   delete:
+ *     tags: [Selectings]
+ *     summary: 셀렉팅 취소 (퍼오기 취소)
+ *     description: |
+ *       내가 퍼온 셀렉션을 내 컬렉션에서 제거합니다.
+ *       셀렉션 데이터를 삭제하지 않고 `collection_selections` 매핑만 삭제합니다.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [selecting_collection_id, selected_selection_id]
+ *             properties:
+ *               selecting_collection_id:
+ *                 type: integer
+ *                 description: 퍼온 셀렉션이 들어있는 내 컬렉션 ID
+ *               selected_selection_id:
+ *                 type: integer
+ *                 description: 취소할 원본 셀렉션 ID
+ *     responses:
+ *       200:
+ *         description: 셀렉팅 취소 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [errorCode, msg, data]
+ *               properties:
+ *                 errorCode:
+ *                   type: string
+ *                 msg:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   required: [success]
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *       400:
+ *         description: 잘못된 요청
+ *       401:
+ *         description: 인증 필요
+ *       403:
+ *         description: 권한 없음 (내 컬렉션에서만 취소 가능)
+ *       404:
+ *         description: 셀렉팅 매핑을 찾을 수 없음
+ *       500:
+ *         description: 셀렉팅 취소 실패
  */
 // GET /selectings — 내가 셀렉팅한 목록
 export async function GET(request: NextRequest) {
@@ -346,4 +400,88 @@ export async function POST(request: NextRequest) {
   }
 
   return apiResponse({ success: true }, 201);
+}
+
+// DELETE /selectings — selecting 취소 (내 컬렉션에서 제거)
+// body: { selecting_collection_id, selected_selection_id }
+export async function DELETE(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+
+  const body = await request.json();
+  const { selecting_collection_id, selected_selection_id } = body;
+
+  if (
+    typeof selecting_collection_id !== "number" ||
+    typeof selected_selection_id !== "number"
+  ) {
+    return apiError("Invalid request body", 400);
+  }
+
+  // 본인 컬렉션인지 확인 (다른 사람 컬렉션에서 제거 방지)
+  const { data: col } = await getSupabase()
+    .from("collections")
+    .select("user_id")
+    .eq("id", selecting_collection_id)
+    .single();
+
+  if (!col) {
+    return apiError("Collection not found", 404);
+  }
+  if (col.user_id !== auth.userId) {
+    return apiError("You can only cancel selecting from your own collection", 403);
+  }
+
+  // 소유자 셀렉션은 selecting 취소 대상이 아님
+  const { data: selection } = await getSupabase()
+    .from("selections")
+    .select("owner_id")
+    .eq("id", selected_selection_id)
+    .maybeSingle();
+
+  if (!selection) {
+    return apiError("Source selection not found", 404);
+  }
+  if (selection.owner_id === auth.userId) {
+    return apiError("You cannot cancel selecting for your own selection", 400);
+  }
+
+  // 삭제 전: 해당 셀렉션 이미지 목록 (커버 복구 판단용)
+  const { data: selImgs } = await getSupabase()
+    .from("selection_images")
+    .select("image_id")
+    .eq("selection_id", selected_selection_id);
+  const imageIds = (selImgs ?? []).map((x) => x.image_id as string);
+
+  // 본인이 만든 selecting 매핑만 삭제
+  const { data: existing } = await getSupabase()
+    .from("collection_selections")
+    .select("selection_id")
+    .eq("collection_id", selecting_collection_id)
+    .eq("selection_id", selected_selection_id)
+    .eq("user_id", auth.userId)
+    .maybeSingle();
+
+  if (!existing) {
+    return apiError("Selecting not found", 404);
+  }
+
+  const { error: delError } = await getSupabase()
+    .from("collection_selections")
+    .delete()
+    .eq("collection_id", selecting_collection_id)
+    .eq("selection_id", selected_selection_id)
+    .eq("user_id", auth.userId);
+
+  if (delError) {
+    console.error("cancel selecting delete error:", delError);
+    return apiError("Failed to cancel selecting", 500);
+  }
+
+  await recalcCollectionSelectionNum(selecting_collection_id);
+
+  // 컬렉션 커버가 방금 제거한 셀렉션 이미지라면, 남은 셀렉션들 기준으로 복구
+  await repairCollectionCoverIfUsingDeletedImage(selecting_collection_id, imageIds);
+
+  return apiResponse({ success: true });
 }
