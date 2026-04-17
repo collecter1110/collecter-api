@@ -150,6 +150,7 @@
  *         created_at: { type: string, example: "2026-04-06" }
  *         owner_name: { type: string, example: "gimgahui" }
  *         is_selectable: { type: boolean, example: true }
+ *         has_selecting: { type: boolean, example: false, description: "로그인 유저가 이 셀렉션을 셀렉팅했는지 여부" }
  *         selection_images:
  *           type: array
  *           items:
