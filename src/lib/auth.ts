@@ -5,6 +5,7 @@ import { verifyJwt, type AccessTokenClaims } from "./jwt";
 export interface AuthContext {
   userId: number;
   email: string;
+  name: string;
   accessToken: string;
 }
 
@@ -28,14 +29,19 @@ export async function getAuthContext(
   // Optional: ensure user still exists
   const { data, error: dbError } = await getSupabase()
     .from("userinfo")
-    .select("user_id, email")
+    .select("user_id, email, name")
     .eq("user_id", claims.user_id)
     .is("deleted_at", null)
     .maybeSingle();
 
   if (dbError || !data) return null;
 
-  return { userId: data.user_id, email: String(data.email), accessToken: token };
+  return {
+    userId: data.user_id,
+    email: String(data.email),
+    name: String(data.name ?? ""),
+    accessToken: token,
+  };
 }
 
 export function unauthorized() {

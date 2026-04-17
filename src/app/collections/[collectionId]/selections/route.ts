@@ -5,6 +5,7 @@ import { requireAuth, getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { uploadImageAndSave } from "@/lib/storage";
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
+import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 
 /**
@@ -313,6 +314,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       category_id,
       owner_id: auth.userId,
       user_id: auth.userId,
+      owner_name: auth.name,
       title,
       description,
       keywords: keywordEntries,
@@ -342,6 +344,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     console.error("collection_selections insert error:", csError);
     return apiError("Failed to create selection", 500);
   }
+
+  await recalcCollectionSelectionNum(collectionId);
 
   for (let i = 0; i < imageFiles.length; i++) {
     const file = imageFiles[i];

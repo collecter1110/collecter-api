@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
+import { recalcCollectionSelectionNums } from "@/lib/collectionStats";
 
 /**
  * @openapi
@@ -105,6 +106,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     console.error("moveSelection insert error:", insertError);
     return apiError("Failed to move selection", 500);
   }
+
+  await recalcCollectionSelectionNums([source_collection_id, target_collection_id]);
 
   return apiResponse({ success: true });
 }

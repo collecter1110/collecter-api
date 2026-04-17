@@ -3,6 +3,7 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
+import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 
 /**
  * @openapi
@@ -228,6 +229,8 @@ export async function POST(request: NextRequest) {
     console.error("selecting insert error:", insertError);
     return apiError("Failed to create selecting", 500);
   }
+
+  await recalcCollectionSelectionNum(selecting_collection_id);
 
   // 컬렉션 커버가 비어있으면 셀렉션의 첫 이미지로 자동 설정
   const { data: sourceImages } = await getSupabase()

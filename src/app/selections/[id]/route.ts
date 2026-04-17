@@ -8,6 +8,7 @@ import {
   ensureCollectionCoverIfEmpty,
   repairCollectionCoverIfUsingDeletedImage,
 } from "@/lib/collectionCover";
+import { recalcCollectionSelectionNums } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 
 /**
@@ -439,6 +440,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       return apiError("Failed to remove selection from collection", 500);
     }
 
+    await recalcCollectionSelectionNums([collectionId]);
     await repairCollectionCoverIfUsingDeletedImage(collectionId, imageIds);
     return apiResponse({ success: true });
   }
@@ -472,6 +474,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     console.error("deleteSelection error:", error);
     return apiError("Failed to delete selection", 500);
   }
+
+  await recalcCollectionSelectionNums(collectionIds);
 
   // 관련 컬렉션 커버 복구
   for (const colId of collectionIds) {
