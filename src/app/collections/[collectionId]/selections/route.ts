@@ -7,6 +7,10 @@ import { uploadImageAndSave } from "@/lib/storage";
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
+import {
+  getSelectionHomeMap,
+  isSelectionVisibleToViewer,
+} from "@/lib/selectionVisibility";
 
 /**
  * @openapi
@@ -246,7 +250,20 @@ export async function GET(request: NextRequest, { params }: Params) {
     };
   };
 
-  const selections = ((data ?? []) as unknown as CSRow[]).map((row) => {
+  const csRows = (data ?? []) as unknown as CSRow[];
+
+  // 원본(home) 컬렉션이 비공개인 셀렉션은 원작자 외에는 숨김.
+  // 뷰어 기준: 로그인 상태라면 auth.userId, 비로그인이면 null.
+  const viewerId = auth?.userId ?? null;
+  let visibleRows = csRows;
+  if (csRows.length > 0) {
+    const homeMap = await getSelectionHomeMap(csRows.map((r) => r.selections.id));
+    visibleRows = csRows.filter((row) =>
+      isSelectionVisibleToViewer(homeMap.get(row.selections.id), viewerId)
+    );
+  }
+
+  const selections = visibleRows.map((row) => {
     const s = row.selections;
     const imgs = [...s.selection_images].sort((a, b) => a.sort_order - b.sort_order);
     return {
@@ -313,7 +330,6 @@ export async function POST(request: NextRequest, { params }: Params) {
     .insert({
       category_id,
       owner_id: auth.userId,
-      user_id: auth.userId,
       owner_name: auth.name,
       title,
       description,

@@ -122,7 +122,6 @@
  *       required:
  *         - id
  *         - category_id
- *         - user_id
  *         - owner_id
  *         - selection_title
  *         - description
@@ -138,7 +137,6 @@
  *         id: { type: integer, example: 789 }
  *         category_id: { type: integer, example: 1 }
  *         collection_id: { type: integer, nullable: true, example: 123 }
- *         user_id: { type: integer, example: 45 }
  *         owner_id: { type: integer, example: 45 }
  *         selection_title: { type: string, example: "내 셀렉션" }
  *         description: { type: string, nullable: true, example: "셀렉션 설명" }

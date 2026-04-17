@@ -10,6 +10,10 @@ import {
 } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNums } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
+import {
+  getSelectionHome,
+  isSelectionVisibleToViewer,
+} from "@/lib/selectionVisibility";
 
 /**
  * @openapi
@@ -51,7 +55,6 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                       id: 789
  *                       category_id: 1
  *                       collection_id: 123
- *                       user_id: 45
  *                       owner_id: 45
  *                       selection_title: 내 셀렉션
  *                       description: 셀렉션 설명
@@ -220,6 +223,13 @@ export async function GET(request: NextRequest, { params }: Params) {
         return apiError("Selection not found", 404);
       }
     }
+  }
+
+  // 원본(home) 컬렉션 기준 비공개 필터: 원작자의 홈 컬렉션이 비공개이면
+  // 원작자 외에는 어떤 맥락에서 조회하든 숨긴다.
+  const home = await getSelectionHome(id);
+  if (!isSelectionVisibleToViewer(home, auth?.userId ?? null)) {
+    return apiError("Selection not found", 404);
   }
 
   const { title, ...rest } = data;

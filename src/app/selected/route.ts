@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
+import {
+  getSelectionHomeMap,
+  isSelectionVisibleToViewer,
+} from "@/lib/selectionVisibility";
 
 /**
  * @openapi
@@ -96,7 +100,18 @@ export async function GET(request: NextRequest) {
     };
   };
 
-  const rows = (data ?? []) as unknown as CSRow[];
+  let rows = (data ?? []) as unknown as CSRow[];
+
+  // 원본(home) 컬렉션이 비공개인 셀렉션은 숨김.
+  // 이 엔드포인트는 auth.userId == owner_id 조건으로 이미 필터되어 있어
+  // home.isPublic=false 이어도 원작자 본인에게는 visible 로 판정된다.
+  // 다만 일관된 동작을 위해 동일 유틸을 사용한다.
+  if (rows.length > 0) {
+    const homeMap = await getSelectionHomeMap(rows.map((r) => r.selection_id));
+    rows = rows.filter((r) =>
+      isSelectionVisibleToViewer(homeMap.get(r.selection_id), auth.userId)
+    );
+  }
 
   // 퍼간 유저 이름 조회
   const selectingUserIds = [...new Set(rows.map((r) => r.user_id))];

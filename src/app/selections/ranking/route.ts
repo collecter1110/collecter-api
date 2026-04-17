@@ -3,6 +3,10 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
+import {
+  getSelectionHomeMap,
+  isSelectionVisibleToViewer,
+} from "@/lib/selectionVisibility";
 
 /**
  * @openapi
@@ -115,6 +119,14 @@ export async function GET(request: NextRequest) {
   }
   if (blockedIds.length > 0) {
     uniqueRows = uniqueRows.filter((r) => !blockedIds.includes(r.selections.owner_id));
+  }
+
+  // 원본(home) 컬렉션이 비공개인 셀렉션은 숨김 (뷰어가 원작자인 경우는 위에서 이미 제외됨)
+  if (uniqueRows.length > 0) {
+    const homeMap = await getSelectionHomeMap(uniqueRows.map((r) => r.selections.id));
+    uniqueRows = uniqueRows.filter((r) =>
+      isSelectionVisibleToViewer(homeMap.get(r.selections.id), auth?.userId ?? null)
+    );
   }
 
   // category_id별 상위 3개 추출

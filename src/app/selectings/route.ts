@@ -4,6 +4,10 @@ import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
+import {
+  getSelectionHomeMap,
+  isSelectionVisibleToViewer,
+} from "@/lib/selectionVisibility";
 
 /**
  * @openapi
@@ -133,7 +137,15 @@ export async function GET(request: NextRequest) {
   };
 
   // selections가 null인 경우 (neq 필터로 제외된 경우) 필터링
-  const rows = ((data ?? []) as unknown as CSRow[]).filter((r) => r.selections !== null);
+  let rows = ((data ?? []) as unknown as CSRow[]).filter((r) => r.selections !== null);
+
+  // 원본(home) 컬렉션이 비공개면 원작자 외에는 숨김
+  if (rows.length > 0) {
+    const homeMap = await getSelectionHomeMap(rows.map((r) => r.selection_id));
+    rows = rows.filter((r) =>
+      isSelectionVisibleToViewer(homeMap.get(r.selection_id), auth.userId)
+    );
+  }
 
   // 현재 유저 이름 조회
   const { data: userInfo } = await getSupabase()
@@ -192,7 +204,7 @@ export async function POST(request: NextRequest) {
   // 원본 셀렉션 존재 확인
   const { data: selectedSelection, error: fetchError } = await getSupabase()
     .from("selections")
-    .select("id, is_selectable")
+    .select("id, is_selectable, owner_id")
     .eq("id", selected_selection_id)
     .single();
 
@@ -202,6 +214,11 @@ export async function POST(request: NextRequest) {
 
   if (!selectedSelection.is_selectable) {
     return apiError("This selection is not selectable", 403);
+  }
+
+  // 원작자는 본인 셀렉션을 셀렉팅할 수 없다 (home 유일성 보장)
+  if (selectedSelection.owner_id === auth.userId) {
+    return apiError("You cannot select your own selection", 400);
   }
 
   // 이미 해당 컬렉션에 매핑되어 있는지 확인
