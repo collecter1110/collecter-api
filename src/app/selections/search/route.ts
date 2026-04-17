@@ -39,12 +39,22 @@ import {
  *           application/json:
  *             schema:
  *               type: object
- *               required: [selections]
+ *               required: [errorCode, msg, data]
  *               properties:
- *                 selections:
- *                   type: array
- *                   items:
- *                     $ref: "#/components/schemas/SearchSelection"
+ *                 errorCode:
+ *                   type: string
+ *                   example: SU000
+ *                 msg:
+ *                   type: string
+ *                   example: ok
+ *                 data:
+ *                   type: object
+ *                   required: [selections]
+ *                   properties:
+ *                     selections:
+ *                       type: array
+ *                       items:
+ *                         $ref: "#/components/schemas/SearchSelection"
  *             examples:
  *               ok:
  *                 value:
@@ -54,9 +64,7 @@ import {
  *                     selections:
  *                       - id: 456
  *                         selection_title: 내 셀렉션
- *                         selection_images:
- *                           - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
- *                             sort_order: 0
+ *                         image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                         collection_id: 123
  *                         collection_title: 내 컬렉션
  *               empty:
@@ -178,10 +186,14 @@ export async function GET(request: NextRequest) {
     const coll = row.collections;
     const collectionTitle = Array.isArray(coll) ? coll[0]?.title : coll?.title;
 
+    const cover = (s.selection_images ?? [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order)[0];
+
     return {
       id: s.id,
       selection_title: s.title,
-      selection_images: s.selection_images,
+      image_id: cover?.image_id ?? null,
       collection_id: row.collection_id,
       collection_title: collectionTitle ?? "",
     };

@@ -187,16 +187,12 @@
  *       required:
  *         - id
  *         - selection_title
- *         - selection_images
  *         - collection_id
  *         - collection_title
  *       properties:
  *         id: { type: integer, example: 456 }
  *         selection_title: { type: string, example: "내 셀렉션" }
- *         selection_images:
- *           type: array
- *           items:
- *             $ref: "#/components/schemas/SelectionImage"
+ *         image_id: { type: string, nullable: true, example: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a" }
  *         collection_id: { type: integer, example: 123 }
  *         collection_title: { type: string, example: "내 컬렉션" }
  *

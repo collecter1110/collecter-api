@@ -91,14 +91,98 @@ import {
  *     responses:
  *       201:
  *         description: 셀렉팅 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [errorCode, msg, data]
+ *               properties:
+ *                 errorCode:
+ *                   type: string
+ *                   example: SU000
+ *                 msg:
+ *                   type: string
+ *                   example: ok
+ *                 data:
+ *                   type: object
+ *                   required: [success]
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
+ *       400:
+ *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               ownSelection:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: You cannot select your own selection
+ *                   data: {}
  *       401:
  *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *       404:
  *         description: 원본 셀렉션을 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notFound:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Source selection not found
+ *                   data: {}
  *       409:
  *         description: 이미 셀렉팅된 셀렉션
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               conflict:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Already selected in this collection
+ *                   data: {}
+ *       403:
+ *         description: 퍼가기 불가 셀렉션
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notSelectable:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: This selection is not selectable
+ *                   data: {}
  *       500:
  *         description: 셀렉팅 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to create selecting
+ *                   data: {}
  */
 // GET /selectings — 내가 셀렉팅한 목록
 export async function GET(request: NextRequest) {

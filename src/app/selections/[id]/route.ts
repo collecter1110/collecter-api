@@ -120,10 +120,101 @@ import {
  *     responses:
  *       200:
  *         description: 수정 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [errorCode, msg, data]
+ *               properties:
+ *                 errorCode:
+ *                   type: string
+ *                   example: SU000
+ *                 msg:
+ *                   type: string
+ *                   example: ok
+ *                 data:
+ *                   type: object
+ *                   required: [success]
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
+ *       400:
+ *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               invalidId:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Invalid ID
+ *                   data: {}
+ *               keywordsRequired:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: keywords is required
+ *                   data: {}
+ *               keywordsInvalid:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: keywords must be a non-empty JSON array of strings
+ *                   data: {}
  *       401:
  *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *       403:
+ *         description: 권한 없음 (소유자만 수정 가능)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               forbidden:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Only the owner can edit this selection
+ *                   data: {}
+ *       404:
+ *         description: 셀렉션을 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notFound:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Selection not found
+ *                   data: {}
  *       500:
  *         description: 수정 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               updateFailed:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to update selection
+ *                   data: {}
+ *               keywordSaveFailed:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to save keywords
+ *                   data: {}
  *   delete:
  *     tags: [Selections]
  *     summary: 셀렉션 삭제
@@ -145,10 +236,79 @@ import {
  *     responses:
  *       200:
  *         description: 삭제 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [errorCode, msg, data]
+ *               properties:
+ *                 errorCode:
+ *                   type: string
+ *                   example: SU000
+ *                 msg:
+ *                   type: string
+ *                   example: ok
+ *                 data:
+ *                   type: object
+ *                   required: [success]
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
+ *       400:
+ *         description: 잘못된 ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               invalidId:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Invalid ID
+ *                   data: {}
  *       401:
  *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *       404:
+ *         description: 셀렉션을 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notFound:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Selection not found
+ *                   data: {}
  *       500:
  *         description: 삭제 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               deleteFailed:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to delete selection
+ *                   data: {}
+ *               removeMappingFailed:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to remove selection from collection
+ *                   data: {}
  */
 
 type Params = { params: Promise<{ id: string }> };
