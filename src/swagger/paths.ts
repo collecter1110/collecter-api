@@ -745,22 +745,102 @@
  *                   format: binary
  *     responses:
  *       200:
- *         description: 성공
+ *         description: 수정 성공
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [errorCode, msg, data]
  *               properties:
- *                 success:
- *                   type: boolean
+ *                 errorCode:
+ *                   type: string
+ *                   example: SU000
+ *                 msg:
+ *                   type: string
+ *                   example: ok
+ *                 data:
+ *                   type: object
+ *                   required: [success]
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               invalidId:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Invalid ID
+ *                   data: {}
+ *               keywordsRequired:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: keywords is required
+ *                   data: {}
+ *               keywordsInvalid:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: keywords must be a non-empty JSON array of strings
+ *                   data: {}
  *       401:
  *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *       404:
  *         description: 셀렉션 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notFound:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Selection not found
+ *                   data: {}
+ *       403:
+ *         description: 권한 없음 (소유자만 수정 가능)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               forbidden:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Only the owner can edit this selection
+ *                   data: {}
  *       500:
  *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               updateFailed:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to update selection
+ *                   data: {}
+ *               keywordSaveFailed:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to save keywords
+ *                   data: {}
  *   delete:
  *     tags:
  *       - Selections
@@ -784,20 +864,80 @@
  *         description: 매핑만 삭제할 컬렉션 ID (소유자가 아닌 경우)
  *     responses:
  *       200:
- *         description: 성공
+ *         description: 삭제 성공
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [errorCode, msg, data]
  *               properties:
- *                 success:
- *                   type: boolean
+ *                 errorCode:
+ *                   type: string
+ *                   example: SU000
+ *                 msg:
+ *                   type: string
+ *                   example: ok
+ *                 data:
+ *                   type: object
+ *                   required: [success]
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: 잘못된 ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               invalidId:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Invalid ID
+ *                   data: {}
  *       401:
  *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *       404:
+ *         description: 셀렉션 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notFound:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Selection not found
+ *                   data: {}
  *       500:
  *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               deleteFailed:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to delete selection
+ *                   data: {}
+ *               removeMappingFailed:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to remove selection from collection
+ *                   data: {}
  *
  * /selections/{id}/move:
  *   patch:
@@ -831,22 +971,80 @@
  *                 description: 이동할 대상 컬렉션 ID
  *     responses:
  *       200:
- *         description: 성공
+ *         description: 이동 성공
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [errorCode, msg, data]
  *               properties:
- *                 success:
- *                   type: boolean
+ *                 errorCode:
+ *                   type: string
+ *                   example: SU000
+ *                 msg:
+ *                   type: string
+ *                   example: ok
+ *                 data:
+ *                   type: object
+ *                   required: [success]
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               invalidId:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Invalid ID
+ *                   data: {}
+ *               missingBody:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: source_collection_id and target_collection_id are required
+ *                   data: {}
  *       401:
  *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *       404:
  *         description: 매핑 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notFound:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Selection not found in source collection
+ *                   data: {}
  *       500:
  *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to move selection
+ *                   data: {}
  *
  * /selections/ranking:
  *   get:
@@ -910,32 +1108,70 @@
  *         example: Bearer eyJhbGciOi...
  *     responses:
  *       200:
- *         description: 성공
+ *         description: 검색 결과 셀렉션 목록
  *         content:
  *           application/json:
  *             schema:
  *               type: object
- *               required: [selections]
+ *               required: [errorCode, msg, data]
  *               properties:
- *                 selections:
- *                   type: array
- *                   items:
- *                     $ref: "#/components/schemas/SearchSelection"
+ *                 errorCode:
+ *                   type: string
+ *                   example: SU000
+ *                 msg:
+ *                   type: string
+ *                   example: ok
+ *                 data:
+ *                   type: object
+ *                   required: [selections]
+ *                   properties:
+ *                     selections:
+ *                       type: array
+ *                       items:
+ *                         $ref: "#/components/schemas/SearchSelection"
  *             examples:
  *               ok:
  *                 value:
- *                   selections:
- *                     - id: 456
- *                       selection_title: "내 셀렉션"
- *                       selection_images:
- *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
- *                           sort_order: 0
- *                       collection_id: 123
- *                       collection_title: "내 컬렉션"
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selections:
+ *                       - id: 456
+ *                         selection_title: "내 셀렉션"
+ *                         image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                         collection_id: 123
+ *                         collection_title: "내 컬렉션"
+ *               empty:
+ *                 summary: 검색 결과 없음
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     selections: []
  *       400:
  *         description: 쿼리 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: "Query parameter 'q' is required"
+ *                   data: {}
  *       500:
  *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to search selections
+ *                   data: {}
  *
  * /selectings:
  *   get:
@@ -1007,24 +1243,99 @@
  *                 description: 원본 셀렉션 ID
  *     responses:
  *       201:
- *         description: 생성됨
+ *         description: 셀렉팅 성공
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [errorCode, msg, data]
  *               properties:
- *                 success:
- *                   type: boolean
+ *                 errorCode:
+ *                   type: string
+ *                   example: SU000
+ *                 msg:
+ *                   type: string
+ *                   example: ok
+ *                 data:
+ *                   type: object
+ *                   required: [success]
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
+ *       400:
+ *         description: 잘못된 요청 (본인 셀렉션 퍼오기 불가 등)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               ownSelection:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: You cannot select your own selection
+ *                   data: {}
  *       401:
  *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *       404:
  *         description: 원본 셀렉션 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notFound:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Source selection not found
+ *                   data: {}
  *       403:
  *         description: 퍼가기 불가 셀렉션
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notSelectable:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: This selection is not selectable
+ *                   data: {}
  *       409:
  *         description: 이미 셀렉팅된 셀렉션
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               conflict:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Already selected in this collection
+ *                   data: {}
  *       500:
  *         description: 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to create selecting
+ *                   data: {}
  *
  * /selected:
  *   get:

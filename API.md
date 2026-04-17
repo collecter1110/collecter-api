@@ -1309,7 +1309,7 @@ curl -X GET "https://<host>/api/selections/search?q=카페"
 
 - **응답 200 예시**
 
-> DB `title` → `selection_title`, `collection_title`로 변환됩니다. `image_id`는 `selection_images` 중 `sort_order`가 가장 낮은 것입니다.
+> DB `title` → `selection_title`, `collection_title`로 변환됩니다. `image_id`는 `selection_images` 중 `sort_order`가 가장 낮은 것입니다. 결과가 없으면 `image_id`는 `null`.
 
 ```json
 {
@@ -1318,7 +1318,7 @@ curl -X GET "https://<host>/api/selections/search?q=카페"
   "data": {
     "selections": [
       {
-        "selection_id": 456,
+        "id": 456,
         "selection_title": "카페 셀렉션",
         "image_id": "c3d4e5f6-7890-abcd-ef12-345678901234",
         "collection_id": 123,

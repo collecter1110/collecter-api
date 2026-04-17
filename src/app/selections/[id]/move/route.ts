@@ -39,14 +39,79 @@ import { recalcCollectionSelectionNums } from "@/lib/collectionStats";
  *     responses:
  *       200:
  *         description: 이동 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [errorCode, msg, data]
+ *               properties:
+ *                 errorCode:
+ *                   type: string
+ *                   example: SU000
+ *                 msg:
+ *                   type: string
+ *                   example: ok
+ *                 data:
+ *                   type: object
+ *                   required: [success]
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     success: true
  *       400:
  *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               invalidId:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Invalid ID
+ *                   data: {}
+ *               missingBody:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: source_collection_id and target_collection_id are required
+ *                   data: {}
  *       401:
  *         description: 인증 필요
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *       404:
  *         description: 셀렉션을 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notFound:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Selection not found in source collection
+ *                   data: {}
  *       500:
  *         description: 이동 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               error:
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: Failed to move selection
+ *                   data: {}
  */
 
 type Params = { params: Promise<{ id: string }> };
