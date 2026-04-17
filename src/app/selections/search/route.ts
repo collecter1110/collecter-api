@@ -3,6 +3,10 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
+import {
+  getSelectionHomeMap,
+  isSelectionVisibleToViewer,
+} from "@/lib/selectionVisibility";
 
 /**
  * @openapi
@@ -50,7 +54,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                     selections:
  *                       - id: 456
  *                         selection_title: 내 셀렉션
- *                         image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                         selection_images:
+ *                           - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                             sort_order: 0
  *                         collection_id: 123
  *                         collection_title: 내 컬렉션
  *               empty:
@@ -107,14 +113,14 @@ export async function GET(request: NextRequest) {
     return apiResponse({ selections: [] });
   }
 
-  // collection_selections → collections(is_public) + selections_v2(keywords 매칭) 조인
+  // collection_selections → collections(is_public) + selections(keywords 매칭) 조인
   const { data, error } = await getSupabase()
     .from("collection_selections")
     .select(
       `collection_id,
        collections!inner(title, is_public),
-       selections_v2!inner(
-         id, user_id, title, keywords,
+       selections!inner(
+         id, owner_id, title, keywords,
          selection_images(image_id, sort_order)
        )`
     )
@@ -128,9 +134,9 @@ export async function GET(request: NextRequest) {
   type CSRow = {
     collection_id: number;
     collections: { title: string } | { title: string }[] | null;
-    selections_v2: {
+    selections: {
       id: number;
-      user_id: number;
+      owner_id: number;
       title: string;
       keywords: { keyword_id: number; keyword_name: string }[] | null;
       selection_images: { image_id: string; sort_order: number }[];
@@ -141,33 +147,45 @@ export async function GET(request: NextRequest) {
 
   // 키워드 필터링 + 본인/차단 제외 + 중복 제거
   const seen = new Set<number>();
-  const selections: Record<string, unknown>[] = [];
+  const filtered: CSRow[] = [];
 
   for (const row of rows) {
-    const s = row.selections_v2;
+    const s = row.selections;
     if (seen.has(s.id)) continue;
 
     // 키워드 매칭
     const hasMatch = s.keywords?.some((kw) => kwIds.includes(kw.keyword_id));
     if (!hasMatch) continue;
 
-    if (auth && s.user_id === auth.userId) continue;
-    if (blockedIds.includes(s.user_id)) continue;
+    if (auth && s.owner_id === auth.userId) continue;
+    if (blockedIds.includes(s.owner_id)) continue;
 
     seen.add(s.id);
+    filtered.push(row);
+  }
 
-    const imgs = [...s.selection_images].sort((a, b) => a.sort_order - b.sort_order);
+  // 원본(home) 컬렉션이 비공개인 셀렉션은 숨김
+  let visibleRows = filtered;
+  if (filtered.length > 0) {
+    const homeMap = await getSelectionHomeMap(filtered.map((r) => r.selections.id));
+    visibleRows = filtered.filter((r) =>
+      isSelectionVisibleToViewer(homeMap.get(r.selections.id), auth?.userId ?? null)
+    );
+  }
+
+  const selections = visibleRows.map((row) => {
+    const s = row.selections;
     const coll = row.collections;
     const collectionTitle = Array.isArray(coll) ? coll[0]?.title : coll?.title;
 
-    selections.push({
+    return {
       id: s.id,
       selection_title: s.title,
-      image_id: imgs[0]?.image_id ?? null,
+      selection_images: s.selection_images,
       collection_id: row.collection_id,
       collection_title: collectionTitle ?? "",
-    });
-  }
+    };
+  });
 
   return apiResponse({ selections });
 }

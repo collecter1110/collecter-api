@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
+import {
+  getSelectionHomeMap,
+  isSelectionVisibleToViewer,
+} from "@/lib/selectionVisibility";
 
 /**
  * @openapi
@@ -65,11 +69,11 @@ export async function GET(request: NextRequest) {
     .from("collection_selections")
     .select(
       `collection_id, selection_id, user_id, created_at,
-       selections_v2!inner(id, title, owner_id, owner_name,
+       selections!inner(id, title, owner_id, owner_name,
          selection_images(image_id, sort_order)
        )`
     )
-    .eq("selections_v2.owner_id", auth.userId)
+    .eq("selections.owner_id", auth.userId)
     .neq("user_id", auth.userId)
     .order("created_at", { ascending: false });
 
@@ -87,7 +91,7 @@ export async function GET(request: NextRequest) {
     selection_id: number;
     user_id: number;
     created_at: string;
-    selections_v2: {
+    selections: {
       id: number;
       title: string;
       owner_id: number;
@@ -96,7 +100,18 @@ export async function GET(request: NextRequest) {
     };
   };
 
-  const rows = (data ?? []) as unknown as CSRow[];
+  let rows = (data ?? []) as unknown as CSRow[];
+
+  // 원본(home) 컬렉션이 비공개인 셀렉션은 숨김.
+  // 이 엔드포인트는 auth.userId == owner_id 조건으로 이미 필터되어 있어
+  // home.isPublic=false 이어도 원작자 본인에게는 visible 로 판정된다.
+  // 다만 일관된 동작을 위해 동일 유틸을 사용한다.
+  if (rows.length > 0) {
+    const homeMap = await getSelectionHomeMap(rows.map((r) => r.selection_id));
+    rows = rows.filter((r) =>
+      isSelectionVisibleToViewer(homeMap.get(r.selection_id), auth.userId)
+    );
+  }
 
   // 퍼간 유저 이름 조회
   const selectingUserIds = [...new Set(rows.map((r) => r.user_id))];
@@ -114,7 +129,7 @@ export async function GET(request: NextRequest) {
   const grouped = new Map<string, Array<Record<string, unknown>>>();
 
   for (const row of rows) {
-    const sel = row.selections_v2;
+    const sel = row.selections;
     const createdAt = new Date(row.created_at);
     const dateStr = createdAt.toISOString().slice(0, 10);
     const timeStr = createdAt.toTimeString().slice(0, 8);

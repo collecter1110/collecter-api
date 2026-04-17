@@ -331,21 +331,51 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return apiError("Collection not found", 404);
   }
 
+  // 이 컬렉션에 매핑된 셀렉션 조회 (내가 만든 것 vs 셀렉팅한 것 구분)
+  const { data: csData } = await getSupabase()
+    .from("collection_selections")
+    .select("selection_id, selections!inner(owner_id)")
+    .eq("collection_id", collectionId);
+
+  type CSRow = { selection_id: number; selections: { owner_id: number } };
+  const mappings = (csData ?? []) as unknown as CSRow[];
+
+  const ownedSelectionIds = mappings
+    .filter((r) => r.selections.owner_id === auth.userId)
+    .map((r) => r.selection_id);
+
+  // 셀렉팅한 셀렉션은 매핑만 제거
+  await getSupabase()
+    .from("collection_selections")
+    .delete()
+    .eq("collection_id", collectionId);
+
+  // 내가 만든 셀렉션의 이미지 삭제
+  for (const selId of ownedSelectionIds) {
+    const { data: selImgs } = await getSupabase()
+      .from("selection_images")
+      .select("image_id")
+      .eq("selection_id", selId);
+
+    for (const si of selImgs ?? []) {
+      await deleteImageById(si.image_id);
+    }
+  }
+
+  // 내가 만든 셀렉션 삭제
+  if (ownedSelectionIds.length > 0) {
+    await getSupabase()
+      .from("selections")
+      .delete()
+      .in("id", ownedSelectionIds);
+  }
+
   // 컬렉션 대표 이미지 삭제
   if (collection.image_id) {
     await deleteImageById(collection.image_id);
   }
 
-  // 셀렉션 이미지들 삭제 (selection_images → images cascade로 S3+DB 정리)
-  const { data: selImgs } = await getSupabase()
-    .from("selection_images")
-    .select("image_id")
-    .eq("collection_id", collectionId);
-
-  for (const si of selImgs ?? []) {
-    await deleteImageById(si.image_id);
-  }
-
+  // 컬렉션 삭제
   const { error } = await getSupabase()
     .from("collections")
     .delete()

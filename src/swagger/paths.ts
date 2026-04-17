@@ -854,8 +854,7 @@
  *       - Selections
  *     summary: Get ranking selections
  *     description: |
- *       public 컬렉션에 매핑된 셀렉션을 `select_num` 내림차순으로 정렬 후,
- *       category_id별 상위 3개씩 반환합니다.
+ *       public 컬렉션에 매핑된 셀렉션을 category_id별 상위 3개씩 반환합니다.
  *
  *       - Authorization 헤더가 있으면 차단한 유저의 셀렉션을 제외합니다. (토큰 선택)
  *       - `image_id`는 `selection_images` 중 `sort_order`가 0인 이미지의 `image_id`입니다.
@@ -928,7 +927,9 @@
  *                   selections:
  *                     - id: 456
  *                       selection_title: "내 셀렉션"
- *                       image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                       selection_images:
+ *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                           sort_order: 0
  *                       collection_id: 123
  *                       collection_title: "내 컬렉션"
  *       400:
