@@ -3,16 +3,26 @@ import { getSupabase } from "@/lib/supabase";
 async function getFirstActiveImageIdForCollection(
   collectionId: number
 ): Promise<string | null> {
+  // collection_selections를 통해 해당 컬렉션에 매핑된 셀렉션의 이미지를 조회
   const { data, error } = await getSupabase()
+    .from("collection_selections")
+    .select("selection_id")
+    .eq("collection_id", collectionId);
+
+  if (error || !data || data.length === 0) return null;
+
+  const selectionIds = data.map((r) => r.selection_id);
+
+  const { data: imgData, error: imgError } = await getSupabase()
     .from("selection_images")
-    .select("image_id, created_at, sort_order, images(deleted_at)")
-    .eq("collection_id", collectionId)
+    .select("image_id, created_at, sort_order, selection_id, images(deleted_at)")
+    .in("selection_id", selectionIds)
     .order("created_at", { ascending: true })
     .order("sort_order", { ascending: true });
 
-  if (error) return null;
+  if (imgError) return null;
 
-  for (const row of data ?? []) {
+  for (const row of imgData ?? []) {
     const images = (row as unknown as { images: { deleted_at: string | null }[] }).images;
     const deletedAt = images?.[0]?.deleted_at ?? null;
     if (!deletedAt) return (row as { image_id: string }).image_id;
@@ -62,4 +72,3 @@ export async function repairCollectionCoverIfUsingDeletedImage(
     .update({ image_id: next })
     .eq("id", collectionId);
 }
-

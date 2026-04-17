@@ -568,14 +568,23 @@
  *     tags:
  *       - Selections
  *     summary: 컬렉션의 셀렉션 목록 조회
- *     security:
- *       - bearerAuth: []
+ *     description: |
+ *       컬렉션에 속한 셀렉션 목록을 반환합니다.
+ *       - public 컬렉션: 토큰 없이 조회 가능
+ *       - private 컬렉션: 소유자만 조회 가능 (Authorization 필요)
  *     parameters:
  *       - in: path
  *         name: collectionId
  *         required: true
  *         schema:
  *           type: integer
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
  *     responses:
  *       200:
  *         description: 성공
@@ -587,7 +596,7 @@
  *                 selections:
  *                   type: array
  *                   items:
- *                     type: object
+ *                     $ref: "#/components/schemas/SelectionListItem"
  *       400:
  *         description: 잘못된 ID
  *       404:
@@ -657,22 +666,23 @@
  *       500:
  *         description: 서버 오류
  *
- * /collections/{collectionId}/selections/{selectionId}:
+ * /selections/{id}:
  *   get:
  *     tags:
  *       - Selections
  *     summary: 셀렉션 상세 조회
  *     parameters:
  *       - in: path
- *         name: collectionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *       - in: path
- *         name: selectionId
- *         required: true
+ *       - in: query
+ *         name: collection_id
+ *         required: false
  *         schema:
  *           type: integer
+ *         description: 조회 컨텍스트의 컬렉션 ID (비공개 체크용)
  *     responses:
  *       200:
  *         description: 성공
@@ -682,7 +692,7 @@
  *               type: object
  *               properties:
  *                 selection:
- *                   type: object
+ *                   $ref: "#/components/schemas/SelectionDetail"
  *       400:
  *         description: 잘못된 ID
  *       404:
@@ -697,12 +707,7 @@
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: collectionId
- *         required: true
- *         schema:
- *           type: integer
- *       - in: path
- *         name: selectionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: integer
@@ -760,19 +765,23 @@
  *     tags:
  *       - Selections
  *     summary: 셀렉션 삭제
+ *     description: |
+ *       소유자인 경우 셀렉션 자체를 삭제합니다.
+ *       소유자가 아닌 경우 collection_id 쿼리 파라미터를 전달하면 해당 컬렉션에서 매핑만 제거합니다.
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: collectionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *       - in: path
- *         name: selectionId
- *         required: true
+ *       - in: query
+ *         name: collection_id
+ *         required: false
  *         schema:
  *           type: integer
+ *         description: 매핑만 삭제할 컬렉션 ID (소유자가 아닌 경우)
  *     responses:
  *       200:
  *         description: 성공
@@ -790,16 +799,17 @@
  *       500:
  *         description: 서버 오류
  *
- * /selections/{selectionId}:
+ * /selections/{id}/move:
  *   patch:
  *     tags:
  *       - Selections
  *     summary: 셀렉션 다른 컬렉션으로 이동
+ *     description: collection_selections 매핑을 변경하여 셀렉션을 다른 컬렉션으로 이동합니다.
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: selectionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: integer
@@ -810,10 +820,15 @@
  *           schema:
  *             type: object
  *             required:
- *               - collectionId
+ *               - source_collection_id
+ *               - target_collection_id
  *             properties:
- *               collectionId:
+ *               source_collection_id:
  *                 type: integer
+ *                 description: 현재 컬렉션 ID
+ *               target_collection_id:
+ *                 type: integer
+ *                 description: 이동할 대상 컬렉션 ID
  *     responses:
  *       200:
  *         description: 성공
@@ -828,6 +843,8 @@
  *         description: 잘못된 요청
  *       401:
  *         description: 인증 필요
+ *       404:
+ *         description: 매핑 없음
  *       500:
  *         description: 서버 오류
  *
@@ -837,8 +854,8 @@
  *       - Selections
  *     summary: Get ranking selections
  *     description: |
- *       public 컬렉션(`collections.is_public = true`)에 속한 셀렉션을 `select_num` 내림차순으로 정렬 후,
- *       category_id별 상위 10개씩 반환합니다.
+ *       public 컬렉션에 매핑된 셀렉션을 `select_num` 내림차순으로 정렬 후,
+ *       category_id별 상위 3개씩 반환합니다.
  *
  *       - Authorization 헤더가 있으면 차단한 유저의 셀렉션을 제외합니다. (토큰 선택)
  *       - `image_id`는 `selection_images` 중 `sort_order`가 0인 이미지의 `image_id`입니다.
@@ -874,13 +891,24 @@
  *   get:
  *     tags:
  *       - Selections
- *     summary: 셀렉션 키워드 검색
+ *     summary: 셀렉션 검색
+ *     description: |
+ *       키워드명으로 셀렉션을 검색합니다.
+ *       public 컬렉션에 매핑된 셀렉션만 검색됩니다.
+ *       Authorization 헤더가 있으면 본인 셀렉션과 차단한 유저의 셀렉션을 제외합니다.
  *     parameters:
  *       - in: query
  *         name: q
  *         required: true
  *         schema:
  *           type: string
+ *       - in: header
+ *         name: Authorization
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Bearer access token (optional)
+ *         example: Bearer eyJhbGciOi...
  *     responses:
  *       200:
  *         description: 성공
@@ -898,7 +926,7 @@
  *               ok:
  *                 value:
  *                   selections:
- *                     - selection_id: 456
+ *                     - id: 456
  *                       selection_title: "내 셀렉션"
  *                       image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                       collection_id: 123
@@ -914,9 +942,8 @@
  *       - Selectings
  *     summary: 내가 셀렉팅한 목록 조회
  *     description: |
- *       `selecting` 테이블에서 내가 다른 유저의 셀렉션을 퍼온 목록을 조회합니다.
- *       토큰에서 user_id를 파싱하여 `selecting_user_id`로 필터합니다.
- *       날짜별로 그룹핑하여 반환합니다.
+ *       `collection_selections` 테이블에서 내가 다른 유저의 셀렉션을 퍼온(selecting) 목록을 조회합니다.
+ *       내가 추가했지만 내가 owner가 아닌 셀렉션만 반환합니다.
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -947,7 +974,7 @@
  *                             owner_name: { type: string, example: "siriya" }
  *                             owner_id: { type: integer, example: 69 }
  *                             collection_id: { type: integer, example: 636 }
- *                             selection_id: { type: integer, example: 5 }
+ *                             id: { type: integer, example: 789 }
  *       401:
  *         description: 인증 필요
  *       500:
@@ -955,7 +982,10 @@
  *   post:
  *     tags:
  *       - Selectings
- *     summary: 셀렉션 퍼오기
+ *     summary: 셀렉션 퍼오기 (selecting)
+ *     description: |
+ *       다른 유저의 셀렉션을 내 컬렉션에 매핑합니다.
+ *       셀렉션 데이터를 복사하지 않고 collection_selections에 매핑만 추가합니다.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -966,15 +996,11 @@
  *             type: object
  *             required:
  *               - selecting_collection_id
- *               - selected_collection_id
  *               - selected_selection_id
  *             properties:
  *               selecting_collection_id:
  *                 type: integer
  *                 description: 퍼올 내 컬렉션 ID
- *               selected_collection_id:
- *                 type: integer
- *                 description: 원본 컬렉션 ID
  *               selected_selection_id:
  *                 type: integer
  *                 description: 원본 셀렉션 ID
@@ -992,6 +1018,10 @@
  *         description: 인증 필요
  *       404:
  *         description: 원본 셀렉션 없음
+ *       403:
+ *         description: 퍼가기 불가 셀렉션
+ *       409:
+ *         description: 이미 셀렉팅된 셀렉션
  *       500:
  *         description: 서버 오류
  *
@@ -1001,9 +1031,8 @@
  *       - Selectings
  *     summary: 셀렉팅 당한 목록 조회
  *     description: |
- *       `selecting` 테이블에서 다른 유저가 내 셀렉션을 퍼간 목록을 조회합니다.
- *       토큰에서 user_id를 파싱하여 `selected_user_id`로 필터합니다.
- *       날짜별로 그룹핑하여 반환합니다.
+ *       `collection_selections` 테이블에서 다른 유저가 내 셀렉션을 퍼간(selected) 목록을 조회합니다.
+ *       내가 owner인 셀렉션 중 다른 유저가 추가한 매핑을 조회합니다.
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -1034,7 +1063,7 @@
  *                             owner_name: { type: string, example: "siriya" }
  *                             owner_id: { type: integer, example: 69 }
  *                             collection_id: { type: integer, example: 636 }
- *                             selection_id: { type: integer, example: 5 }
+ *                             id: { type: integer, example: 789 }
  *       401:
  *         description: 인증 필요
  *       500:
@@ -1115,7 +1144,7 @@
  *               type: object
  *               properties:
  *                 user:
- *                   type: object
+ *                   $ref: "#/components/schemas/MyUserInfo"
  *       401:
  *         description: 인증 필요
  *       500:

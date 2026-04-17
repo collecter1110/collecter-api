@@ -12,6 +12,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *     summary: 셀렉션 검색
  *     description: |
  *       키워드명으로 셀렉션을 검색합니다.
+ *       public 컬렉션에 매핑된 셀렉션만 검색됩니다.
  *       Authorization 헤더가 있으면 본인 셀렉션과 차단한 유저의 셀렉션을 제외합니다.
  *     parameters:
  *       - in: query
@@ -47,7 +48,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   msg: ok
  *                   data:
  *                     selections:
- *                       - selection_id: 456
+ *                       - id: 456
  *                         selection_title: 내 셀렉션
  *                         image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                         collection_id: 123
@@ -96,7 +97,6 @@ export async function GET(request: NextRequest) {
   const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
 
   // keywords 형식: [{"keyword_id": N, "keyword_name": "..."}]
-  // keywordinfo에서 ILIKE로 keyword_id 목록 조회 후 @> 부분 매칭
   const { data: kwData } = await getSupabase()
     .from("keywordinfo")
     .select("keyword_id")
@@ -107,52 +107,67 @@ export async function GET(request: NextRequest) {
     return apiResponse({ selections: [] });
   }
 
-  let dbQuery = getSupabase()
-    .from("selections")
+  // collection_selections → collections(is_public) + selections_v2(keywords 매칭) 조인
+  const { data, error } = await getSupabase()
+    .from("collection_selections")
     .select(
-      "collection_id, selection_id, user_id, title, keywords, selection_images(image_id, sort_order), collections!inner(title, is_public)"
+      `collection_id,
+       collections!inner(title, is_public),
+       selections_v2!inner(
+         id, user_id, title, keywords,
+         selection_images(image_id, sort_order)
+       )`
     )
-    .eq("collections.is_public", true)
-    .or(
-      kwIds.map((id) => `keywords.cs.${JSON.stringify([{ keyword_id: id }])}`).join(",")
-    );
-
-  if (auth) {
-    dbQuery = dbQuery.neq("user_id", auth.userId);
-  }
-  if (blockedIds.length > 0) {
-    dbQuery = dbQuery.not("user_id", "in", `(${blockedIds.join(",")})`);
-  }
-
-  const { data, error } = await dbQuery;
+    .eq("collections.is_public", true);
 
   if (error) {
     console.error("searchSelections error:", error);
     return apiError("Failed to search selections", 500);
   }
 
-  type SearchRow = {
+  type CSRow = {
     collection_id: number;
-    selection_id: number;
-    title: string;
-    selection_images: { image_id: string; sort_order: number }[];
     collections: { title: string } | { title: string }[] | null;
+    selections_v2: {
+      id: number;
+      user_id: number;
+      title: string;
+      keywords: { keyword_id: number; keyword_name: string }[] | null;
+      selection_images: { image_id: string; sort_order: number }[];
+    };
   };
 
-  const selections = (data ?? []).map((item) => {
-    const row = item as SearchRow;
-    const imgs = [...row.selection_images].sort((a, b) => a.sort_order - b.sort_order);
+  const rows = (data ?? []) as unknown as CSRow[];
+
+  // 키워드 필터링 + 본인/차단 제외 + 중복 제거
+  const seen = new Set<number>();
+  const selections: Record<string, unknown>[] = [];
+
+  for (const row of rows) {
+    const s = row.selections_v2;
+    if (seen.has(s.id)) continue;
+
+    // 키워드 매칭
+    const hasMatch = s.keywords?.some((kw) => kwIds.includes(kw.keyword_id));
+    if (!hasMatch) continue;
+
+    if (auth && s.user_id === auth.userId) continue;
+    if (blockedIds.includes(s.user_id)) continue;
+
+    seen.add(s.id);
+
+    const imgs = [...s.selection_images].sort((a, b) => a.sort_order - b.sort_order);
     const coll = row.collections;
     const collectionTitle = Array.isArray(coll) ? coll[0]?.title : coll?.title;
 
-    return {
-      selection_id: row.selection_id,
-      selection_title: row.title,
+    selections.push({
+      id: s.id,
+      selection_title: s.title,
       image_id: imgs[0]?.image_id ?? null,
       collection_id: row.collection_id,
       collection_title: collectionTitle ?? "",
-    };
-  });
+    });
+  }
 
   return apiResponse({ selections });
 }
