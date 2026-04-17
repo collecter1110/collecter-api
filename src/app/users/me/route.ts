@@ -151,14 +151,14 @@ export async function GET(request: NextRequest) {
     // 내가 셀렉팅한 수: 내가 추가했지만 내가 owner가 아닌 매핑
     getSupabase()
       .from("collection_selections")
-      .select("selection_id, selections_v2!inner(owner_id)", { count: "exact", head: true })
+      .select("selection_id, selections!inner(owner_id)", { count: "exact", head: true })
       .eq("user_id", auth.userId)
-      .neq("selections_v2.owner_id", auth.userId),
+      .neq("selections.owner_id", auth.userId),
     // 셀렉팅 당한 수: 내가 owner인 셀렉션을 다른 유저가 매핑
     getSupabase()
       .from("collection_selections")
-      .select("selection_id, selections_v2!inner(owner_id)", { count: "exact", head: true })
-      .eq("selections_v2.owner_id", auth.userId)
+      .select("selection_id, selections!inner(owner_id)", { count: "exact", head: true })
+      .eq("selections.owner_id", auth.userId)
       .neq("user_id", auth.userId),
     getSupabase()
       .from("likes")

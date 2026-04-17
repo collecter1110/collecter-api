@@ -105,12 +105,12 @@ export async function GET(request: NextRequest) {
     .from("collection_selections")
     .select(
       `collection_id, selection_id, created_at,
-       selections_v2(id, title, owner_id, owner_name,
+       selections(id, title, owner_id, owner_name,
          selection_images(image_id, sort_order)
        )`
     )
     .eq("user_id", auth.userId)
-    .neq("selections_v2.owner_id", auth.userId)
+    .neq("selections.owner_id", auth.userId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
     collection_id: number;
     selection_id: number;
     created_at: string;
-    selections_v2: {
+    selections: {
       id: number;
       title: string;
       owner_id: number;
@@ -131,8 +131,8 @@ export async function GET(request: NextRequest) {
     } | null;
   };
 
-  // selections_v2가 null인 경우 (neq 필터로 제외된 경우) 필터링
-  const rows = ((data ?? []) as unknown as CSRow[]).filter((r) => r.selections_v2 !== null);
+  // selections가 null인 경우 (neq 필터로 제외된 경우) 필터링
+  const rows = ((data ?? []) as unknown as CSRow[]).filter((r) => r.selections !== null);
 
   // 현재 유저 이름 조회
   const { data: userInfo } = await getSupabase()
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
   const grouped = new Map<string, Array<Record<string, unknown>>>();
 
   for (const row of rows) {
-    const sel = row.selections_v2!;
+    const sel = row.selections!;
     const createdAt = new Date(row.created_at);
     const dateStr = createdAt.toISOString().slice(0, 10);
     const timeStr = createdAt.toTimeString().slice(0, 8);
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
 
   // 원본 셀렉션 존재 확인
   const { data: selectedSelection, error: fetchError } = await getSupabase()
-    .from("selections_v2")
+    .from("selections")
     .select("id, is_selectable")
     .eq("id", selected_selection_id)
     .single();

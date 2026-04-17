@@ -50,7 +50,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                     selections:
  *                       - id: 456
  *                         selection_title: 내 셀렉션
- *                         image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                         selection_images:
+ *                           - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
+ *                             sort_order: 0
  *                         collection_id: 123
  *                         collection_title: 내 컬렉션
  *               empty:
@@ -107,13 +109,13 @@ export async function GET(request: NextRequest) {
     return apiResponse({ selections: [] });
   }
 
-  // collection_selections → collections(is_public) + selections_v2(keywords 매칭) 조인
+  // collection_selections → collections(is_public) + selections(keywords 매칭) 조인
   const { data, error } = await getSupabase()
     .from("collection_selections")
     .select(
       `collection_id,
        collections!inner(title, is_public),
-       selections_v2!inner(
+       selections!inner(
          id, user_id, title, keywords,
          selection_images(image_id, sort_order)
        )`
@@ -128,7 +130,7 @@ export async function GET(request: NextRequest) {
   type CSRow = {
     collection_id: number;
     collections: { title: string } | { title: string }[] | null;
-    selections_v2: {
+    selections: {
       id: number;
       user_id: number;
       title: string;
@@ -144,7 +146,7 @@ export async function GET(request: NextRequest) {
   const selections: Record<string, unknown>[] = [];
 
   for (const row of rows) {
-    const s = row.selections_v2;
+    const s = row.selections;
     if (seen.has(s.id)) continue;
 
     // 키워드 매칭
@@ -156,14 +158,13 @@ export async function GET(request: NextRequest) {
 
     seen.add(s.id);
 
-    const imgs = [...s.selection_images].sort((a, b) => a.sort_order - b.sort_order);
     const coll = row.collections;
     const collectionTitle = Array.isArray(coll) ? coll[0]?.title : coll?.title;
 
     selections.push({
       id: s.id,
       selection_title: s.title,
-      image_id: imgs[0]?.image_id ?? null,
+      selection_images: s.selection_images,
       collection_id: row.collection_id,
       collection_title: collectionTitle ?? "",
     });

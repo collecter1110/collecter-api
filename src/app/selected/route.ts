@@ -65,11 +65,11 @@ export async function GET(request: NextRequest) {
     .from("collection_selections")
     .select(
       `collection_id, selection_id, user_id, created_at,
-       selections_v2!inner(id, title, owner_id, owner_name,
+       selections!inner(id, title, owner_id, owner_name,
          selection_images(image_id, sort_order)
        )`
     )
-    .eq("selections_v2.owner_id", auth.userId)
+    .eq("selections.owner_id", auth.userId)
     .neq("user_id", auth.userId)
     .order("created_at", { ascending: false });
 
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     selection_id: number;
     user_id: number;
     created_at: string;
-    selections_v2: {
+    selections: {
       id: number;
       title: string;
       owner_id: number;
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
   const grouped = new Map<string, Array<Record<string, unknown>>>();
 
   for (const row of rows) {
-    const sel = row.selections_v2;
+    const sel = row.selections;
     const createdAt = new Date(row.created_at);
     const dateStr = createdAt.toISOString().slice(0, 10);
     const timeStr = createdAt.toTimeString().slice(0, 8);
