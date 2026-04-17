@@ -67,6 +67,7 @@ import {
  *                       created_at: "2026-04-06"
  *                       owner_name: gimgahui
  *                       is_selectable: true
+ *                       has_selecting: false
  *                       selection_images:
  *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                           sort_order: 0
@@ -392,9 +393,28 @@ export async function GET(request: NextRequest, { params }: Params) {
     return apiError("Selection not found", 404);
   }
 
+  // has_selecting: 로그인 유저가 이 셀렉션을 셀렉팅했는지 여부
+  let hasSelecting = false;
+  if (auth && auth.userId !== data.owner_id) {
+    const { data: csRow } = await getSupabase()
+      .from("collection_selections")
+      .select("collection_id")
+      .eq("selection_id", id)
+      .eq("user_id", auth.userId)
+      .limit(1)
+      .maybeSingle();
+
+    hasSelecting = !!csRow;
+  }
+
   const { title, ...rest } = data;
   return apiResponse({
-    selection: { ...rest, selection_title: title, collection_id: collectionId },
+    selection: {
+      ...rest,
+      selection_title: title,
+      collection_id: collectionId,
+      has_selecting: hasSelecting,
+    },
   });
 }
 
