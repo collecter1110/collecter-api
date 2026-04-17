@@ -30,7 +30,7 @@ import {
  *         example: 789
  *       - in: query
  *         name: collection_id
- *         required: false
+ *         required: true
  *         schema:
  *           type: integer
  *         description: 조회 컨텍스트의 컬렉션 ID
@@ -71,6 +71,8 @@ import {
  *                       selection_images:
  *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                           sort_order: 0
+ *       400:
+ *         description: 잘못된 요청 (id 또는 collection_id 누락/형식 오류)
  *       404:
  *         description: 셀렉션을 찾을 수 없음
  *       500:
@@ -218,7 +220,7 @@ import {
  *                   data: {}
  *   delete:
  *     tags: [Selections]
- *     summary: 셀렉션 삭제
+ *     summary: 셀렉션 삭제 (소유자만)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -228,12 +230,6 @@ import {
  *         schema:
  *           type: integer
  *         example: 789
- *       - in: query
- *         name: collection_id
- *         required: false
- *         schema:
- *           type: integer
- *         description: 매핑만 삭제할 컬렉션 ID (owner가 아닌 경우)
  *     responses:
  *       200:
  *         description: 삭제 성공
@@ -281,6 +277,12 @@ import {
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/ErrorResponse"
+ *       403:
+ *         description: 권한 없음 (소유자만 삭제 가능)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *       404:
  *         description: 셀렉션을 찾을 수 없음
  *         content:
@@ -305,11 +307,6 @@ import {
  *                   errorCode: SU000
  *                   msg: Failed to delete selection
  *                   data: {}
- *               removeMappingFailed:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Failed to remove selection from collection
- *                   data: {}
  */
 
 type Params = { params: Promise<{ id: string }> };
@@ -325,8 +322,15 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const auth = await getAuthContext(request);
 
-  // collection_id: 쿼리 파라미터로 받거나, 첫 번째 매핑에서 가져옴
+  // collection_id: 조회 컨텍스트의 컬렉션 ID (필수)
   const collectionIdParam = request.nextUrl.searchParams.get("collection_id");
+  if (!collectionIdParam) {
+    return apiError("collection_id is required", 400);
+  }
+  const collectionId = parseInt(collectionIdParam, 10);
+  if (isNaN(collectionId)) {
+    return apiError("Invalid collection_id", 400);
+  }
 
   const { data, error } = await getSupabase()
     .from("selections")
@@ -346,43 +350,25 @@ export async function GET(request: NextRequest, { params }: Params) {
     return apiError("Failed to fetch selection", 500);
   }
 
-  // collection_id 결정
-  let collectionId: number | null = collectionIdParam
-    ? parseInt(collectionIdParam, 10)
-    : null;
+  // 비공개 컬렉션 체크
+  const { data: collection, error: colError } = await getSupabase()
+    .from("collections")
+    .select("user_id, is_public")
+    .eq("id", collectionId)
+    .single();
 
-  if (!collectionId) {
-    const { data: csData } = await getSupabase()
-      .from("collection_selections")
-      .select("collection_id")
-      .eq("selection_id", id)
-      .limit(1)
-      .maybeSingle();
-
-    collectionId = csData?.collection_id ?? null;
+  if (colError || !collection) {
+    return apiError("Selection not found", 404);
   }
 
-  // 비공개 컬렉션 체크
-  if (collectionId) {
-    const { data: collection, error: colError } = await getSupabase()
-      .from("collections")
-      .select("user_id, is_public")
-      .eq("id", collectionId)
-      .single();
+  if (!collection.is_public && auth?.userId !== collection.user_id) {
+    return apiError("Selection not found", 404);
+  }
 
-    if (colError) {
+  if (auth && auth.userId !== collection.user_id) {
+    const blockedIds = await getBlockedUserIds(auth.userId);
+    if (blockedIds.includes(collection.user_id as number)) {
       return apiError("Selection not found", 404);
-    }
-
-    if (!collection.is_public && auth?.userId !== collection.user_id) {
-      return apiError("Selection not found", 404);
-    }
-
-    if (auth && auth.userId !== collection.user_id) {
-      const blockedIds = await getBlockedUserIds(auth.userId);
-      if (blockedIds.includes(collection.user_id as number)) {
-        return apiError("Selection not found", 404);
-      }
     }
   }
 
@@ -605,34 +591,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return apiError("Selection not found", 404);
   }
 
-  const isOwner = selection.owner_id === auth.userId;
-  const collectionIdParam = request.nextUrl.searchParams.get("collection_id");
-
-  if (!isOwner && collectionIdParam) {
-    // 소유자가 아니면 매핑만 삭제 (내 컬렉션에서 제거)
-    const collectionId = parseInt(collectionIdParam, 10);
-
-    // 삭제 전에 해당 셀렉션의 이미지 ID 조회 (커버 복구용)
-    const { data: selImgs } = await getSupabase()
-      .from("selection_images")
-      .select("image_id")
-      .eq("selection_id", id);
-    const imageIds = (selImgs ?? []).map((x) => x.image_id);
-
-    const { error } = await getSupabase()
-      .from("collection_selections")
-      .delete()
-      .eq("collection_id", collectionId)
-      .eq("selection_id", id);
-
-    if (error) {
-      console.error("deleteCollectionSelection error:", error);
-      return apiError("Failed to remove selection from collection", 500);
-    }
-
-    await recalcCollectionSelectionNums([collectionId]);
-    await repairCollectionCoverIfUsingDeletedImage(collectionId, imageIds);
-    return apiResponse({ success: true });
+  if (selection.owner_id !== auth.userId) {
+    return apiError("Only the owner can delete this selection", 403);
   }
 
   // 소유자인 경우: 셀렉션 자체 삭제 (cascade로 매핑도 삭제됨)

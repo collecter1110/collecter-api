@@ -679,7 +679,7 @@
  *           type: integer
  *       - in: query
  *         name: collection_id
- *         required: false
+ *         required: true
  *         schema:
  *           type: integer
  *         description: 조회 컨텍스트의 컬렉션 ID (비공개 체크용)
@@ -694,7 +694,7 @@
  *                 selection:
  *                   $ref: "#/components/schemas/SelectionDetail"
  *       400:
- *         description: 잘못된 ID
+ *         description: 잘못된 요청 (id 또는 collection_id 누락/형식 오류)
  *       404:
  *         description: 셀렉션 없음
  *       500:
@@ -844,10 +844,8 @@
  *   delete:
  *     tags:
  *       - Selections
- *     summary: 셀렉션 삭제
- *     description: |
- *       소유자인 경우 셀렉션 자체를 삭제합니다.
- *       소유자가 아닌 경우 collection_id 쿼리 파라미터를 전달하면 해당 컬렉션에서 매핑만 제거합니다.
+ *     summary: 셀렉션 삭제 (소유자만)
+ *     description: 소유자인 경우 셀렉션 자체를 삭제합니다.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -856,12 +854,6 @@
  *         required: true
  *         schema:
  *           type: integer
- *       - in: query
- *         name: collection_id
- *         required: false
- *         schema:
- *           type: integer
- *         description: 매핑만 삭제할 컬렉션 ID (소유자가 아닌 경우)
  *     responses:
  *       200:
  *         description: 삭제 성공
