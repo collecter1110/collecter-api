@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
   const { error } = await getSupabase().from("collections").insert({
     category_id,
     user_id: auth.userId,
+    user_name: auth.name,
     title,
     description,
     tags,

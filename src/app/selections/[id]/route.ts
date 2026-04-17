@@ -8,7 +8,12 @@ import {
   ensureCollectionCoverIfEmpty,
   repairCollectionCoverIfUsingDeletedImage,
 } from "@/lib/collectionCover";
+import { recalcCollectionSelectionNums } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
+import {
+  getSelectionHome,
+  isSelectionVisibleToViewer,
+} from "@/lib/selectionVisibility";
 
 /**
  * @openapi
@@ -50,7 +55,6 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                       id: 789
  *                       category_id: 1
  *                       collection_id: 123
- *                       user_id: 45
  *                       owner_id: 45
  *                       selection_title: 내 셀렉션
  *                       description: 셀렉션 설명
@@ -164,9 +168,9 @@ export async function GET(request: NextRequest, { params }: Params) {
   const collectionIdParam = request.nextUrl.searchParams.get("collection_id");
 
   const { data, error } = await getSupabase()
-    .from("selections_v2")
+    .from("selections")
     .select(
-      `id, category_id, user_id, owner_id, title, description,
+      `id, category_id, owner_id, title, description,
        is_ordered, link, items, keywords, created_at, owner_name, is_selectable,
        selection_images(image_id, sort_order)`
     )
@@ -221,6 +225,13 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
   }
 
+  // 원본(home) 컬렉션 기준 비공개 필터: 원작자의 홈 컬렉션이 비공개이면
+  // 원작자 외에는 어떤 맥락에서 조회하든 숨긴다.
+  const home = await getSelectionHome(id);
+  if (!isSelectionVisibleToViewer(home, auth?.userId ?? null)) {
+    return apiError("Selection not found", 404);
+  }
+
   const { title, ...rest } = data;
   return apiResponse({
     selection: { ...rest, selection_title: title, collection_id: collectionId },
@@ -237,6 +248,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   if (isNaN(id)) {
     return apiError("Invalid ID", 400);
+  }
+
+  // 소유자만 수정 가능
+  const { data: selection } = await getSupabase()
+    .from("selections")
+    .select("owner_id")
+    .eq("id", id)
+    .single();
+
+  if (!selection) {
+    return apiError("Selection not found", 404);
+  }
+
+  if (selection.owner_id !== auth.userId) {
+    return apiError("Only the owner can edit this selection", 403);
   }
 
   const formData = await request.formData();
@@ -276,7 +302,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ? parseInt(category_idRaw, 10)
           : (
             await getSupabase()
-              .from("selections_v2")
+              .from("selections")
               .select("category_id")
               .eq("id", id)
               .single()
@@ -303,7 +329,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   if (Object.keys(updates).length > 0) {
     const { error } = await getSupabase()
-      .from("selections_v2")
+      .from("selections")
       .update(updates)
       .eq("id", id);
 
@@ -390,7 +416,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   // 셀렉션 소유자 확인
   const { data: selection } = await getSupabase()
-    .from("selections_v2")
+    .from("selections")
     .select("owner_id")
     .eq("id", id)
     .single();
@@ -424,6 +450,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       return apiError("Failed to remove selection from collection", 500);
     }
 
+    await recalcCollectionSelectionNums([collectionId]);
     await repairCollectionCoverIfUsingDeletedImage(collectionId, imageIds);
     return apiResponse({ success: true });
   }
@@ -449,7 +476,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   }
 
   const { error } = await getSupabase()
-    .from("selections_v2")
+    .from("selections")
     .delete()
     .eq("id", id);
 
@@ -457,6 +484,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     console.error("deleteSelection error:", error);
     return apiError("Failed to delete selection", 500);
   }
+
+  await recalcCollectionSelectionNums(collectionIds);
 
   // 관련 컬렉션 커버 복구
   for (const colId of collectionIds) {

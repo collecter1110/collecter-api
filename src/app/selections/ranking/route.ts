@@ -3,6 +3,10 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
+import {
+  getSelectionHomeMap,
+  isSelectionVisibleToViewer,
+} from "@/lib/selectionVisibility";
 
 /**
  * @openapi
@@ -11,8 +15,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *     tags: [Selections]
  *     summary: Get ranking selections
  *     description: |
- *       public 컬렉션에 매핑된 셀렉션을 `select_num` 내림차순으로 정렬 후,
- *       category_id별 상위 3개씩 반환합니다.
+ *       public 컬렉션에 매핑된 셀렉션을 category_id별 상위 3개씩 반환합니다.
  *     parameters:
  *       - in: header
  *         name: Authorization
@@ -62,7 +65,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   data: {}
  */
 // GET /selections/ranking — getRankingSelections
-// category_id별 select_num 상위 3개
+// category_id별 상위 3개
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
   const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
@@ -73,8 +76,8 @@ export async function GET(request: NextRequest) {
     .select(
       `collection_id,
        collections!inner(is_public),
-       selections_v2!inner(
-         id, title, keywords, user_id, select_num, category_id,
+       selections!inner(
+         id, title, keywords, owner_id, category_id,
          selection_images(image_id, sort_order)
        )`
     )
@@ -87,12 +90,12 @@ export async function GET(request: NextRequest) {
 
   type CSRow = {
     collection_id: number;
-    selections_v2: {
+    selection_id: number;
+    selections: {
       id: number;
       title: string;
       keywords: unknown;
-      user_id: number;
-      select_num: number;
+      owner_id: number;
       category_id: number;
       selection_images: { image_id: string; sort_order: number }[];
     };
@@ -103,8 +106,8 @@ export async function GET(request: NextRequest) {
   // 셀렉션 중복 제거 (여러 public 컬렉션에 속할 수 있음)
   const selectionMap = new Map<number, CSRow>();
   for (const row of rows) {
-    if (!selectionMap.has(row.selections_v2.id)) {
-      selectionMap.set(row.selections_v2.id, row);
+    if (!selectionMap.has(row.selections.id)) {
+      selectionMap.set(row.selections.id, row);
     }
   }
 
@@ -112,27 +115,32 @@ export async function GET(request: NextRequest) {
 
   // 본인 셀렉션 제외, 차단 유저 제외
   if (auth) {
-    uniqueRows = uniqueRows.filter((r) => r.selections_v2.user_id !== auth.userId);
+    uniqueRows = uniqueRows.filter((r) => r.selections.owner_id !== auth.userId);
   }
   if (blockedIds.length > 0) {
-    uniqueRows = uniqueRows.filter((r) => !blockedIds.includes(r.selections_v2.user_id));
+    uniqueRows = uniqueRows.filter((r) => !blockedIds.includes(r.selections.owner_id));
   }
 
-  // select_num 내림차순 정렬
-  uniqueRows.sort((a, b) => b.selections_v2.select_num - a.selections_v2.select_num);
+  // 원본(home) 컬렉션이 비공개인 셀렉션은 숨김 (뷰어가 원작자인 경우는 위에서 이미 제외됨)
+  if (uniqueRows.length > 0) {
+    const homeMap = await getSelectionHomeMap(uniqueRows.map((r) => r.selections.id));
+    uniqueRows = uniqueRows.filter((r) =>
+      isSelectionVisibleToViewer(homeMap.get(r.selections.id), auth?.userId ?? null)
+    );
+  }
 
   // category_id별 상위 3개 추출
   const countPerCategory = new Map<number, number>();
   const selections = uniqueRows
     .filter((row) => {
-      const cat = row.selections_v2.category_id;
+      const cat = row.selections.category_id;
       const count = countPerCategory.get(cat) ?? 0;
       if (count >= 3) return false;
       countPerCategory.set(cat, count + 1);
       return true;
     })
     .map((row) => {
-      const s = row.selections_v2;
+      const s = row.selections;
       const thumb = s.selection_images.find((si) => si.sort_order === 0);
       return {
         id: s.id,
