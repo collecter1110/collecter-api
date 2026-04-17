@@ -6,7 +6,12 @@
  *   tsx scripts/clean-uuid-files.ts --execute  # 실제 삭제
  */
 
-import { S3Client, ListObjectsV2Command, DeleteObjectsCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  ListObjectsV2Command,
+  DeleteObjectsCommand,
+  ListObjectsV2CommandOutput,
+} from "@aws-sdk/client-s3";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -48,7 +53,7 @@ async function main() {
   const uuidKeys: string[] = [];
 
   do {
-    const res = await s3.send(
+    const res: ListObjectsV2CommandOutput = await s3.send(
       new ListObjectsV2Command({
         Bucket: BUCKET,
         ContinuationToken: continuationToken,
@@ -116,7 +121,7 @@ async function main() {
   let remaining = 0;
   continuationToken = undefined;
   do {
-    const res = await s3.send(
+    const res: ListObjectsV2CommandOutput = await s3.send(
       new ListObjectsV2Command({
         Bucket: BUCKET,
         ContinuationToken: continuationToken,
