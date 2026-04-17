@@ -50,14 +50,13 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                     selections:
  *                       - category_id: 1
  *                         collection_id: 123
- *                         selection_id: 456
+ *                         id: 456
  *                         selection_title: 내 셀렉션
  *                         keywords:
  *                           - keyword_id: 7
  *                             keyword_name: 키워드
  *                         owner_name: gimgahui
  *                         owner_id: 45
- *                         is_selecting: false
  *                         thumb_image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                         selection_images:
  *                           - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
@@ -222,10 +221,12 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   const { data, error } = await getSupabase()
-    .from("selections")
+    .from("collection_selections")
     .select(
-      `category_id, collection_id, selection_id, title, keywords, owner_name, owner_id, is_selecting,
-       selection_images(image_id, sort_order)`
+      `collection_id, selections_v2(
+        id, category_id, title, keywords, owner_name, owner_id,
+        selection_images(image_id, sort_order)
+      )`
     )
     .eq("collection_id", collectionId);
 
@@ -234,14 +235,32 @@ export async function GET(request: NextRequest, { params }: Params) {
     return apiError("Failed to fetch selections", 500);
   }
 
-  const selections = (data ?? []).map((item) => {
-    const { title, ...rest } = item;
-    const imgs = (item.selection_images as unknown as { image_id: string; sort_order: number }[])
-      .sort((a, b) => a.sort_order - b.sort_order);
+  type CSRow = {
+    collection_id: number;
+    selections_v2: {
+      id: number;
+      category_id: number;
+      title: string;
+      keywords: unknown;
+      owner_name: string;
+      owner_id: number;
+      selection_images: { image_id: string; sort_order: number }[];
+    };
+  };
+
+  const selections = ((data ?? []) as unknown as CSRow[]).map((row) => {
+    const s = row.selections_v2;
+    const imgs = [...s.selection_images].sort((a, b) => a.sort_order - b.sort_order);
     return {
-      ...rest,
-      selection_title: title,
+      id: s.id,
+      category_id: s.category_id,
+      collection_id: row.collection_id,
+      selection_title: s.title,
+      keywords: s.keywords,
+      owner_name: s.owner_name,
+      owner_id: s.owner_id,
       thumb_image_id: imgs[0]?.image_id ?? null,
+      selection_images: s.selection_images,
     };
   });
 
@@ -293,13 +312,11 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   const { data: newSelection, error } = await getSupabase()
-    .from("selections")
+    .from("selections_v2")
     .insert({
       category_id,
       owner_id: auth.userId,
       user_id: auth.userId,
-      collection_id: collectionId,
-      selection_id: null,
       title,
       description,
       keywords: keywordEntries,
@@ -308,11 +325,25 @@ export async function POST(request: NextRequest, { params }: Params) {
       is_ordered,
       is_selectable,
     })
-    .select("collection_id, selection_id")
+    .select("id")
     .single();
 
   if (error || !newSelection) {
     console.error("addSelections error:", error);
+    return apiError("Failed to create selection", 500);
+  }
+
+  // collection_selections 매핑 추가
+  const { error: csError } = await getSupabase()
+    .from("collection_selections")
+    .insert({
+      collection_id: collectionId,
+      selection_id: newSelection.id,
+      user_id: auth.userId,
+    });
+
+  if (csError) {
+    console.error("collection_selections insert error:", csError);
     return apiError("Failed to create selection", 500);
   }
 
@@ -326,8 +357,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         file.type
       );
       await getSupabase().from("selection_images").insert({
-        collection_id: newSelection.collection_id,
-        selection_id: newSelection.selection_id,
+        selection_id: newSelection.id,
         image_id: imageId,
         sort_order: i,
       });

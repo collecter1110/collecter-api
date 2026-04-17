@@ -1,6 +1,5 @@
 export interface Selection {
-  selection_id: number;
-  collection_id: number;
+  id: number;
   category_id: number;
   user_id: number;
   owner_id: number;
@@ -13,6 +12,5 @@ export interface Selection {
   items?: Record<string, unknown>[] | null;
   is_ordered: boolean;
   is_selectable: boolean;
-  is_selecting?: boolean;
   created_at?: string;
 }

@@ -12,23 +12,23 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 
 /**
  * @openapi
- * /collections/{collectionId}/selections/{selectionId}:
+ * /selections/{id}:
  *   get:
  *     tags: [Selections]
  *     summary: 셀렉션 상세 조회
  *     parameters:
  *       - in: path
- *         name: collectionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         example: 123
- *       - in: path
- *         name: selectionId
- *         required: true
+ *         example: 789
+ *       - in: query
+ *         name: collection_id
+ *         required: false
  *         schema:
  *           type: integer
- *         example: 456
+ *         description: 조회 컨텍스트의 컬렉션 ID
  *     responses:
  *       200:
  *         description: 셀렉션 상세 정보
@@ -47,9 +47,9 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                   msg: ok
  *                   data:
  *                     selection:
+ *                       id: 789
  *                       category_id: 1
  *                       collection_id: 123
- *                       selection_id: 456
  *                       user_id: 45
  *                       owner_id: 45
  *                       selection_title: 내 셀렉션
@@ -60,37 +60,16 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                       keywords:
  *                         - keyword_id: 7
  *                           keyword_name: 키워드
- *                       created_at: "2026-04-06T12:34:56.000Z"
+ *                       created_at: "2026-04-06"
  *                       owner_name: gimgahui
  *                       is_selectable: true
- *                       is_selecting: false
  *                       selection_images:
  *                         - image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                           sort_order: 0
  *       404:
  *         description: 셀렉션을 찾을 수 없음
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
- *             examples:
- *               error:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Selection not found
- *                   data: {}
  *       500:
  *         description: 서버 오류
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
- *             examples:
- *               error:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Failed to fetch selection
- *                   data: {}
  *   patch:
  *     tags: [Selections]
  *     summary: 셀렉션 수정
@@ -98,17 +77,11 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: collectionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         example: 123
- *       - in: path
- *         name: selectionId
- *         required: true
- *         schema:
- *           type: integer
- *         example: 456
+ *         example: 789
  *     requestBody:
  *       required: true
  *       content:
@@ -125,12 +98,10 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                 type: string
  *               keywords:
  *                 type: string
- *                 description: "JSON 배열 문자열 (예: '[\"키워드1\"]')"
  *               link:
  *                 type: string
  *               items:
  *                 type: string
- *                 description: JSON 배열 문자열
  *               is_ordered:
  *                 type: string
  *               is_selectable:
@@ -142,49 +113,13 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *                   format: binary
  *               keep_image_ids:
  *                 type: string
- *                 description: 유지할 기존 image_id JSON 배열. 빈 배열이면 전체 삭제.
  *     responses:
  *       200:
  *         description: 수정 성공
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               required: [success]
- *               properties:
- *                 success:
- *                   type: boolean
- *             examples:
- *               ok:
- *                 value:
- *                   errorCode: SU000
- *                   msg: ok
- *                   data:
- *                     success: true
  *       401:
  *         description: 인증 필요
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
- *             examples:
- *               error:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Unauthorized
- *                   data: {}
  *       500:
  *         description: 수정 실패
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
- *             examples:
- *               error:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Failed to update selection
- *                   data: {}
  *   delete:
  *     tags: [Selections]
  *     summary: 셀렉션 삭제
@@ -192,107 +127,50 @@ import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: collectionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         example: 123
- *       - in: path
- *         name: selectionId
- *         required: true
+ *         example: 789
+ *       - in: query
+ *         name: collection_id
+ *         required: false
  *         schema:
  *           type: integer
- *         example: 456
+ *         description: 매핑만 삭제할 컬렉션 ID (owner가 아닌 경우)
  *     responses:
  *       200:
  *         description: 삭제 성공
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               required: [success]
- *               properties:
- *                 success:
- *                   type: boolean
- *             examples:
- *               ok:
- *                 value:
- *                   errorCode: SU000
- *                   msg: ok
- *                   data:
- *                     success: true
  *       401:
  *         description: 인증 필요
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
- *             examples:
- *               error:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Unauthorized
- *                   data: {}
  *       500:
  *         description: 삭제 실패
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
- *             examples:
- *               error:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Failed to delete selection
- *                   data: {}
  */
 
-type Params = { params: Promise<{ collectionId: string; selectionId: string }> };
+type Params = { params: Promise<{ id: string }> };
 
-// GET /collections/:collectionId/selections/:selectionId — getSelectionDetail
+// GET /selections/:id
 export async function GET(request: NextRequest, { params }: Params) {
-  const { collectionId: cIdParam, selectionId: sIdParam } = await params;
-  const collectionId = parseInt(cIdParam, 10);
-  const selectionId = parseInt(sIdParam, 10);
+  const { id: idParam } = await params;
+  const id = parseInt(idParam, 10);
 
-  if (isNaN(collectionId) || isNaN(selectionId)) {
+  if (isNaN(id)) {
     return apiError("Invalid ID", 400);
   }
 
   const auth = await getAuthContext(request);
 
-  // 비공개 컬렉션 체크
-  const { data: collection, error: colError } = await getSupabase()
-    .from("collections")
-    .select("user_id, is_public")
-    .eq("id", collectionId)
-    .single();
-
-  if (colError) {
-    return apiError("Selection not found", 404);
-  }
-
-  if (!collection.is_public && auth?.userId !== collection.user_id) {
-    return apiError("Selection not found", 404);
-  }
-
-  // 차단 체크
-  if (auth && auth.userId !== collection.user_id) {
-    const blockedIds = await getBlockedUserIds(auth.userId);
-    if (blockedIds.includes(collection.user_id as number)) {
-      return apiError("Selection not found", 404);
-    }
-  }
+  // collection_id: 쿼리 파라미터로 받거나, 첫 번째 매핑에서 가져옴
+  const collectionIdParam = request.nextUrl.searchParams.get("collection_id");
 
   const { data, error } = await getSupabase()
-    .from("selections")
+    .from("selections_v2")
     .select(
-      `category_id, collection_id, selection_id, user_id, owner_id, title, description,
-       is_ordered, link, items, keywords, created_at, owner_name, is_selectable, is_selecting,
+      `id, category_id, user_id, owner_id, title, description,
+       is_ordered, link, items, keywords, created_at, owner_name, is_selectable,
        selection_images(image_id, sort_order)`
     )
-    .eq("collection_id", collectionId)
-    .eq("selection_id", selectionId)
+    .eq("id", id)
     .single();
 
   if (error) {
@@ -303,22 +181,61 @@ export async function GET(request: NextRequest, { params }: Params) {
     return apiError("Failed to fetch selection", 500);
   }
 
+  // collection_id 결정
+  let collectionId: number | null = collectionIdParam
+    ? parseInt(collectionIdParam, 10)
+    : null;
+
+  if (!collectionId) {
+    const { data: csData } = await getSupabase()
+      .from("collection_selections")
+      .select("collection_id")
+      .eq("selection_id", id)
+      .limit(1)
+      .maybeSingle();
+
+    collectionId = csData?.collection_id ?? null;
+  }
+
+  // 비공개 컬렉션 체크
+  if (collectionId) {
+    const { data: collection, error: colError } = await getSupabase()
+      .from("collections")
+      .select("user_id, is_public")
+      .eq("id", collectionId)
+      .single();
+
+    if (colError) {
+      return apiError("Selection not found", 404);
+    }
+
+    if (!collection.is_public && auth?.userId !== collection.user_id) {
+      return apiError("Selection not found", 404);
+    }
+
+    if (auth && auth.userId !== collection.user_id) {
+      const blockedIds = await getBlockedUserIds(auth.userId);
+      if (blockedIds.includes(collection.user_id as number)) {
+        return apiError("Selection not found", 404);
+      }
+    }
+  }
+
   const { title, ...rest } = data;
-  return apiResponse({ selection: { ...rest, selection_title: title } });
+  return apiResponse({
+    selection: { ...rest, selection_title: title, collection_id: collectionId },
+  });
 }
 
-// PATCH /collections/:collectionId/selections/:selectionId — editSelection
-// body: multipart/form-data { ..fields.., images?(new files), keep_image_ids?(JSON string) }
-// keep_image_ids: 유지할 기존 image_id 배열. 없으면 이미지 변경 안함. 빈 배열이면 전체 삭제.
+// PATCH /selections/:id
 export async function PATCH(request: NextRequest, { params }: Params) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
-  const { collectionId: cIdParam, selectionId: sIdParam } = await params;
-  const collectionId = parseInt(cIdParam, 10);
-  const selectionId = parseInt(sIdParam, 10);
+  const { id: idParam } = await params;
+  const id = parseInt(idParam, 10);
 
-  if (isNaN(collectionId) || isNaN(selectionId)) {
+  if (isNaN(id)) {
     return apiError("Invalid ID", 400);
   }
 
@@ -347,7 +264,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return apiError("keywords is required", 400);
   }
 
-  // 키워드를 keywordinfo에 저장하고 {keyword_id, keyword_name}[] 형식으로 업데이트
   if (keywordsRaw !== null) {
     const parsedNames = parseKeywordsJson(keywordsRaw);
     if (!parsedNames || parsedNames.length === 0) {
@@ -360,10 +276,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ? parseInt(category_idRaw, 10)
           : (
             await getSupabase()
-              .from("selections")
+              .from("selections_v2")
               .select("category_id")
-              .eq("collection_id", collectionId)
-              .eq("selection_id", selectionId)
+              .eq("id", id)
               .single()
           ).data?.category_id;
 
@@ -378,12 +293,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
   }
 
+  // 매핑 테이블에서 컬렉션 ID 조회 (커버 복구용)
+  const { data: csData } = await getSupabase()
+    .from("collection_selections")
+    .select("collection_id")
+    .eq("selection_id", id);
+
+  const collectionIds = (csData ?? []).map((r) => r.collection_id);
+
   if (Object.keys(updates).length > 0) {
     const { error } = await getSupabase()
-      .from("selections")
+      .from("selections_v2")
       .update(updates)
-      .eq("collection_id", collectionId)
-      .eq("selection_id", selectionId);
+      .eq("id", id);
 
     if (error) {
       console.error("editSelection error:", error);
@@ -397,8 +319,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const { data: existingImgs } = await getSupabase()
       .from("selection_images")
       .select("image_id")
-      .eq("collection_id", collectionId)
-      .eq("selection_id", selectionId);
+      .eq("selection_id", id);
 
     const deletedIds: string[] = [];
     for (const si of existingImgs ?? []) {
@@ -407,18 +328,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
     }
 
-    // selection_images 레코드만 삭제 (이미지 원본은 유지)
     if (deletedIds.length > 0) {
       await getSupabase()
         .from("selection_images")
         .delete()
-        .eq("collection_id", collectionId)
-        .eq("selection_id", selectionId)
+        .eq("selection_id", id)
         .in("image_id", deletedIds);
     }
 
-    // 커버가 삭제된 이미지였으면 다른 셀렉션 이미지로 복구
-    await repairCollectionCoverIfUsingDeletedImage(collectionId, deletedIds);
+    for (const colId of collectionIds) {
+      await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
+    }
   }
 
   // 새 이미지 추가
@@ -426,8 +346,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const { data: lastImg } = await getSupabase()
       .from("selection_images")
       .select("sort_order")
-      .eq("collection_id", collectionId)
-      .eq("selection_id", selectionId)
+      .eq("selection_id", id)
       .order("sort_order", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -438,19 +357,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       if (!file || file.size === 0) continue;
       try {
         const buffer = Buffer.from(await file.arrayBuffer());
-        const { imageId } = await uploadImageAndSave(
-          buffer,
-          file.type
-        );
+        const { imageId } = await uploadImageAndSave(buffer, file.type);
         await getSupabase().from("selection_images").insert({
-          collection_id: collectionId,
-          selection_id: selectionId,
+          selection_id: id,
           image_id: imageId,
           sort_order: nextSortOrder++,
         });
 
-        // 컬렉션 커버가 비어있으면 자동 설정
-        await ensureCollectionCoverIfEmpty(collectionId, imageId);
+        for (const colId of collectionIds) {
+          await ensureCollectionCoverIfEmpty(colId, imageId);
+        }
       } catch (err) {
         console.error("Failed to upload selection image:", err);
       }
@@ -460,65 +376,92 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return apiResponse({ success: true });
 }
 
-// DELETE /collections/:collectionId/selections/:selectionId — deleteSelection
+// DELETE /selections/:id
 export async function DELETE(request: NextRequest, { params }: Params) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
-  const { collectionId: cIdParam, selectionId: sIdParam } = await params;
-  const collectionId = parseInt(cIdParam, 10);
-  const selectionId = parseInt(sIdParam, 10);
+  const { id: idParam } = await params;
+  const id = parseInt(idParam, 10);
 
-  if (isNaN(collectionId) || isNaN(selectionId)) {
+  if (isNaN(id)) {
     return apiError("Invalid ID", 400);
   }
 
-  // 셀렉팅 여부 확인
+  // 셀렉션 소유자 확인
   const { data: selection } = await getSupabase()
-    .from("selections")
-    .select("is_selecting")
-    .eq("collection_id", collectionId)
-    .eq("selection_id", selectionId)
+    .from("selections_v2")
+    .select("owner_id")
+    .eq("id", id)
     .single();
 
-  const isSelecting = selection?.is_selecting === true;
+  if (!selection) {
+    return apiError("Selection not found", 404);
+  }
+
+  const isOwner = selection.owner_id === auth.userId;
+  const collectionIdParam = request.nextUrl.searchParams.get("collection_id");
+
+  if (!isOwner && collectionIdParam) {
+    // 소유자가 아니면 매핑만 삭제 (내 컬렉션에서 제거)
+    const collectionId = parseInt(collectionIdParam, 10);
+
+    // 삭제 전에 해당 셀렉션의 이미지 ID 조회 (커버 복구용)
+    const { data: selImgs } = await getSupabase()
+      .from("selection_images")
+      .select("image_id")
+      .eq("selection_id", id);
+    const imageIds = (selImgs ?? []).map((x) => x.image_id);
+
+    const { error } = await getSupabase()
+      .from("collection_selections")
+      .delete()
+      .eq("collection_id", collectionId)
+      .eq("selection_id", id);
+
+    if (error) {
+      console.error("deleteCollectionSelection error:", error);
+      return apiError("Failed to remove selection from collection", 500);
+    }
+
+    await repairCollectionCoverIfUsingDeletedImage(collectionId, imageIds);
+    return apiResponse({ success: true });
+  }
+
+  // 소유자인 경우: 셀렉션 자체 삭제 (cascade로 매핑도 삭제됨)
+  const { data: csData } = await getSupabase()
+    .from("collection_selections")
+    .select("collection_id")
+    .eq("selection_id", id);
+
+  const collectionIds = (csData ?? []).map((r) => r.collection_id);
 
   const { data: selImgs } = await getSupabase()
     .from("selection_images")
     .select("image_id")
-    .eq("collection_id", collectionId)
-    .eq("selection_id", selectionId);
+    .eq("selection_id", id);
 
   const deletedIds = (selImgs ?? []).map((x) => x.image_id);
 
-  if (isSelecting) {
-    // 셀렉팅(퍼온) 셀렉션: 원본과 image_id를 공유하므로 실제 이미지는 삭제하지 않고
-    // selection_images 레코드만 제거
-    await getSupabase()
-      .from("selection_images")
-      .delete()
-      .eq("collection_id", collectionId)
-      .eq("selection_id", selectionId);
-  } else {
-    // 원본 셀렉션: 실제 이미지 삭제
-    for (const si of selImgs ?? []) {
-      await deleteImageById(si.image_id);
-    }
+  // 이미지 삭제
+  for (const si of selImgs ?? []) {
+    await deleteImageById(si.image_id);
   }
 
   const { error } = await getSupabase()
-    .from("selections")
+    .from("selections_v2")
     .delete()
-    .eq("collection_id", collectionId)
-    .eq("selection_id", selectionId);
+    .eq("id", id);
 
   if (error) {
     console.error("deleteSelection error:", error);
     return apiError("Failed to delete selection", 500);
   }
 
-  // 커버가 방금 지운 이미지였으면 다른 셀렉션 이미지로 복구
-  await repairCollectionCoverIfUsingDeletedImage(collectionId, deletedIds);
+  // 관련 컬렉션 커버 복구
+  for (const colId of collectionIds) {
+    await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
+  }
 
   return apiResponse({ success: true });
 }

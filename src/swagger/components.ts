@@ -79,26 +79,105 @@
  *         collection_title: { type: string, example: My collection }
  *         image_id: { type: string, nullable: true, example: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1" }
  *
+ *     KeywordEntry:
+ *       type: object
+ *       required: [keyword_id, keyword_name]
+ *       properties:
+ *         keyword_id: { type: integer, example: 7 }
+ *         keyword_name: { type: string, example: "키워드" }
+ *
+ *     SelectionImage:
+ *       type: object
+ *       required: [image_id, sort_order]
+ *       properties:
+ *         image_id: { type: string, example: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a" }
+ *         sort_order: { type: integer, example: 0 }
+ *
+ *     SelectionListItem:
+ *       type: object
+ *       required:
+ *         - id
+ *         - category_id
+ *         - collection_id
+ *         - selection_title
+ *         - owner_id
+ *         - owner_name
+ *         - keywords
+ *         - thumb_image_id
+ *         - selection_images
+ *       properties:
+ *         id: { type: integer, example: 456 }
+ *         category_id: { type: integer, example: 1 }
+ *         collection_id: { type: integer, example: 123 }
+ *         selection_title: { type: string, example: "내 셀렉션" }
+ *         owner_id: { type: integer, example: 45 }
+ *         owner_name: { type: string, example: "gimgahui" }
+ *         keywords:
+ *           type: array
+ *           items:
+ *             $ref: "#/components/schemas/KeywordEntry"
+ *         thumb_image_id: { type: string, nullable: true, example: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a" }
+ *         selection_images:
+ *           type: array
+ *           items:
+ *             $ref: "#/components/schemas/SelectionImage"
+ *
+ *     SelectionDetail:
+ *       type: object
+ *       required:
+ *         - id
+ *         - category_id
+ *         - user_id
+ *         - owner_id
+ *         - selection_title
+ *         - description
+ *         - is_ordered
+ *         - link
+ *         - items
+ *         - keywords
+ *         - created_at
+ *         - owner_name
+ *         - is_selectable
+ *         - selection_images
+ *       properties:
+ *         id: { type: integer, example: 789 }
+ *         category_id: { type: integer, example: 1 }
+ *         collection_id: { type: integer, nullable: true, example: 123 }
+ *         user_id: { type: integer, example: 45 }
+ *         owner_id: { type: integer, example: 45 }
+ *         selection_title: { type: string, example: "내 셀렉션" }
+ *         description: { type: string, nullable: true, example: "셀렉션 설명" }
+ *         is_ordered: { type: boolean, example: false }
+ *         link: { type: string, nullable: true, example: null }
+ *         items: { type: array, nullable: true, items: { type: object }, example: null }
+ *         keywords:
+ *           type: array
+ *           items:
+ *             $ref: "#/components/schemas/KeywordEntry"
+ *         created_at: { type: string, example: "2026-04-06" }
+ *         owner_name: { type: string, example: "gimgahui" }
+ *         is_selectable: { type: boolean, example: true }
+ *         selection_images:
+ *           type: array
+ *           items:
+ *             $ref: "#/components/schemas/SelectionImage"
+ *
  *     RankingSelection:
  *       type: object
  *       required:
- *         - selection_id
+ *         - id
  *         - collection_id
  *         - selection_title
  *         - keywords
  *       properties:
- *         selection_id: { type: integer, example: 456 }
+ *         id: { type: integer, example: 456 }
  *         collection_id: { type: integer, example: 123 }
  *         selection_title: { type: string, example: My selection }
  *         image_id: { type: string, nullable: true, example: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a" }
  *         keywords:
  *           type: array
  *           items:
- *             type: object
- *             required: [keyword_id, keyword_name]
- *             properties:
- *               keyword_id: { type: integer, example: 7 }
- *               keyword_name: { type: string, example: "키워드" }
+ *             $ref: "#/components/schemas/KeywordEntry"
  *
  *     SearchCollection:
  *       type: object
@@ -113,12 +192,12 @@
  *     SearchSelection:
  *       type: object
  *       required:
- *         - selection_id
+ *         - id
  *         - selection_title
  *         - collection_id
  *         - collection_title
  *       properties:
- *         selection_id: { type: integer, example: 456 }
+ *         id: { type: integer, example: 456 }
  *         selection_title: { type: string, example: "내 셀렉션" }
  *         image_id: { type: string, nullable: true, example: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a" }
  *         collection_id: { type: integer, example: 123 }
