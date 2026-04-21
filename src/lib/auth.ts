@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "./supabase";
 import { verifyJwt, type AccessTokenClaims } from "./jwt";
 
 export interface AuthContext {
@@ -26,20 +25,10 @@ export async function getAuthContext(
   if (!claims || claims.typ !== "access") return null;
   if (!claims.user_id || !claims.email) return null;
 
-  // Optional: ensure user still exists
-  const { data, error: dbError } = await getSupabase()
-    .from("userinfo")
-    .select("user_id, email, name")
-    .eq("user_id", claims.user_id)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  if (dbError || !data) return null;
-
   return {
-    userId: data.user_id,
-    email: String(data.email),
-    name: String(data.name ?? ""),
+    userId: claims.user_id,
+    email: claims.email,
+    name: claims.name ?? "",
     accessToken: token,
   };
 }

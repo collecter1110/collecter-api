@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
+import { getSupabase } from "@/lib/supabase";
 import { createRefreshSession, newSessionId } from "@/lib/authStore";
 import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims } from "@/lib/jwt";
 
@@ -83,9 +84,21 @@ export async function POST(request: NextRequest) {
     return apiError("Invalid verified_token", 400);
   }
 
+  const { data: userRow } = await getSupabase()
+    .from("userinfo")
+    .select("name")
+    .eq("user_id", claims.user_id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!userRow) {
+    return apiError("User not found", 400);
+  }
+
+  const name = String(userRow.name ?? "");
   const sessionId = newSessionId();
-  const access_token = await signAccessToken({ typ: "access", user_id: claims.user_id, email: claims.email });
-  const refresh_token = await signRefreshToken({ typ: "refresh", sid: sessionId, user_id: claims.user_id, email: claims.email });
+  const access_token = await signAccessToken({ typ: "access", user_id: claims.user_id, email: claims.email, name });
+  const refresh_token = await signRefreshToken({ typ: "refresh", sid: sessionId, user_id: claims.user_id, email: claims.email, name });
 
   const refreshTtl = Number(process.env.AUTH_REFRESH_TOKEN_TTL_SECONDS ?? 60 * 60 * 24 * 30);
   await createRefreshSession({

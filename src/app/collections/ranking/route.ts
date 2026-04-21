@@ -60,15 +60,17 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   data: {}
  */
 // GET /collections/ranking — getRankingCollections
-// category_id별 무작위 최대 10개 (public, 이미지 있는 것만)
+// public + 이미지 있는 컬렉션을 좋아요순 → 최신순으로 최대 10개
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
   const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
 
   let dbQuery = getSupabase()
     .from("collections")
-    .select("id, title, category_id, user_id, image_id")
-    .eq("is_public", true);
+    .select("id, title, image_id, created_at, likes(count)")
+    .eq("is_public", true)
+    .not("image_id", "is", null)
+    .order("created_at", { ascending: false });
 
   if (auth) {
     dbQuery = dbQuery.neq("user_id", auth.userId);
@@ -87,35 +89,31 @@ export async function GET(request: NextRequest) {
   type CollectionRow = {
     id: number;
     title: string;
-    category_id: number;
-    user_id: number;
-    image_id: string | null;
+    image_id: string;
+    created_at: string;
+    likes: { count: number }[];
   };
+
   const rows = (data ?? []) as unknown as CollectionRow[];
 
-  // category_id별로 그룹핑 후 무작위 셔플, 최대 10개 선택
-  const grouped = new Map<number, CollectionRow[]>();
-  for (const col of rows) {
-    const cat = col.category_id;
-    if (!grouped.has(cat)) grouped.set(cat, []);
-    grouped.get(cat)!.push(col);
-  }
-
-  const collections = [];
-  for (const group of grouped.values()) {
-    // Fisher-Yates shuffle
-    for (let i = group.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [group[i], group[j]] = [group[j], group[i]];
-    }
-    for (const col of group.slice(0, 10)) {
-      collections.push({
-        collection_id: col.id,
-        collection_title: col.title,
-        image_id: col.image_id ?? null,
-      });
-    }
-  }
+  const collections = rows
+    .map((col) => ({
+      collection_id: col.id,
+      collection_title: col.title,
+      image_id: col.image_id,
+      like_count: col.likes[0]?.count ?? 0,
+      created_at: col.created_at,
+    }))
+    .sort((a, b) => {
+      if (b.like_count !== a.like_count) return b.like_count - a.like_count;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    })
+    .slice(0, 10)
+    .map(({ collection_id, collection_title, image_id }) => ({
+      collection_id,
+      collection_title,
+      image_id,
+    }));
 
   return apiResponse({ collections });
 }

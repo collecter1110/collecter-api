@@ -10,6 +10,7 @@ export type AccessTokenClaims = {
   typ: "access";
   user_id: number;
   email: string;
+  name: string;
 };
 
 export type RefreshTokenClaims = {
@@ -17,6 +18,7 @@ export type RefreshTokenClaims = {
   sid: string; // session id
   user_id: number;
   email: string;
+  name: string;
 };
 
 export type VerifiedTokenClaims = {

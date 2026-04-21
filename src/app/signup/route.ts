@@ -146,8 +146,8 @@ export async function POST(request: NextRequest) {
   }
 
   const sessionId = newSessionId();
-  const access_token = await signAccessToken({ typ: "access", user_id: claims.user_id, email: claims.email });
-  const refresh_token = await signRefreshToken({ typ: "refresh", sid: sessionId, user_id: claims.user_id, email: claims.email });
+  const access_token = await signAccessToken({ typ: "access", user_id: claims.user_id, email: claims.email, name: user_name });
+  const refresh_token = await signRefreshToken({ typ: "refresh", sid: sessionId, user_id: claims.user_id, email: claims.email, name: user_name });
 
   const refreshTtl = Number(process.env.AUTH_REFRESH_TOKEN_TTL_SECONDS ?? 60 * 60 * 24 * 30);
   await createRefreshSession({
