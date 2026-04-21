@@ -103,8 +103,9 @@ export async function GET(request: NextRequest) {
     rows = rows.filter((r) => !blockedIds.includes(r.owner_id));
   }
 
+  let homeMap = new Map<number, import("@/lib/selectionVisibility").SelectionHomeInfo>();
   if (rows.length > 0) {
-    const homeMap = await getSelectionHomeMap(rows.map((r) => r.id));
+    homeMap = await getSelectionHomeMap(rows.map((r) => r.id));
     rows = rows.filter((r) =>
       isSelectionVisibleToViewer(homeMap.get(r.id), auth?.userId ?? null)
     );
@@ -124,6 +125,7 @@ export async function GET(request: NextRequest) {
       const thumb = [...r.selection_images].sort((a, b) => a.sort_order - b.sort_order)[0];
       return {
         id: r.id,
+        collection_id: homeMap.get(r.id)?.homeCollectionId ?? null,
         selection_title: r.title,
         image_id: thumb?.image_id ?? null,
         keywords: r.keywords,
