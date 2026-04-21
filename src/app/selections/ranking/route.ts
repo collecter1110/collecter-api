@@ -65,89 +65,68 @@ import {
  *                   data: {}
  */
 // GET /selections/ranking — getRankingSelections
-// category_id별 상위 3개
+// 이미지 있는 셀렉션을 셀렉팅 수 → 최신순으로 최대 20개
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
   const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
 
-  // collection_selections → collections(is_public) 조인으로 public 컬렉션 소속 셀렉션만 조회
   const { data, error } = await getSupabase()
-    .from("collection_selections")
+    .from("selections")
     .select(
-      `collection_id,
-       collections!inner(is_public),
-       selections!inner(
-         id, title, keywords, owner_id, category_id,
-         selection_images(image_id, sort_order)
-       )`
+      `id, title, keywords, owner_id, created_at,
+       selection_images!inner(image_id, sort_order),
+       collection_selections(count)`
     )
-    .eq("collections.is_public", true);
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("getRankingSelections error:", error);
     return apiError("Failed to fetch ranking selections", 500);
   }
 
-  type CSRow = {
-    collection_id: number;
-    selection_id: number;
-    selections: {
-      id: number;
-      title: string;
-      keywords: unknown;
-      owner_id: number;
-      category_id: number;
-      selection_images: { image_id: string; sort_order: number }[];
-    };
+  type SelectionRow = {
+    id: number;
+    title: string;
+    keywords: unknown;
+    owner_id: number;
+    created_at: string;
+    selection_images: { image_id: string; sort_order: number }[];
+    collection_selections: { count: number }[];
   };
 
-  const rows = (data ?? []) as unknown as CSRow[];
+  let rows = (data ?? []) as unknown as SelectionRow[];
 
-  // 셀렉션 중복 제거 (여러 public 컬렉션에 속할 수 있음)
-  const selectionMap = new Map<number, CSRow>();
-  for (const row of rows) {
-    if (!selectionMap.has(row.selections.id)) {
-      selectionMap.set(row.selections.id, row);
-    }
-  }
-
-  let uniqueRows = Array.from(selectionMap.values());
-
-  // 본인 셀렉션 제외, 차단 유저 제외
   if (auth) {
-    uniqueRows = uniqueRows.filter((r) => r.selections.owner_id !== auth.userId);
+    rows = rows.filter((r) => r.owner_id !== auth.userId);
   }
   if (blockedIds.length > 0) {
-    uniqueRows = uniqueRows.filter((r) => !blockedIds.includes(r.selections.owner_id));
+    rows = rows.filter((r) => !blockedIds.includes(r.owner_id));
   }
 
-  // 원본(home) 컬렉션이 비공개인 셀렉션은 숨김 (뷰어가 원작자인 경우는 위에서 이미 제외됨)
-  if (uniqueRows.length > 0) {
-    const homeMap = await getSelectionHomeMap(uniqueRows.map((r) => r.selections.id));
-    uniqueRows = uniqueRows.filter((r) =>
-      isSelectionVisibleToViewer(homeMap.get(r.selections.id), auth?.userId ?? null)
+  if (rows.length > 0) {
+    const homeMap = await getSelectionHomeMap(rows.map((r) => r.id));
+    rows = rows.filter((r) =>
+      isSelectionVisibleToViewer(homeMap.get(r.id), auth?.userId ?? null)
     );
   }
 
-  // category_id별 상위 3개 추출
-  const countPerCategory = new Map<number, number>();
-  const selections = uniqueRows
-    .filter((row) => {
-      const cat = row.selections.category_id;
-      const count = countPerCategory.get(cat) ?? 0;
-      if (count >= 3) return false;
-      countPerCategory.set(cat, count + 1);
-      return true;
+  const selections = rows
+    .map((r) => ({
+      ...r,
+      selecting_count: r.collection_selections[0]?.count ?? 0,
+    }))
+    .sort((a, b) => {
+      if (b.selecting_count !== a.selecting_count) return b.selecting_count - a.selecting_count;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     })
-    .map((row) => {
-      const s = row.selections;
-      const thumb = s.selection_images.find((si) => si.sort_order === 0);
+    .slice(0, 20)
+    .map((r) => {
+      const thumb = [...r.selection_images].sort((a, b) => a.sort_order - b.sort_order)[0];
       return {
-        id: s.id,
-        collection_id: row.collection_id,
-        selection_title: s.title,
+        id: r.id,
+        selection_title: r.title,
         image_id: thumb?.image_id ?? null,
-        keywords: s.keywords,
+        keywords: r.keywords,
       };
     });
 
