@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
        selection_images!inner(image_id, sort_order),
        collection_selections(count)`
     )
-    .order("created_at", { ascending: false });
+    .order("id", { ascending: false });
 
   if (error) {
     console.error("getRankingSelections error:", error);
@@ -117,8 +117,8 @@ export async function GET(request: NextRequest) {
       selecting_count: r.collection_selections[0]?.count ?? 0,
     }))
     .sort((a, b) => {
-      if (b.selecting_count !== a.selecting_count) return b.selecting_count - a.selecting_count;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (b.id !== a.id) return b.id - a.id;
+      return b.selecting_count - a.selecting_count;
     })
     .slice(0, 20)
     .map((r) => {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     .select("id, title, image_id, created_at, likes(count)")
     .eq("is_public", true)
     .not("image_id", "is", null)
-    .order("created_at", { ascending: false });
+    .order("id", { ascending: false });
 
   if (auth) {
     dbQuery = dbQuery.neq("user_id", auth.userId);
@@ -102,11 +102,10 @@ export async function GET(request: NextRequest) {
       collection_title: col.title,
       image_id: col.image_id,
       like_count: col.likes[0]?.count ?? 0,
-      created_at: col.created_at,
     }))
     .sort((a, b) => {
-      if (b.like_count !== a.like_count) return b.like_count - a.like_count;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (b.collection_id !== a.collection_id) return b.collection_id - a.collection_id;
+      return b.like_count - a.like_count;
     })
     .slice(0, 10)
     .map(({ collection_id, collection_title, image_id }) => ({
