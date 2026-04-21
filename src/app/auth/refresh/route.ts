@@ -108,9 +108,13 @@ export async function POST(request: NextRequest) {
     return apiError("Unauthorized", 401);
   }
 
+  if (!claims.name) {
+    return apiError("Unauthorized", 401);
+  }
+
   // Token rotation: 기존 session 폐기 후 새 session 발급
   const newSid = newSessionId();
-  const name = claims.name ?? "";
+  const name = claims.name;
   const new_access_token = await signAccessToken({
     typ: "access",
     user_id: claims.user_id,
