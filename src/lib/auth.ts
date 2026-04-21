@@ -23,7 +23,7 @@ export async function getAuthContext(
   }
 
   if (!claims || claims.typ !== "access") return null;
-  if (!claims.user_id || !claims.email) return null;
+  if (!claims.user_id || !claims.email || !claims.name) return null;
 
   return {
     userId: claims.user_id,
