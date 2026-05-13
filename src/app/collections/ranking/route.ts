@@ -11,10 +11,10 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *     tags: [Collections]
  *     summary: Get ranking collections
  *     description: |
- *       `is_public: true` 이면서 `image_id`가 있는 컬렉션을 가져옵니다.
- *       category_id별로 무작위 셔플(Fisher-Yates) 후 최대 10개씩 반환합니다.
+ *       `is_public: true` 이면서 `image_id`가 있는 컬렉션 중 최근 200개를 후보 풀로 삼아,
+ *       Fisher-Yates 셔플 후 최대 10개를 반환합니다. (호출마다 결과가 달라집니다)
  *
- *       - Authorization 헤더가 있으면 차단한 유저의 컬렉션을 제외합니다. (토큰 선택)
+ *       - Authorization 헤더가 있으면 본인과 차단한 유저의 컬렉션을 제외합니다. (토큰 선택)
  *     parameters:
  *       - in: header
  *         name: Authorization
@@ -60,17 +60,18 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   data: {}
  */
 // GET /collections/ranking — getRankingCollections
-// public + 이미지 있는 컬렉션을 좋아요순 → 최신순으로 최대 10개
+// 최근 200개 후보 풀을 Fisher-Yates 셔플 후 최대 10개
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
   const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
 
   let dbQuery = getSupabase()
     .from("collections")
-    .select("id, title, image_id, created_at, likes(count)")
+    .select("id, title, image_id")
     .eq("is_public", true)
     .not("image_id", "is", null)
-    .order("id", { ascending: false });
+    .order("id", { ascending: false })
+    .limit(200);
 
   if (auth) {
     dbQuery = dbQuery.neq("user_id", auth.userId);
@@ -90,29 +91,20 @@ export async function GET(request: NextRequest) {
     id: number;
     title: string;
     image_id: string;
-    created_at: string;
-    likes: { count: number }[];
   };
 
-  const rows = (data ?? []) as unknown as CollectionRow[];
+  const rows = [...((data ?? []) as unknown as CollectionRow[])];
 
-  const collections = rows
-    .map((col) => ({
-      collection_id: col.id,
-      collection_title: col.title,
-      image_id: col.image_id,
-      like_count: col.likes[0]?.count ?? 0,
-    }))
-    .sort((a, b) => {
-      if (b.collection_id !== a.collection_id) return b.collection_id - a.collection_id;
-      return b.like_count - a.like_count;
-    })
-    .slice(0, 10)
-    .map(({ collection_id, collection_title, image_id }) => ({
-      collection_id,
-      collection_title,
-      image_id,
-    }));
+  for (let i = rows.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+  }
+
+  const collections = rows.slice(0, 10).map((col) => ({
+    collection_id: col.id,
+    collection_title: col.title,
+    image_id: col.image_id,
+  }));
 
   return apiResponse({ collections });
 }
