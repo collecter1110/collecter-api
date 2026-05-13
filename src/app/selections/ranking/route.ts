@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
@@ -15,7 +15,8 @@ import {
  *     tags: [Selections]
  *     summary: Get ranking selections
  *     description: |
- *       public 컬렉션에 매핑된 셀렉션을 category_id별 상위 3개씩 반환합니다.
+ *       이미지가 있는 셀렉션 중 최근 200개를 후보 풀로 삼아 가시성 필터를 적용한 뒤
+ *       Fisher-Yates 셔플하여 최대 20개를 반환합니다. (호출마다 결과가 달라집니다)
  *     parameters:
  *       - in: header
  *         name: Authorization
@@ -65,7 +66,7 @@ import {
  *                   data: {}
  */
 // GET /selections/ranking — getRankingSelections
-// 이미지 있는 셀렉션을 셀렉팅 수 → 최신순으로 최대 20개
+// 최근 200개 후보 풀을 Fisher-Yates 셔플 후 최대 20개
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
   const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
@@ -73,11 +74,11 @@ export async function GET(request: NextRequest) {
   const { data, error } = await getSupabase()
     .from("selections")
     .select(
-      `id, title, keywords, owner_id, created_at,
-       selection_images!inner(image_id, sort_order),
-       collection_selections(count)`
+      `id, title, keywords, owner_id,
+       selection_images!inner(image_id, sort_order)`
     )
-    .order("id", { ascending: false });
+    .order("id", { ascending: false })
+    .limit(200);
 
   if (error) {
     console.error("getRankingSelections error:", error);
@@ -89,9 +90,7 @@ export async function GET(request: NextRequest) {
     title: string;
     keywords: unknown;
     owner_id: number;
-    created_at: string;
     selection_images: { image_id: string; sort_order: number }[];
-    collection_selections: { count: number }[];
   };
 
   let rows = (data ?? []) as unknown as SelectionRow[];
@@ -111,26 +110,21 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const selections = rows
-    .map((r) => ({
-      ...r,
-      selecting_count: r.collection_selections[0]?.count ?? 0,
-    }))
-    .sort((a, b) => {
-      if (b.id !== a.id) return b.id - a.id;
-      return b.selecting_count - a.selecting_count;
-    })
-    .slice(0, 20)
-    .map((r) => {
-      const thumb = [...r.selection_images].sort((a, b) => a.sort_order - b.sort_order)[0];
-      return {
-        id: r.id,
-        collection_id: homeMap.get(r.id)?.homeCollectionId ?? null,
-        selection_title: r.title,
-        image_id: thumb?.image_id ?? null,
-        keywords: r.keywords,
-      };
-    });
+  for (let i = rows.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+  }
+
+  const selections = rows.slice(0, 20).map((r) => {
+    const thumb = [...r.selection_images].sort((a, b) => a.sort_order - b.sort_order)[0];
+    return {
+      id: r.id,
+      collection_id: homeMap.get(r.id)?.homeCollectionId ?? null,
+      selection_title: r.title,
+      image_id: thumb?.image_id ?? null,
+      keywords: r.keywords,
+    };
+  });
 
   return apiResponse({ selections });
 }
