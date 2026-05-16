@@ -10,6 +10,7 @@ import {
 } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNums } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
+import { emptyToNull } from "@/lib/formData";
 import {
   getSelectionHome,
   isSelectionVisibleToViewer,
@@ -473,8 +474,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const updates: Record<string, unknown> = {};
   if (category_idRaw !== null) updates.category_id = parseInt(category_idRaw, 10);
   if (title !== null) updates.title = title;
-  if (description !== null) updates.description = description;
-  if (linkRaw !== null) updates.link = linkRaw;
+  if (description !== null) updates.description = emptyToNull(description);
+  if (linkRaw !== null) updates.link = emptyToNull(linkRaw);
   if (itemsRaw !== null) updates.items = JSON.parse(itemsRaw);
   if (is_orderedRaw !== null) updates.is_ordered = is_orderedRaw === "true";
   if (is_selectableRaw !== null) updates.is_selectable = is_selectableRaw !== "false";

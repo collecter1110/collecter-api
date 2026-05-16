@@ -7,6 +7,7 @@ import { uploadImageAndSave } from "@/lib/storage";
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
+import { emptyToNull } from "@/lib/formData";
 import {
   getSelectionHomeMap,
   isSelectionVisibleToViewer,
@@ -297,10 +298,10 @@ export async function POST(request: NextRequest, { params }: Params) {
   const formData = await request.formData();
   const category_id = parseInt(formData.get("category_id") as string, 10);
   const title = formData.get("title") as string | null;
-  const description = (formData.get("description") as string | null) ?? null;
+  const description = emptyToNull(formData.get("description") as string | null);
   const keywordsRaw = formData.get("keywords") as string | null;
   const keywords = parseKeywordsJson(keywordsRaw);
-  const link = (formData.get("link") as string | null) ?? null;
+  const link = emptyToNull(formData.get("link") as string | null);
   const itemsRaw = formData.get("items") as string | null;
   const items = itemsRaw ? JSON.parse(itemsRaw) : null;
   const is_ordered = formData.get("is_ordered") === "true";
