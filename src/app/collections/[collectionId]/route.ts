@@ -4,6 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { deleteImageById } from "@/lib/storage";
+import { emptyToNull } from "@/lib/formData";
 
 /**
  * @openapi
@@ -293,7 +294,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const updates: Record<string, unknown> = {};
   if (category_idRaw) updates.category_id = parseInt(category_idRaw, 10);
   if (title !== null) updates.title = title;
-  if (description !== null) updates.description = description;
+  if (description !== null) updates.description = emptyToNull(description);
   if (tagsRaw !== null) updates.tags = JSON.parse(tagsRaw);
   if (is_publicRaw !== null) updates.is_public = is_publicRaw !== "false";
 
