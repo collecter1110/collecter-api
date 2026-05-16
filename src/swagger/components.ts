@@ -74,10 +74,12 @@
  *       required:
  *         - collection_id
  *         - collection_title
+ *         - selection_num
  *       properties:
  *         collection_id: { type: integer, example: 123 }
  *         collection_title: { type: string, example: My collection }
  *         image_id: { type: string, nullable: true, example: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1" }
+ *         selection_num: { type: integer, example: 5 }
  *
  *     KeywordEntry:
  *       type: object

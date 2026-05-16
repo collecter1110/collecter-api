@@ -74,7 +74,34 @@ import {
  *       400:
  *         description: 잘못된 요청 (id 또는 collection_id 누락/형식 오류)
  *       404:
- *         description: 셀렉션을 찾을 수 없음
+ *         description: |
+ *           셀렉션을 찾을 수 없음. `errorCode`로 사유를 구분한다.
+ *           - `SU001`: 삭제된 컬렉션/셀렉션 — 셀렉션 또는 컨텍스트 컬렉션이 존재하지 않음
+ *           - `SU002`: 비공개 컬렉션 — 컨텍스트 컬렉션 또는 원작 홈 컬렉션이 비공개이며 요청 유저에게 권한이 없음
+ *           - `SU003`: 차단 — 요청 유저와 컬렉션 소유자가 서로 차단했거나 차단당함 (양방향)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               notFound:
+ *                 summary: SU001 — 삭제된 컬렉션/셀렉션
+ *                 value:
+ *                   errorCode: SU001
+ *                   msg: Selection not found
+ *                   data: {}
+ *               private:
+ *                 summary: SU002 — 비공개 컬렉션
+ *                 value:
+ *                   errorCode: SU002
+ *                   msg: Selection not found
+ *                   data: {}
+ *               blocked:
+ *                 summary: SU003 — 차단 (차단하거나 차단당함)
+ *                 value:
+ *                   errorCode: SU003
+ *                   msg: Selection not found
+ *                   data: {}
  *       500:
  *         description: 서버 오류
  *   patch:
@@ -344,7 +371,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (error) {
     if (error.code === "PGRST116") {
-      return apiError("Selection not found", 404);
+      return apiError("Selection not found", 404, "SU001");
     }
     console.error("getSelectionDetail error:", error);
     return apiError("Failed to fetch selection", 500);
@@ -358,17 +385,17 @@ export async function GET(request: NextRequest, { params }: Params) {
     .single();
 
   if (colError || !collection) {
-    return apiError("Selection not found", 404);
+    return apiError("Selection not found", 404, "SU001");
   }
 
   if (!collection.is_public && auth?.userId !== collection.user_id) {
-    return apiError("Selection not found", 404);
+    return apiError("Selection not found", 404, "SU002");
   }
 
   if (auth && auth.userId !== collection.user_id) {
     const blockedIds = await getBlockedUserIds(auth.userId);
     if (blockedIds.includes(collection.user_id as number)) {
-      return apiError("Selection not found", 404);
+      return apiError("Selection not found", 404, "SU003");
     }
   }
 
@@ -376,7 +403,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   // 원작자 외에는 어떤 맥락에서 조회하든 숨긴다.
   const home = await getSelectionHome(id);
   if (!isSelectionVisibleToViewer(home, auth?.userId ?? null)) {
-    return apiError("Selection not found", 404);
+    return apiError("Selection not found", 404, "SU002");
   }
 
   // has_selecting: 로그인 유저가 이 셀렉션을 셀렉팅했는지 여부
