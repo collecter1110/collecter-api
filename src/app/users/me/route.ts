@@ -3,6 +3,7 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
+import { emptyToNull } from "@/lib/formData";
 import {
   getSelectionHomeMap,
   isSelectionVisibleToViewer,
@@ -227,7 +228,7 @@ export async function PATCH(request: NextRequest) {
 
   const updates: Record<string, unknown> = {
     name: user_name,
-    description: description ?? null,
+    description: emptyToNull(description),
   };
 
   if (imageFile && imageFile.size > 0) {
