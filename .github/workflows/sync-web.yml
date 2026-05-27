@@ -1,0 +1,24 @@
+name: Sync web/ to collecter-web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push web/ to collecter-web
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git remote add web-remote https://x-access-token:${{ secrets.WEB_REPO_TOKEN }}@github.com/collecter1110/collecter-web.git
+          git subtree split --prefix=web -b web-sync
+          git push web-remote web-sync:main --force
+          git branch -D web-sync
