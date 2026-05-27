@@ -24,7 +24,11 @@ import {
  *           type: integer
  *     responses:
  *       200:
- *         description: 공개 컬렉션 메타
+ *         description: |
+ *           공개 컬렉션 메타.
+ *           404 응답의 `errorCode` 로 사유 구분:
+ *           - `SU001`: 존재하지 않음 (삭제됨/잘못된 ID)
+ *           - `SU002`: 비공개 컬렉션
  *         content:
  *           application/json:
  *             examples:
@@ -69,14 +73,14 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   if (error) {
     if (error.code === "PGRST116") {
-      return publicError("Collection not found", 404);
+      return publicError("Collection not found", 404, "SU001");
     }
     console.error("public getCollection error:", error);
     return publicError("Failed to fetch collection", 500);
   }
 
   if (!data.is_public) {
-    return publicError("Collection not found", 404);
+    return publicError("Collection is private", 404, "SU002");
   }
 
   return publicResponse({ collection: serializeCollection(data) });
