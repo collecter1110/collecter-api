@@ -33,7 +33,11 @@ import {
  *           type: integer
  *     responses:
  *       200:
- *         description: 셀렉션 상세
+ *         description: |
+ *           셀렉션 상세.
+ *           404 응답의 `errorCode` 로 사유 구분:
+ *           - `SU001`: 존재하지 않음/미매핑 (컬렉션 삭제, 셀렉션 삭제, 또는 이 컬렉션에 속하지 않음)
+ *           - `SU002`: 비공개 (부모 컬렉션 또는 원작 홈 컬렉션이 비공개)
  *         content:
  *           application/json:
  *             examples:
@@ -78,8 +82,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
     .eq("id", collectionId)
     .single();
 
-  if (colErr || !collection || !collection.is_public) {
-    return publicError("Selection not found", 404);
+  if (colErr || !collection) {
+    return publicError("Selection not found", 404, "SU001");
+  }
+  if (!collection.is_public) {
+    return publicError("Parent collection is private", 404, "SU002");
   }
 
   // 부모 컬렉션에 실제로 매핑된 셀렉션인지 확인 (URL 위조 방지)
@@ -91,13 +98,13 @@ export async function GET(_request: NextRequest, { params }: Params) {
     .maybeSingle();
 
   if (!mapping) {
-    return publicError("Selection not found", 404);
+    return publicError("Selection not found", 404, "SU001");
   }
 
   // 원작 홈 컬렉션 비공개 체크
   const home = await getSelectionHome(sid);
   if (!isSelectionVisibleToViewer(home, null)) {
-    return publicError("Selection not found", 404);
+    return publicError("Home collection is private", 404, "SU002");
   }
 
   const { data, error } = await getSupabase()
@@ -112,7 +119,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   if (error) {
     if (error.code === "PGRST116") {
-      return publicError("Selection not found", 404);
+      return publicError("Selection not found", 404, "SU001");
     }
     console.error("public getSelectionDetail error:", error);
     return publicError("Failed to fetch selection", 500);

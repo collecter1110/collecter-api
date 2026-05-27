@@ -27,7 +27,11 @@ import {
  *           type: integer
  *     responses:
  *       200:
- *         description: 셀렉션 목록
+ *         description: |
+ *           셀렉션 목록.
+ *           404 응답의 `errorCode` 로 사유 구분:
+ *           - `SU001`: 존재하지 않음
+ *           - `SU002`: 비공개 컬렉션
  *         content:
  *           application/json:
  *             examples:
@@ -63,8 +67,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
     .eq("id", collectionId)
     .single();
 
-  if (colErr || !collection || !collection.is_public) {
-    return publicError("Collection not found", 404);
+  if (colErr || !collection) {
+    return publicError("Collection not found", 404, "SU001");
+  }
+  if (!collection.is_public) {
+    return publicError("Collection is private", 404, "SU002");
   }
 
   const { data, error } = await getSupabase()
