@@ -42,6 +42,13 @@ function getBucketName(): string {
   return requireEnv("AWS_BUCKET_NAME", "AWS_BUCKET", "S3_BUCKET_NAME", "S3_BUCKET");
 }
 
+export function buildImageUrl(imageId: string | null | undefined): string | null {
+  if (!imageId) return null;
+  const base = pickEnv("IMAGE_CDN_BASE_URL");
+  if (!base) return null;
+  return `${base.replace(/\/+$/, "")}/${imageId}.jpg`;
+}
+
 export async function uploadImageAndSave(
   buffer: Buffer,
   contentType: string
