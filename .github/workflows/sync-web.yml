@@ -2,7 +2,7 @@ name: Sync web/ to collecter-web
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
     paths:
       - "web/**"
 
