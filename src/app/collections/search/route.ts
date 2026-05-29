@@ -15,7 +15,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *       - `type=keyword` (기본값): `primary_keywords`에서 키워드명으로 검색
  *       - `type=tag`: `tags` 배열에서 정확히 일치하는 태그로 검색
  *
- *       Authorization 헤더가 있으면 본인 컬렉션과 차단한 유저의 컬렉션을 제외합니다.
+ *       Authorization 헤더가 있으면 차단한 유저의 컬렉션을 제외합니다. (본인 컬렉션은 포함)
  *     parameters:
  *       - in: query
  *         name: q
@@ -124,9 +124,6 @@ export async function GET(request: NextRequest) {
     )
     .eq("is_public", true);
 
-  if (auth) {
-    dbQuery = dbQuery.neq("user_id", auth.userId);
-  }
   if (blockedIds.length > 0) {
     dbQuery = dbQuery.not("user_id", "in", `(${blockedIds.join(",")})`);
   }
