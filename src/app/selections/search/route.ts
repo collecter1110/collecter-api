@@ -3,10 +3,6 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
-import {
-  getSelectionHomeMap,
-  isSelectionVisibleToViewer,
-} from "@/lib/selectionVisibility";
 
 /**
  * @openapi
@@ -17,7 +13,7 @@ import {
  *     description: |
  *       키워드명으로 셀렉션을 검색합니다.
  *       public 컬렉션에 매핑된 셀렉션만 검색됩니다.
- *       Authorization 헤더가 있으면 본인 셀렉션과 차단한 유저의 셀렉션을 제외합니다.
+ *       Authorization 헤더가 있으면 차단한 유저의 셀렉션을 제외합니다. (본인 셀렉션은 포함)
  *     parameters:
  *       - in: query
  *         name: q
@@ -165,23 +161,14 @@ export async function GET(request: NextRequest) {
     const hasMatch = s.keywords?.some((kw) => kwIds.includes(kw.keyword_id));
     if (!hasMatch) continue;
 
-    if (auth && s.owner_id === auth.userId) continue;
     if (blockedIds.includes(s.owner_id)) continue;
 
     seen.add(s.id);
     filtered.push(row);
   }
 
-  // 원본(home) 컬렉션이 비공개인 셀렉션은 숨김
-  let visibleRows = filtered;
-  if (filtered.length > 0) {
-    const homeMap = await getSelectionHomeMap(filtered.map((r) => r.selections.id));
-    visibleRows = filtered.filter((r) =>
-      isSelectionVisibleToViewer(homeMap.get(r.selections.id), auth?.userId ?? null)
-    );
-  }
-
-  const selections = visibleRows.map((row) => {
+  // public 컬렉션에 매핑된 셀렉션이면 본인/타인 구분 없이 모두 반환한다.
+  const selections = filtered.map((row) => {
     const s = row.selections;
     const coll = row.collections;
     const collectionTitle = Array.isArray(coll) ? coll[0]?.title : coll?.title;
