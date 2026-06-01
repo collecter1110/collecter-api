@@ -65,6 +65,18 @@ import { sendOtpEmail } from "@/lib/mail";
  *                   errorCode: SU000
  *                   msg: email is required
  *                   data: {}
+ *       429:
+ *         description: 요청 횟수 초과
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               too_many:
+ *                 value:
+ *                   errorCode: SU005
+ *                   msg: Too many requests. Please retry after 60 seconds
+ *                   data: {}
  *       500:
  *         description: OTP 전송 실패
  *         content:
@@ -91,7 +103,7 @@ export async function POST(request: NextRequest) {
 
   const sendLimit = checkOtpSendRateLimit(String(email));
   if (!sendLimit.allowed) {
-    return apiError(`Too many requests. Please retry after ${sendLimit.retryAfterSeconds} seconds`, 429);
+    return apiError(`Too many requests. Please retry after ${sendLimit.retryAfterSeconds} seconds`, 429, "SU005");
   }
 
   const code = randomOtpCode();

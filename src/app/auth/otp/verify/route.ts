@@ -71,8 +71,20 @@ import { signVerifiedToken } from "@/lib/jwt";
  *             examples:
  *               invalid_otp:
  *                 value:
- *                   errorCode: SU000
+ *                   errorCode: SU004
  *                   msg: Invalid OTP
+ *                   data: {}
+ *       429:
+ *         description: 인증 시도 횟수 초과
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               too_many:
+ *                 value:
+ *                   errorCode: SU005
+ *                   msg: Too many verification attempts. Please request a new OTP
  *                   data: {}
  *       404:
  *         description: 유저 정보 없음
@@ -83,7 +95,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  *             examples:
  *               not_found:
  *                 value:
- *                   errorCode: SU000
+ *                   errorCode: SU006
  *                   msg: User info not found
  *                   data: {}
  *       500:
@@ -112,13 +124,13 @@ export async function POST(request: NextRequest) {
 
   const verifyLimit = checkOtpVerifyRateLimit(String(email));
   if (!verifyLimit.allowed) {
-    return apiError("Too many verification attempts. Please request a new OTP", 429);
+    return apiError("Too many verification attempts. Please request a new OTP", 429, "SU005");
   }
 
   try {
     const consumed = await consumeOtp({ email: String(email), code: String(token) });
     if (!consumed) {
-      return apiError("Invalid OTP", 400);
+      return apiError("Invalid OTP", 400, "SU004");
     }
 
     resetOtpVerifyRateLimit(String(email));
@@ -129,7 +141,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!userId) {
-      return apiError("User info not found", 404);
+      return apiError("User info not found", 404, "SU006");
     }
 
     const verified_token = await signVerifiedToken({
