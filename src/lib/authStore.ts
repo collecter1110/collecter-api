@@ -146,6 +146,32 @@ export async function getOrCreateUserIdByEmail(params: {
   return insertRes.data.user_id as number;
 }
 
+// OAuth(구글 등) 로그인용: 이메일로 유저를 찾고 없으면 생성하며, 신규 생성 여부를 함께 반환
+export async function findOrCreateUserByEmail(params: {
+  email: string;
+  name?: string | null;
+}): Promise<{ userId: number; isNew: boolean }> {
+  const email = params.email.toLowerCase();
+  const { data, error } = await getSupabase()
+    .from("userinfo")
+    .select("user_id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (data?.user_id) return { userId: data.user_id as number, isNew: false };
+
+  const name = params.name?.trim() || email.split("@")[0];
+  const insertRes = await getSupabase()
+    .from("userinfo")
+    .insert({ email, name, description: null, image_id: null })
+    .select("user_id")
+    .single();
+  if (insertRes.error) throw insertRes.error;
+
+  return { userId: insertRes.data.user_id as number, isNew: true };
+}
+
 export async function createRefreshSession(params: {
   session_id: string;
   user_id: number;
