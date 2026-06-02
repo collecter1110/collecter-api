@@ -39,21 +39,34 @@ import { signVerifiedToken } from "@/lib/jwt";
  *           application/json:
  *             schema:
  *               type: object
- *               required: [verified_token, is_new_user]
+ *               required: [verified_token, is_new_user, terms_agreed]
  *               properties:
  *                 verified_token:
  *                   type: string
  *                 is_new_user:
  *                   type: boolean
+ *                 terms_agreed:
+ *                   type: boolean
+ *                   description: 약관 동의 여부. false이면 클라이언트가 약관 화면을 표시하고 `/auth/login`에 `terms_agreed: true`를 전달해야 합니다.
  *             examples:
- *               existing_user:
- *                 summary: 기존 유저
+ *               existing_user_agreed:
+ *                 summary: 기존 유저 (약관 동의 완료)
  *                 value:
  *                   errorCode: SU000
  *                   msg: ok
  *                   data:
  *                     verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.signature
  *                     is_new_user: false
+ *                     terms_agreed: true
+ *               existing_user_not_agreed:
+ *                 summary: 기존 유저 (약관 미동의)
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.signature
+ *                     is_new_user: false
+ *                     terms_agreed: false
  *               new_user:
  *                 summary: 신규 유저
  *                 value:
@@ -62,6 +75,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  *                   data:
  *                     verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ2LCJlbWFpbCI6Im5ld3VzZXJAZXhhbXBsZS5jb20ifQ.signature
  *                     is_new_user: true
+ *                     terms_agreed: false
  *       400:
  *         description: 잘못된 OTP 또는 파라미터
  *         content:
@@ -71,8 +85,20 @@ import { signVerifiedToken } from "@/lib/jwt";
  *             examples:
  *               invalid_otp:
  *                 value:
- *                   errorCode: SU000
+ *                   errorCode: SU004
  *                   msg: Invalid OTP
+ *                   data: {}
+ *       429:
+ *         description: 인증 시도 횟수 초과
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *             examples:
+ *               too_many:
+ *                 value:
+ *                   errorCode: SU005
+ *                   msg: Too many verification attempts. Please request a new OTP
  *                   data: {}
  *       404:
  *         description: 유저 정보 없음
@@ -83,7 +109,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  *             examples:
  *               not_found:
  *                 value:
- *                   errorCode: SU000
+ *                   errorCode: SU006
  *                   msg: User info not found
  *                   data: {}
  *       500:
@@ -112,25 +138,27 @@ export async function POST(request: NextRequest) {
 
   const verifyLimit = checkOtpVerifyRateLimit(String(email));
   if (!verifyLimit.allowed) {
-    return apiError("Too many verification attempts. Please request a new OTP", 429);
+    return apiError("Too many verification attempts. Please request a new OTP", 429, "SU005");
   }
 
   try {
     const consumed = await consumeOtp({ email: String(email), code: String(token) });
     if (!consumed) {
-      return apiError("Invalid OTP", 400);
+      return apiError("Invalid OTP", 400, "SU004");
     }
 
     resetOtpVerifyRateLimit(String(email));
 
-    const userId = await getOrCreateUserIdByEmail({
+    const userResult = await getOrCreateUserIdByEmail({
       email: consumed.email,
-      createIfMissing: consumed.create_user,
+      createIfMissing: true,
     });
 
-    if (!userId) {
-      return apiError("User info not found", 404);
+    if (!userResult) {
+      return apiError("User info not found", 404, "SU006");
     }
+
+    const { userId, terms_agreed } = userResult;
 
     const verified_token = await signVerifiedToken({
       typ: "verified",
@@ -138,7 +166,7 @@ export async function POST(request: NextRequest) {
       email: consumed.email,
     });
 
-    return apiResponse({ verified_token, is_new_user: consumed.create_user });
+    return apiResponse({ verified_token, is_new_user: consumed.create_user, terms_agreed });
   } catch (e) {
     console.error("verifyOtp error:", e);
     return apiError("Server error", 500);
