@@ -170,6 +170,64 @@ export async function findUserByEmail(email: string): Promise<{ userId: number }
   return { userId: data.user_id as number };
 }
 
+// Apple OAuth 로그인용: apple_user_id(sub)로 유저를 찾고 없으면 생성, 신규 여부와 저장된 이메일 반환
+export async function findOrCreateUserByAppleId(params: {
+  appleUserId: string;
+  email?: string;
+}): Promise<{ userId: number; isNew: boolean; email: string }> {
+  const { appleUserId, email } = params;
+
+  // 1. 기존 apple_accounts 조회
+  const { data: appleAccount, error: appleError } = await getSupabase()
+    .from("apple_accounts")
+    .select("user_id, email")
+    .eq("apple_user_id", appleUserId)
+    .maybeSingle();
+
+  if (appleError) throw appleError;
+  if (appleAccount?.user_id) {
+    return {
+      userId: appleAccount.user_id as number,
+      isNew: false,
+      email: appleAccount.email as string,
+    };
+  }
+
+  // 2. 신규 유저 — 첫 로그인이므로 email 필요
+  if (!email) throw new Error("email required for new Apple user");
+
+  const normalizedEmail = email.toLowerCase();
+
+  // 3. 같은 이메일의 기존 userinfo가 있으면 연결, 없으면 생성
+  const { data: existing, error: existingError } = await getSupabase()
+    .from("userinfo")
+    .select("user_id")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  let userId: number;
+  let isNew: boolean;
+
+  if (existing?.user_id) {
+    userId = existing.user_id as number;
+    isNew = false;
+  } else {
+    userId = await insertUserWithDefaultName(normalizedEmail);
+    isNew = true;
+  }
+
+  // 4. apple_accounts 레코드 생성
+  const { error: insertError } = await getSupabase()
+    .from("apple_accounts")
+    .insert({ apple_user_id: appleUserId, user_id: userId, email: normalizedEmail });
+
+  if (insertError) throw insertError;
+
+  return { userId, isNew, email: normalizedEmail };
+}
+
 // OAuth(구글 등) 로그인용: 이메일로 유저를 찾고 없으면 생성하며, 신규 생성 여부를 함께 반환
 export async function findOrCreateUserByEmail(params: {
   email: string;
