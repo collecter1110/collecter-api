@@ -10,6 +10,7 @@ import { uploadImageAndSave } from "@/lib/storage";
  * /signup:
  *   post:
  *     tags: [Auth]
+ *     deprecated: true
  *     summary: 회원가입
  *     description: OTP 검증 후 발급된 `verified_token`으로 프로필을 설정하고 토큰을 발급합니다.
  *     requestBody:

@@ -135,15 +135,39 @@ export async function getOrCreateUserIdByEmail(params: {
   if (data?.user_id) return data.user_id as number;
   if (!params.createIfMissing) return null;
 
-  // userinfo.user_id가 identity로 자동 생성되므로 user_id를 지정하지 않고 insert
+  return await insertUserWithDefaultName(email);
+}
+
+// 신규 유저를 생성하고 기본 이름 '뉴비_{userId}'로 설정한다.
+// name 컬럼은 NOT NULL + UNIQUE이므로 임시 UUID 이름으로 insert 후 바로 update한다.
+async function insertUserWithDefaultName(email: string): Promise<number> {
+  const temp = `_tmp_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
   const insertRes = await getSupabase()
     .from("userinfo")
-    .insert({ email, name: email.split("@")[0], description: null, image_id: null })
+    .insert({ email, name: temp, description: null, image_id: null })
     .select("user_id")
     .single();
   if (insertRes.error) throw insertRes.error;
 
-  return insertRes.data.user_id as number;
+  const userId = insertRes.data.user_id as number;
+  await getSupabase()
+    .from("userinfo")
+    .update({ name: `뉴비_${userId}` })
+    .eq("user_id", userId);
+
+  return userId;
+}
+
+// OAuth(구글 등) 로그인용: 이메일로 유저를 찾기만 하고 없으면 null 반환 (생성하지 않음)
+export async function findUserByEmail(email: string): Promise<{ userId: number } | null> {
+  const { data, error } = await getSupabase()
+    .from("userinfo")
+    .select("user_id")
+    .eq("email", email.toLowerCase())
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.user_id) return null;
+  return { userId: data.user_id as number };
 }
 
 // OAuth(구글 등) 로그인용: 이메일로 유저를 찾고 없으면 생성하며, 신규 생성 여부를 함께 반환
@@ -161,15 +185,8 @@ export async function findOrCreateUserByEmail(params: {
   if (error) throw error;
   if (data?.user_id) return { userId: data.user_id as number, isNew: false };
 
-  const name = params.name?.trim() || email.split("@")[0];
-  const insertRes = await getSupabase()
-    .from("userinfo")
-    .insert({ email, name, description: null, image_id: null })
-    .select("user_id")
-    .single();
-  if (insertRes.error) throw insertRes.error;
-
-  return { userId: insertRes.data.user_id as number, isNew: true };
+  const userId = await insertUserWithDefaultName(email);
+  return { userId, isNew: true };
 }
 
 export async function createRefreshSession(params: {

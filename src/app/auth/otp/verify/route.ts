@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     const userId = await getOrCreateUserIdByEmail({
       email: consumed.email,
-      createIfMissing: consumed.create_user,
+      createIfMissing: true,
     });
 
     if (!userId) {

@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const email = profile.email.toLowerCase();
-    const { userId, isNew } = await findOrCreateUserByEmail({ email, name: profile.name });
+    const { userId, isNew } = await findOrCreateUserByEmail({ email });
 
     const verified_token = await signVerifiedToken({
       typ: "verified",

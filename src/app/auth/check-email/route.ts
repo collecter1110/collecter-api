@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase";
  * /auth/check-email:
  *   get:
  *     tags: [Auth]
+ *     deprecated: true
  *     summary: 이메일 중복 확인
  *     description: "이메일이 사용 가능한지 확인합니다. (success=true이면 사용 가능, success=false이면 이미 존재)"
  *     parameters:
