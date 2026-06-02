@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { createRefreshSession, newSessionId } from "@/lib/authStore";
@@ -10,7 +10,9 @@ import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims 
  *   post:
  *     tags: [Auth]
  *     summary: 로그인 (기존 유저)
- *     description: OTP 검증 후 발급된 `verified_token`으로 `access_token`과 `refresh_token`을 반환합니다.
+ *     description: |
+ *       OTP/OAuth 검증 후 발급된 `verified_token`으로 `access_token`과 `refresh_token`을 반환합니다.
+ *       `terms_agreed: true`를 함께 전달하면 약관 동의를 DB에 저장합니다.
  *     requestBody:
  *       required: true
  *       content:
@@ -21,8 +23,17 @@ import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims 
  *             properties:
  *               verified_token:
  *                 type: string
+ *               terms_agreed:
+ *                 type: boolean
+ *                 description: 약관에 동의한 경우 true 전달 (미동의 상태였던 경우 DB에 저장됨)
  *           examples:
- *             ok:
+ *             with_terms:
+ *               summary: 약관 동의와 함께 로그인
+ *               value:
+ *                 verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.signature
+ *                 terms_agreed: true
+ *             without_terms:
+ *               summary: 기존 약관 동의 유저 로그인
  *               value:
  *                 verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.signature
  *     responses:
@@ -63,11 +74,13 @@ import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims 
  *                   data: {}
  */
 // POST /auth/login
-// body: { verified_token: string }
-// OTP 인증 후 발급된 verified_token으로 access_token + refresh_token 반환 (기존 유저)
+// body: { verified_token: string, terms_agreed?: boolean }
+// OTP/OAuth 인증 후 발급된 verified_token으로 access_token + refresh_token 반환 (기존 유저)
+// terms_agreed: true 전달 시 DB에 약관 동의 저장
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const verified_token = body?.verified_token as string | undefined;
+  const terms_agreed = body?.terms_agreed as boolean | undefined;
 
   if (!verified_token) {
     return apiError("verified_token is required", 400);
@@ -86,13 +99,20 @@ export async function POST(request: NextRequest) {
 
   const { data: userRow } = await getSupabase()
     .from("userinfo")
-    .select("name")
+    .select("name, terms_agreed")
     .eq("user_id", claims.user_id)
     .is("deleted_at", null)
     .maybeSingle();
 
   if (!userRow) {
     return apiError("User not found", 400);
+  }
+
+  if (terms_agreed === true && !userRow.terms_agreed) {
+    await getSupabase()
+      .from("userinfo")
+      .update({ terms_agreed: true })
+      .eq("user_id", claims.user_id);
   }
 
   const name = String(userRow.name ?? "");

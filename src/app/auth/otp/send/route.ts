@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
-import { randomOtpCode, saveOtpIntent, checkOtpSendRateLimit } from "@/lib/authStore";
+import { randomOtpCode, saveOtpIntent, checkOtpSendRateLimit, findUserByEmail } from "@/lib/authStore";
 import { sendOtpEmail } from "@/lib/mail";
 
 /**
@@ -102,9 +102,10 @@ export async function POST(request: NextRequest) {
   const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
 
   try {
+    const existingUser = await findUserByEmail(String(email));
     await saveOtpIntent({
       email,
-      create_user: true,
+      create_user: !existingUser,
       code,
       expiresAt,
     });

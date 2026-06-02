@@ -123,19 +123,20 @@ export async function consumeOtp(params: { email: string; code: string }) {
 export async function getOrCreateUserIdByEmail(params: {
   email: string;
   createIfMissing: boolean;
-}) {
+}): Promise<{ userId: number; terms_agreed: boolean } | null> {
   const email = params.email.toLowerCase();
   const { data, error } = await getSupabase()
     .from("userinfo")
-    .select("user_id")
+    .select("user_id, terms_agreed")
     .eq("email", email)
     .maybeSingle();
 
   if (error) throw error;
-  if (data?.user_id) return data.user_id as number;
+  if (data?.user_id) return { userId: data.user_id as number, terms_agreed: Boolean(data.terms_agreed) };
   if (!params.createIfMissing) return null;
 
-  return await insertUserWithDefaultName(email);
+  const userId = await insertUserWithDefaultName(email);
+  return { userId, terms_agreed: false };
 }
 
 // 신규 유저를 생성하고 기본 이름 '뉴비_{userId}'로 설정한다.
@@ -174,7 +175,7 @@ export async function findUserByEmail(email: string): Promise<{ userId: number }
 export async function findOrCreateUserByAppleId(params: {
   appleUserId: string;
   email?: string;
-}): Promise<{ userId: number; isNew: boolean; email: string }> {
+}): Promise<{ userId: number; isNew: boolean; email: string; terms_agreed: boolean }> {
   const { appleUserId, email } = params;
 
   // 1. 기존 apple_accounts 조회
@@ -186,10 +187,16 @@ export async function findOrCreateUserByAppleId(params: {
 
   if (appleError) throw appleError;
   if (appleAccount?.user_id) {
+    const { data: userRow } = await getSupabase()
+      .from("userinfo")
+      .select("terms_agreed")
+      .eq("user_id", appleAccount.user_id)
+      .maybeSingle();
     return {
       userId: appleAccount.user_id as number,
       isNew: false,
       email: appleAccount.email as string,
+      terms_agreed: Boolean(userRow?.terms_agreed),
     };
   }
 
@@ -225,26 +232,26 @@ export async function findOrCreateUserByAppleId(params: {
 
   if (insertError) throw insertError;
 
-  return { userId, isNew, email: normalizedEmail };
+  return { userId, isNew, email: normalizedEmail, terms_agreed: false };
 }
 
-// OAuth(구글 등) 로그인용: 이메일로 유저를 찾고 없으면 생성하며, 신규 생성 여부를 함께 반환
+// OAuth(구글 등) 로그인용: 이메일로 유저를 찾고 없으면 생성하며, 신규 생성 여부와 약관 동의 여부를 함께 반환
 export async function findOrCreateUserByEmail(params: {
   email: string;
   name?: string | null;
-}): Promise<{ userId: number; isNew: boolean }> {
+}): Promise<{ userId: number; isNew: boolean; terms_agreed: boolean }> {
   const email = params.email.toLowerCase();
   const { data, error } = await getSupabase()
     .from("userinfo")
-    .select("user_id")
+    .select("user_id, terms_agreed")
     .eq("email", email)
     .maybeSingle();
 
   if (error) throw error;
-  if (data?.user_id) return { userId: data.user_id as number, isNew: false };
+  if (data?.user_id) return { userId: data.user_id as number, isNew: false, terms_agreed: Boolean(data.terms_agreed) };
 
   const userId = await insertUserWithDefaultName(email);
-  return { userId, isNew: true };
+  return { userId, isNew: true, terms_agreed: false };
 }
 
 export async function createRefreshSession(params: {

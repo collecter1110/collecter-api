@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { findOrCreateUserByEmail } from "@/lib/authStore";
 import { verifyGoogleIdToken } from "@/lib/google";
@@ -37,21 +37,34 @@ import { signVerifiedToken } from "@/lib/jwt";
  *           application/json:
  *             schema:
  *               type: object
- *               required: [verified_token, is_new_user]
+ *               required: [verified_token, is_new_user, terms_agreed]
  *               properties:
  *                 verified_token:
  *                   type: string
  *                 is_new_user:
  *                   type: boolean
+ *                 terms_agreed:
+ *                   type: boolean
+ *                   description: 약관 동의 여부. false이면 클라이언트가 약관 화면을 표시하고 `/auth/login`에 `terms_agreed: true`를 전달해야 합니다.
  *             examples:
- *               existing_user:
- *                 summary: 기존 유저
+ *               existing_user_agreed:
+ *                 summary: 기존 유저 (약관 동의 완료)
  *                 value:
  *                   errorCode: SU000
  *                   msg: ok
  *                   data:
  *                     verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.signature
  *                     is_new_user: false
+ *                     terms_agreed: true
+ *               existing_user_not_agreed:
+ *                 summary: 기존 유저 (약관 미동의)
+ *                 value:
+ *                   errorCode: SU000
+ *                   msg: ok
+ *                   data:
+ *                     verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.signature
+ *                     is_new_user: false
+ *                     terms_agreed: false
  *               new_user:
  *                 summary: 신규 유저
  *                 value:
@@ -60,6 +73,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  *                   data:
  *                     verified_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJ2ZXJpZmllZCIsInVzZXJfaWQiOjQ2LCJlbWFpbCI6Im5ld3VzZXJAZXhhbXBsZS5jb20ifQ.signature
  *                     is_new_user: true
+ *                     terms_agreed: false
  *       400:
  *         description: 파라미터 누락 또는 이메일 미인증
  *         content:
@@ -127,7 +141,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const email = profile.email.toLowerCase();
-    const { userId, isNew } = await findOrCreateUserByEmail({ email });
+    const { userId, isNew, terms_agreed } = await findOrCreateUserByEmail({ email });
 
     const verified_token = await signVerifiedToken({
       typ: "verified",
@@ -135,7 +149,7 @@ export async function POST(request: NextRequest) {
       email,
     });
 
-    return apiResponse({ verified_token, is_new_user: isNew });
+    return apiResponse({ verified_token, is_new_user: isNew, terms_agreed });
   } catch (e) {
     console.error("google oauth error:", e);
     return apiError("Server error", 500);
