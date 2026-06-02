@@ -47,7 +47,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  *                   type: boolean
  *                 terms_agreed:
  *                   type: boolean
- *                   description: 약관 동의 여부. false이면 클라이언트가 약관 화면을 표시하고 `/auth/login`에 `terms_agreed: true`를 전달해야 합니다.
+ *                   description: "약관 동의 여부. false이면 클라이언트가 약관 화면을 표시하고 /auth/login에 terms_agreed: true를 전달해야 합니다."
  *             examples:
  *               existing_user_agreed:
  *                 summary: 기존 유저 (약관 동의 완료)
