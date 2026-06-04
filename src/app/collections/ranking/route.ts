@@ -15,6 +15,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *       Fisher-Yates 셔플 후 최대 10개를 반환합니다. (호출마다 결과가 달라집니다)
  *
  *       - Authorization 헤더가 있으면 본인과 차단한 유저의 컬렉션을 제외합니다. (토큰 선택)
+ *       - `category_id` 쿼리 파라미터를 주면 해당 카테고리로 필터링하고, 생략하면 전체에서 반환합니다.
  *     parameters:
  *       - in: header
  *         name: Authorization
@@ -23,6 +24,13 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *           type: string
  *         description: Bearer access token (optional)
  *         example: Bearer eyJhbGciOi...
+ *       - in: query
+ *         name: category_id
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: 카테고리 ID (categoryinfo 테이블). 생략하면 전체 카테고리에서 반환합니다.
+ *         example: 3
  *     responses:
  *       200:
  *         description: Ranking collections
@@ -66,6 +74,12 @@ export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
   const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
 
+  const categoryParam = request.nextUrl.searchParams.get("category_id");
+  const categoryId = categoryParam !== null ? parseInt(categoryParam, 10) : null;
+  if (categoryParam !== null && (categoryId === null || isNaN(categoryId))) {
+    return apiError("category_id must be a valid integer", 400);
+  }
+
   let dbQuery = getSupabase()
     .from("collections")
     .select("id, title, image_id, selection_num")
@@ -74,6 +88,9 @@ export async function GET(request: NextRequest) {
     .order("id", { ascending: false })
     .limit(200);
 
+  if (categoryId !== null) {
+    dbQuery = dbQuery.eq("category_id", categoryId);
+  }
   if (auth) {
     dbQuery = dbQuery.neq("user_id", auth.userId);
   }
