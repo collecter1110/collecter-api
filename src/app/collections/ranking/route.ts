@@ -3,6 +3,7 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
+import { parsePagination } from "@/lib/pagination";
 
 /**
  * @openapi
@@ -11,8 +12,8 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *     tags: [Collections]
  *     summary: Get ranking collections
  *     description: |
- *       `is_public: true` 이면서 `image_id`가 있는 컬렉션 중 최근 200개를 후보 풀로 삼아,
- *       Fisher-Yates 셔플 후 최대 10개를 반환합니다. (호출마다 결과가 달라집니다)
+ *       `is_public: true` 이면서 `image_id`가 있는 전체 컬렉션을 Fisher-Yates 셔플한 뒤
+ *       `page`/`size` 로 잘라서 반환합니다. (호출마다 결과가 달라집니다)
  *
  *       - Authorization 헤더가 있으면 본인과 차단한 유저의 컬렉션을 제외합니다. (토큰 선택)
  *       - `category_id` 쿼리 파라미터를 주면 해당 카테고리로 필터링하고, 생략하면 전체에서 반환합니다.
@@ -31,6 +32,22 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *           type: integer
  *         description: 카테고리 ID (categoryinfo 테이블). 생략하면 전체 카테고리에서 반환합니다.
  *         example: 3
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: 페이지 번호 (1부터 시작). 기본값 1.
+ *         example: 1
+ *       - in: query
+ *         name: size
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: 페이지당 항목 수. 기본값 10.
+ *         example: 10
  *     responses:
  *       200:
  *         description: Ranking collections
@@ -80,13 +97,17 @@ export async function GET(request: NextRequest) {
     return apiError("category_id must be a valid integer", 400);
   }
 
+  const pagination = parsePagination(request.nextUrl.searchParams);
+  if (!pagination.ok) {
+    return apiError(pagination.error, 400);
+  }
+  const { offset, size } = pagination.value;
+
   let dbQuery = getSupabase()
     .from("collections")
     .select("id, title, image_id, selection_num")
     .eq("is_public", true)
-    .not("image_id", "is", null)
-    .order("id", { ascending: false })
-    .limit(200);
+    .not("image_id", "is", null);
 
   if (categoryId !== null) {
     dbQuery = dbQuery.eq("category_id", categoryId);
@@ -119,7 +140,7 @@ export async function GET(request: NextRequest) {
     [rows[i], rows[j]] = [rows[j], rows[i]];
   }
 
-  const collections = rows.slice(0, 10).map((col) => ({
+  const collections = rows.slice(offset, offset + size).map((col) => ({
     collection_id: col.id,
     collection_title: col.title,
     image_id: col.image_id,
