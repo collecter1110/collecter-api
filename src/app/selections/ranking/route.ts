@@ -7,6 +7,7 @@ import {
   getSelectionHomeMap,
   isSelectionVisibleToViewer,
 } from "@/lib/selectionVisibility";
+import { parsePagination } from "@/lib/pagination";
 
 /**
  * @openapi
@@ -15,8 +16,10 @@ import {
  *     tags: [Selections]
  *     summary: Get ranking selections
  *     description: |
- *       이미지가 있는 셀렉션 중 최근 200개를 후보 풀로 삼아 가시성 필터를 적용한 뒤
- *       Fisher-Yates 셔플하여 최대 20개를 반환합니다. (호출마다 결과가 달라집니다)
+ *       이미지가 있는 전체 셀렉션에 가시성 필터를 적용한 뒤 Fisher-Yates 셔플하여
+ *       `page`/`size` 로 잘라서 반환합니다. (호출마다 결과가 달라집니다)
+ *
+ *       - `category_id` 쿼리 파라미터를 주면 해당 카테고리로 필터링하고, 생략하면 전체에서 반환합니다.
  *     parameters:
  *       - in: header
  *         name: Authorization
@@ -25,6 +28,29 @@ import {
  *           type: string
  *         description: Bearer access token (optional)
  *         example: Bearer eyJhbGciOi...
+ *       - in: query
+ *         name: category_id
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: 카테고리 ID (categoryinfo 테이블). 생략하면 전체 카테고리에서 반환합니다.
+ *         example: 3
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: 페이지 번호 (1부터 시작). 기본값 1.
+ *         example: 1
+ *       - in: query
+ *         name: size
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: 페이지당 항목 수. 기본값 10.
+ *         example: 10
  *     responses:
  *       200:
  *         description: Ranking selections
@@ -71,14 +97,30 @@ export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
   const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
 
-  const { data, error } = await getSupabase()
+  const categoryParam = request.nextUrl.searchParams.get("category_id");
+  const categoryId = categoryParam !== null ? parseInt(categoryParam, 10) : null;
+  if (categoryParam !== null && (categoryId === null || isNaN(categoryId))) {
+    return apiError("category_id must be a valid integer", 400);
+  }
+
+  const pagination = parsePagination(request.nextUrl.searchParams);
+  if (!pagination.ok) {
+    return apiError(pagination.error, 400);
+  }
+  const { offset, size } = pagination.value;
+
+  let selectionQuery = getSupabase()
     .from("selections")
     .select(
       `id, title, keywords, owner_id,
        selection_images!inner(image_id, sort_order)`
-    )
-    .order("id", { ascending: false })
-    .limit(200);
+    );
+
+  if (categoryId !== null) {
+    selectionQuery = selectionQuery.eq("category_id", categoryId);
+  }
+
+  const { data, error } = await selectionQuery;
 
   if (error) {
     console.error("getRankingSelections error:", error);
@@ -115,7 +157,7 @@ export async function GET(request: NextRequest) {
     [rows[i], rows[j]] = [rows[j], rows[i]];
   }
 
-  const selections = rows.slice(0, 20).map((r) => {
+  const selections = rows.slice(offset, offset + size).map((r) => {
     const thumb = [...r.selection_images].sort((a, b) => a.sort_order - b.sort_order)[0];
     return {
       id: r.id,
