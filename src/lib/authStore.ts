@@ -178,20 +178,17 @@ export async function findOrCreateUserByAppleId(params: {
 }): Promise<{ userId: number; isNew: boolean; email: string; terms_agreed: boolean }> {
   const { appleUserId, email } = params;
 
-  // 1. 기존 apple_accounts 조회
+  // 1. 기존 apple_accounts 조회 — userinfo.terms_agreed 를 임베디드 조인으로 한 번에 가져와 왕복 1회로 처리
   const { data: appleAccount, error: appleError } = await getSupabase()
     .from("apple_accounts")
-    .select("user_id, email")
+    .select("user_id, email, userinfo(terms_agreed)")
     .eq("apple_user_id", appleUserId)
     .maybeSingle();
 
   if (appleError) throw appleError;
   if (appleAccount?.user_id) {
-    const { data: userRow } = await getSupabase()
-      .from("userinfo")
-      .select("terms_agreed")
-      .eq("user_id", appleAccount.user_id)
-      .maybeSingle();
+    const joined = appleAccount.userinfo as { terms_agreed?: boolean } | { terms_agreed?: boolean }[] | null;
+    const userRow = Array.isArray(joined) ? joined[0] : joined;
     return {
       userId: appleAccount.user_id as number,
       isNew: false,
