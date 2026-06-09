@@ -4,6 +4,10 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 const GOOGLE_JWKS = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
 const GOOGLE_ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
 
+// 콜드 스타트 시 첫 로그인 요청이 공개키 페치를 기다리지 않도록 모듈 로드 시점에 미리 받아둔다.
+// 실패해도 실제 검증 때 lazy 하게 다시 페치되므로 무시한다.
+void GOOGLE_JWKS.reload().catch(() => {});
+
 export type GoogleProfile = {
   sub: string; // 구글 계정 고유 ID
   email: string;

@@ -3,6 +3,10 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 const APPLE_JWKS = createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys"));
 const APPLE_ISSUER = "https://appleid.apple.com";
 
+// 콜드 스타트 시 첫 로그인 요청이 Apple 공개키 페치를 기다리지 않도록 모듈 로드 시점에 미리 받아둔다.
+// Apple 키 엔드포인트는 Google보다 느려 이 프리워밍이 첫 요청 지연을 크게 줄인다. 실패해도 실제 검증 때 다시 페치된다.
+void APPLE_JWKS.reload().catch(() => {});
+
 export type AppleProfile = {
   sub: string; // Apple User ID — 불변 식별자
   email?: string; // 첫 로그인만 존재, 이후 undefined
