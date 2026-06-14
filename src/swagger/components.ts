@@ -75,11 +75,17 @@
  *         - collection_id
  *         - collection_title
  *         - selection_num
+ *         - user_id
+ *         - has_liked
  *       properties:
  *         collection_id: { type: integer, example: 123 }
  *         collection_title: { type: string, example: My collection }
  *         image_id: { type: string, nullable: true, example: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1" }
  *         selection_num: { type: integer, example: 5 }
+ *         user_id: { type: integer, example: 45 }
+ *         user_name: { type: string, nullable: true, example: gimgahui, description: "작성자 이름" }
+ *         user_image_id: { type: string, nullable: true, example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", description: "작성자 프로필 이미지 (userinfo.image_id)" }
+ *         has_liked: { type: boolean, example: false, description: "로그인 유저가 이 컬렉션을 좋아요했는지 여부 (토큰 없으면 항상 false)" }
  *
  *     KeywordEntry:
  *       type: object
@@ -113,6 +119,7 @@
  *         selection_title: { type: string, example: "내 셀렉션" }
  *         owner_id: { type: integer, example: 45 }
  *         owner_name: { type: string, example: "gimgahui" }
+ *         owner_image_id: { type: string, nullable: true, example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", description: "작성자 프로필 이미지 (userinfo.image_id)" }
  *         keywords:
  *           type: array
  *           items:
@@ -151,6 +158,8 @@
  *             $ref: "#/components/schemas/KeywordEntry"
  *         created_at: { type: string, example: "2026-04-06" }
  *         owner_name: { type: string, example: "gimgahui" }
+ *         user_id: { type: integer, example: 45, description: "작성자(owner) 유저 ID (owner_id와 동일)" }
+ *         user_image_id: { type: string, nullable: true, example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", description: "작성자 프로필 이미지 (userinfo.image_id)" }
  *         is_selectable: { type: boolean, example: true }
  *         has_selecting: { type: boolean, example: false, description: "로그인 유저가 이 셀렉션을 셀렉팅했는지 여부" }
  *         selection_images:

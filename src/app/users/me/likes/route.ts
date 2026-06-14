@@ -4,6 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { mapCollectionListRowToApi } from "@/lib/collectionResponse";
+import { getUserImageMap } from "@/lib/userInfo";
 
 /**
  * @openapi
@@ -40,6 +41,7 @@ import { mapCollectionListRowToApi } from "@/lib/collectionResponse";
  *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *                         user_id: 99
  *                         user_name: otheruser
+ *                         user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *                         selection_num: 8
  *                         is_public: true
  *               empty:
@@ -93,7 +95,7 @@ export async function GET(request: NextRequest) {
 
   const blockedIds = await getBlockedUserIds(auth.userId);
 
-  const collections = (data ?? [])
+  const mapped = (data ?? [])
     .map((item) => {
       let raw: unknown = item.collections;
       if (raw == null) return null;
@@ -108,6 +110,16 @@ export async function GET(request: NextRequest) {
     .filter((c) =>
       blockedIds.length === 0 || !blockedIds.includes(c.user_id as number)
     );
+
+  // 작성자 프로필 이미지 조회 (userinfo.image_id)
+  const userImageMap = await getUserImageMap(
+    mapped.map((c) => c.user_id as number)
+  );
+
+  const collections = mapped.map((c) => ({
+    ...c,
+    user_image_id: userImageMap.get(c.user_id as number) ?? null,
+  }));
 
   return apiResponse({ collections });
 }

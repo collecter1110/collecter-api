@@ -67,6 +67,8 @@ import {
  *                           keyword_name: 키워드
  *                       created_at: "2026-04-06"
  *                       owner_name: gimgahui
+ *                       user_id: 45
+ *                       user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *                       is_selectable: true
  *                       has_selecting: false
  *                       selection_images:
@@ -421,12 +423,21 @@ export async function GET(request: NextRequest, { params }: Params) {
     hasSelecting = !!csRow;
   }
 
+  // 작성자(owner) 프로필 이미지 조회 (userinfo.image_id)
+  const { data: ownerInfo } = await getSupabase()
+    .from("userinfo")
+    .select("image_id")
+    .eq("user_id", data.owner_id)
+    .maybeSingle();
+
   const { title, ...rest } = data;
   return apiResponse({
     selection: {
       ...rest,
       selection_title: title,
       collection_id: collectionId,
+      user_id: data.owner_id,
+      user_image_id: (ownerInfo?.image_id as string | null) ?? null,
       has_selecting: hasSelecting,
     },
   });

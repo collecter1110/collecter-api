@@ -53,6 +53,7 @@ import { emptyToNull } from "@/lib/formData";
  *                       tags: ["태그1", "태그2"]
  *                       user_id: 45
  *                       user_name: gimgahui
+ *                       user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *                       primary_keywords:
  *                         - keyword_id: 7
  *                           keyword_name: 키워드
@@ -261,12 +262,20 @@ export async function GET(request: NextRequest, { params }: Params) {
     ? (data.likes as { user_id: number }[]).some((l) => l.user_id === auth.userId)
     : false;
 
+  // 작성자 프로필 이미지 조회 (userinfo.image_id)
+  const { data: ownerInfo } = await getSupabase()
+    .from("userinfo")
+    .select("image_id")
+    .eq("user_id", data.user_id)
+    .maybeSingle();
+
   const { likes: _likes, title, id, ...rest } = data;
   return apiResponse({
     collection: {
       ...rest,
       collection_id: id,
       collection_title: title,
+      user_image_id: (ownerInfo?.image_id as string | null) ?? null,
       has_liked: hasLiked,
     },
   });
