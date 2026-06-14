@@ -96,10 +96,12 @@ else
   echo "PUSH=0 set; skipping push."
 fi
 
-# Sync main back into dev so the merge commit/tag history stays consistent
+# Sync main back into dev. main is exactly one merge commit ahead of dev,
+# so this fast-forwards dev to main without creating an extra merge commit
+# (avoids crisscrossing merge commits between the two branches).
 echo "syncing ${MAIN_BRANCH} -> ${DEV_BRANCH}..."
 git checkout "${DEV_BRANCH}" >/dev/null 2>&1 || die "branch '${DEV_BRANCH}' not found"
-git merge --no-ff "${MAIN_BRANCH}" -m "Merge branch '${MAIN_BRANCH}' into ${DEV_BRANCH}"
+git merge --ff-only "${MAIN_BRANCH}"
 
 if [[ "${PUSH}" == "1" ]]; then
   echo "pushing ${DEV_BRANCH}..."
