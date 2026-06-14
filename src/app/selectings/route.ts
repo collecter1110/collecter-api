@@ -7,6 +7,7 @@ import {
   repairCollectionCoverIfUsingDeletedImage,
 } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
+import { getUserImageMap } from "@/lib/userInfo";
 import {
   getSelectionHomeMap,
   isSelectionVisibleToViewer,
@@ -47,10 +48,13 @@ import {
  *                         selections:
  *                           - created_time: "16:31:27"
  *                             selection_name: "일인칭 단수"
+ *                             user_id: 70
  *                             user_name: "iris3455"
+ *                             user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *                             image_id: null
  *                             owner_name: "siriya"
  *                             owner_id: 69
+ *                             owner_image_id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
  *                             id: 789
  *                             collection_id: 636
  *               empty:
@@ -285,14 +289,20 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // 현재 유저 이름 조회
+  // 현재 유저 이름/프로필 이미지 조회
   const { data: userInfo } = await getSupabase()
     .from("userinfo")
-    .select("name")
+    .select("name, image_id")
     .eq("user_id", auth.userId)
     .single();
 
   const userName = userInfo?.name ?? "";
+  const userImageId = (userInfo?.image_id as string | null) ?? null;
+
+  // owner 프로필 이미지 조회
+  const ownerImageMap = await getUserImageMap(
+    rows.map((r) => r.selections!.owner_id)
+  );
 
   // 날짜별 그룹핑
   const grouped = new Map<string, Array<Record<string, unknown>>>();
@@ -308,10 +318,13 @@ export async function GET(request: NextRequest) {
     const item = {
       created_time: timeStr,
       selection_name: sel.title,
+      user_id: auth.userId,
       user_name: userName,
+      user_image_id: userImageId,
       image_id: imgs[0]?.image_id ?? null,
       owner_name: sel.owner_name,
       owner_id: sel.owner_id,
+      owner_image_id: ownerImageMap.get(sel.owner_id) ?? null,
       id: sel.id,
       collection_id: row.collection_id,
     };

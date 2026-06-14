@@ -42,10 +42,13 @@ import {
  *                         selections:
  *                           - created_time: "16:31:27"
  *                             selection_name: "일인칭 단수"
+ *                             user_id: 70
  *                             user_name: "iris3455"
+ *                             user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *                             image_id: null
  *                             owner_name: "siriya"
  *                             owner_id: 69
+ *                             owner_image_id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
  *                             id: 789
  *                             collection_id: 636
  *               empty:
@@ -113,16 +116,24 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // 퍼간 유저 이름 조회
-  const selectingUserIds = [...new Set(rows.map((r) => r.user_id))];
+  // 퍼간 유저 + owner 의 이름/프로필 이미지 조회
+  // (owner_id 는 항상 auth.userId 지만 일관성을 위해 함께 조회)
+  const lookupUserIds = [
+    ...new Set([
+      ...rows.map((r) => r.user_id),
+      ...rows.map((r) => r.selections.owner_id),
+    ]),
+  ];
   const { data: users } = await getSupabase()
     .from("userinfo")
-    .select("user_id, name")
-    .in("user_id", selectingUserIds);
+    .select("user_id, name, image_id")
+    .in("user_id", lookupUserIds);
 
   const userMap = new Map<number, string>();
+  const userImageMap = new Map<number, string | null>();
   for (const u of users ?? []) {
     userMap.set(u.user_id, u.name);
+    userImageMap.set(u.user_id, (u.image_id as string | null) ?? null);
   }
 
   // 날짜별 그룹핑
@@ -139,10 +150,13 @@ export async function GET(request: NextRequest) {
     const item = {
       created_time: timeStr,
       selection_name: sel.title,
+      user_id: row.user_id,
       user_name: userMap.get(row.user_id) ?? "",
+      user_image_id: userImageMap.get(row.user_id) ?? null,
       image_id: imgs[0]?.image_id ?? null,
       owner_name: sel.owner_name,
       owner_id: sel.owner_id,
+      owner_image_id: userImageMap.get(sel.owner_id) ?? null,
       id: sel.id,
       collection_id: row.collection_id,
     };
