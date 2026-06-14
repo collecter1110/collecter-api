@@ -96,4 +96,16 @@ else
   echo "PUSH=0 set; skipping push."
 fi
 
+# Sync main back into dev so the merge commit/tag history stays consistent
+echo "syncing ${MAIN_BRANCH} -> ${DEV_BRANCH}..."
+git checkout "${DEV_BRANCH}" >/dev/null 2>&1 || die "branch '${DEV_BRANCH}' not found"
+git merge --no-ff "${MAIN_BRANCH}" -m "Merge branch '${MAIN_BRANCH}' into ${DEV_BRANCH}"
+
+if [[ "${PUSH}" == "1" ]]; then
+  echo "pushing ${DEV_BRANCH}..."
+  git push "${REMOTE}" "${DEV_BRANCH}"
+else
+  echo "PUSH=0 set; skipping ${DEV_BRANCH} push."
+fi
+
 echo "done: ${TAG}"
