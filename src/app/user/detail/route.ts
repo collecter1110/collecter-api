@@ -49,6 +49,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                       - collection_id: 123
  *                         collection_title: 내 컬렉션
  *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                         selection_num: 12
  *       400:
  *         description: user_id 누락/오류
  *         content:
@@ -122,7 +123,7 @@ export async function GET(request: NextRequest) {
 
   let colQuery = getSupabase()
     .from("collections")
-    .select("id, title, image_id, is_public")
+    .select("id, title, image_id, selection_num, is_public")
     .eq("user_id", userId);
 
   if (!isOwner) {
@@ -140,6 +141,7 @@ export async function GET(request: NextRequest) {
     collection_id: c.id as number,
     collection_title: c.title as string,
     image_id: (c.image_id as string | null) ?? null,
+    selection_num: (c.selection_num as number | null) ?? 0,
   }));
 
   return apiResponse({
