@@ -50,11 +50,12 @@
  *
  *     UserDetailCollection:
  *       type: object
- *       required: [collection_id, collection_title, image_id]
+ *       required: [collection_id, collection_title, image_id, selection_num]
  *       properties:
  *         collection_id: { type: integer, example: 123 }
  *         collection_title: { type: string, example: "내 컬렉션" }
  *         image_id: { type: string, nullable: true, example: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1" }
+ *         selection_num: { type: integer, example: 12 }
  *
  *     UserDetailResponse:
  *       type: object

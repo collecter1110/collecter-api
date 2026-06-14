@@ -641,12 +641,14 @@ curl -X GET "https://<host>/api/user/detail?user_id=45"
       {
         "collection_id": 123,
         "collection_title": "내 컬렉션",
-        "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+        "image_id": "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1",
+        "selection_num": 12
       },
       {
         "collection_id": 124,
         "collection_title": "커버 없는 컬렉션",
-        "image_id": null
+        "image_id": null,
+        "selection_num": 0
       }
     ]
   }
