@@ -4,6 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { parsePagination } from "@/lib/pagination";
+import { getUserImageMap } from "@/lib/userInfo";
 
 /**
  * @openapi
@@ -72,6 +73,10 @@ import { parsePagination } from "@/lib/pagination";
  *                         collection_title: My collection
  *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *                         selection_num: 5
+ *                         user_id: 45
+ *                         user_name: gimgahui
+ *                         user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                         has_liked: false
  *       500:
  *         description: Failed to fetch recent collections
  *         content:
@@ -105,7 +110,7 @@ export async function GET(request: NextRequest) {
 
   let dbQuery = getSupabase()
     .from("collections")
-    .select("id, title, image_id, selection_num")
+    .select("id, title, image_id, selection_num, user_id, user_name")
     .eq("is_public", true)
     .order("id", { ascending: false })
     .range(offset, offset + size - 1);
@@ -132,15 +137,40 @@ export async function GET(request: NextRequest) {
     title: string;
     image_id: string | null;
     selection_num: number;
+    user_id: number;
+    user_name: string | null;
   };
 
   const rows = (data ?? []) as unknown as CollectionRow[];
+
+  const userIds = [...new Set(rows.map((r) => r.user_id))];
+  const collectionIds = rows.map((r) => r.id);
+
+  // 작성자 프로필 이미지 조회 (userinfo.image_id)
+  const userImageMap = await getUserImageMap(userIds);
+
+  // 로그인 유저의 좋아요 여부 조회
+  const likedSet = new Set<number>();
+  if (auth && collectionIds.length > 0) {
+    const { data: likeRows } = await getSupabase()
+      .from("likes")
+      .select("collection_id")
+      .eq("user_id", auth.userId)
+      .in("collection_id", collectionIds);
+    for (const l of likeRows ?? []) {
+      likedSet.add(l.collection_id as number);
+    }
+  }
 
   const collections = rows.map((col) => ({
     collection_id: col.id,
     collection_title: col.title,
     image_id: col.image_id ?? null,
     selection_num: col.selection_num ?? 0,
+    user_id: col.user_id,
+    user_name: col.user_name,
+    user_image_id: userImageMap.get(col.user_id) ?? null,
+    has_liked: auth ? likedSet.has(col.id) : false,
   }));
 
   return apiResponse({ collections });
