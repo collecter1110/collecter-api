@@ -8,6 +8,7 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 import { emptyToNull } from "@/lib/formData";
+import { getUserImageMap } from "@/lib/userInfo";
 import {
   getSelectionHomeMap,
   isSelectionVisibleToViewer,
@@ -63,6 +64,7 @@ import {
  *                             keyword_name: 키워드
  *                         owner_name: gimgahui
  *                         owner_id: 45
+ *                         owner_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *                         image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *       404:
  *         description: 컬렉션을 찾을 수 없음
@@ -264,6 +266,11 @@ export async function GET(request: NextRequest, { params }: Params) {
     );
   }
 
+  // 작성자(owner) 프로필 이미지 조회
+  const ownerImageMap = await getUserImageMap(
+    visibleRows.map((row) => row.selections.owner_id)
+  );
+
   const selections = visibleRows.map((row) => {
     const s = row.selections;
     const imgs = [...s.selection_images].sort((a, b) => a.sort_order - b.sort_order);
@@ -275,6 +282,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       keywords: s.keywords,
       owner_name: s.owner_name,
       owner_id: s.owner_id,
+      owner_image_id: ownerImageMap.get(s.owner_id) ?? null,
       image_id: imgs[0]?.image_id ?? null,
     };
   });

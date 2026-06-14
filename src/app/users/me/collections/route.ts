@@ -3,6 +3,7 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { mapCollectionListRowToApi } from "@/lib/collectionResponse";
+import { getUserImageMap } from "@/lib/userInfo";
 
 /**
  * @openapi
@@ -39,6 +40,7 @@ import { mapCollectionListRowToApi } from "@/lib/collectionResponse";
  *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
  *                         user_id: 45
  *                         user_name: gimgahui
+ *                         user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *                         selection_num: 12
  *                         is_public: true
  *               empty:
@@ -90,11 +92,16 @@ export async function GET(request: NextRequest) {
     return apiError("Failed to fetch collections", 500);
   }
 
+  // 본인 프로필 이미지 조회 (모든 컬렉션의 작성자 = auth.userId)
+  const userImageMap = await getUserImageMap([auth.userId]);
+  const userImageId = userImageMap.get(auth.userId) ?? null;
+
   return apiResponse({
-    collections: (data ?? []).map((row) =>
-      mapCollectionListRowToApi(
+    collections: (data ?? []).map((row) => ({
+      ...mapCollectionListRowToApi(
         row as { id: number; title: string | null } & Record<string, unknown>
-      )
-    ),
+      ),
+      user_image_id: userImageId,
+    })),
   });
 }
