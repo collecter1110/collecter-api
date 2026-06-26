@@ -65,7 +65,7 @@ import {
  *                       keywords:
  *                         - keyword_id: 7
  *                           keyword_name: 키워드
- *                       created_at: "2026-04-06"
+ *                       created_at: "2026-04-06T12:34:56.000Z"
  *                       owner_name: gimgahui
  *                       user_id: 45
  *                       user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"

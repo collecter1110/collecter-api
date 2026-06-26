@@ -56,7 +56,7 @@ import {
  *                       link: null
  *                       items: null
  *                       keywords: []
- *                       created_at: "2026-04-06"
+ *                       created_at: "2026-04-06T12:34:56.000Z"
  *                       owner_name: gimgahui
  *                       is_selectable: true
  *                       selection_images:
