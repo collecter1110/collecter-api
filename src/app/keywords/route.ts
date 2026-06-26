@@ -115,7 +115,9 @@ export async function POST(request: NextRequest) {
     category_id,
   }));
 
-  await getSupabase().from("keywordinfo").insert(entries);
+  await getSupabase()
+    .from("keywordinfo")
+    .upsert(entries, { onConflict: "category_id,keyword_name", ignoreDuplicates: true });
 
   const { data, error } = await getSupabase()
     .from("keywordinfo")
