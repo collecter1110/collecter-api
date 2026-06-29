@@ -363,6 +363,92 @@ curl -X PATCH "https://<host>/api/users/me" \
   - 400 `{ "errorCode": "SU000", "msg": "user_name is required", "data": {} }`
   - 500 `{ "errorCode": "SU000", "msg": "Failed to upload image", "data": {} }`
 
+### GET `/api/users/me/stats` (취향 통계)
+
+- **토큰**: 필수
+- **동작**
+  - `collection_count`: 내가 만든 컬렉션 수
+  - `like_count`: 내가 좋아요한 수
+  - `selecting_count`: 셀렉팅 수
+  - `selected_count`: 셀렉티드 수
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/users/me/stats" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "collection_count": 12,
+    "like_count": 34,
+    "selecting_count": 5,
+    "selected_count": 87
+  }
+}
+```
+
+### GET `/api/users/me/categories` (관심 카테고리 랭킹)
+
+- **토큰**: 필수
+- **동작**
+  - 내가 생성한 컬렉션의 카테고리별 사용 횟수를 내림차순으로 반환
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/users/me/categories" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "categories": [
+      { "category_id": 1, "count": 5 },
+      { "category_id": 6, "count": 4 },
+      { "category_id": 4, "count": 2 },
+      { "category_id": 3, "count": 1 }
+    ]
+  }
+}
+```
+
+### GET `/api/users/me/keywords` (키워드 랭킹)
+
+- **토큰**: 필수
+- **동작**
+  - 내가 셀렉션에 입력한 모든 키워드를 빈도 집계해 내림차순으로 반환
+- **요청 예시**
+
+```bash
+curl -X GET "https://<host>/api/users/me/keywords" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+- **응답 200 예시**
+
+```json
+{
+  "errorCode": "SU000",
+  "msg": "ok",
+  "data": {
+    "keywords": [
+      { "keyword": "감성카페", "count": 18 },
+      { "keyword": "디저트", "count": 9 }
+    ]
+  }
+}
+```
+
 ### GET `/api/users/me/likes`
 
 - **토큰**: 필수
