@@ -92,7 +92,7 @@ import { parsePagination } from "@/lib/pagination";
  *                   data: {}
  */
 // GET /selections/ranking — getRankingSelections
-// 최근 200개 후보 풀을 Fisher-Yates 셔플 후 최대 20개
+// 최근 500개 후보 풀을 Fisher-Yates 셔플 후 최대 20개
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
   const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
@@ -119,6 +119,11 @@ export async function GET(request: NextRequest) {
   if (categoryId !== null) {
     selectionQuery = selectionQuery.eq("category_id", categoryId);
   }
+
+  // 최신 500개를 후보 풀로 제한 (전체 셔플/가시성 조회 대신 풀 안에서 처리)
+  selectionQuery = selectionQuery
+    .order("created_at", { ascending: false })
+    .limit(500);
 
   const { data, error } = await selectionQuery;
 
