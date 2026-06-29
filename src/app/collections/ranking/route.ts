@@ -91,7 +91,7 @@ import { getUserImageMap } from "@/lib/userInfo";
  *                   data: {}
  */
 // GET /collections/ranking — getRankingCollections
-// 최근 200개 후보 풀을 Fisher-Yates 셔플 후 최대 10개
+// 최근 500개 후보 풀을 Fisher-Yates 셔플 후 최대 10개
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
   const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
@@ -123,6 +123,9 @@ export async function GET(request: NextRequest) {
   if (blockedIds.length > 0) {
     dbQuery = dbQuery.not("user_id", "in", `(${blockedIds.join(",")})`);
   }
+
+  // 최신 500개를 후보 풀로 제한 (전체 셔플 대신 풀 안에서 셔플)
+  dbQuery = dbQuery.order("created_at", { ascending: false }).limit(500);
 
   const { data, error } = await dbQuery;
 
