@@ -1188,22 +1188,14 @@
  *                   items:
  *                     type: object
  *                     properties:
- *                       created_date:
- *                         type: string
- *                         example: "2026-04-15"
- *                       selections:
- *                         type: array
- *                         items:
- *                           type: object
- *                           properties:
- *                             created_time: { type: string, example: "16:31:27" }
- *                             selection_name: { type: string, example: "일인칭 단수" }
- *                             user_name: { type: string, example: "iris3455" }
- *                             image_id: { type: string, nullable: true }
- *                             owner_name: { type: string, example: "siriya" }
- *                             owner_id: { type: integer, example: 69 }
- *                             collection_id: { type: integer, example: 636 }
- *                             id: { type: integer, example: 789 }
+ *                       created_at: { type: string, format: date-time, example: "2026-04-15T07:31:27.000Z" }
+ *                       selection_name: { type: string, example: "일인칭 단수" }
+ *                       user_name: { type: string, example: "iris3455" }
+ *                       image_id: { type: string, nullable: true }
+ *                       owner_name: { type: string, example: "siriya" }
+ *                       owner_id: { type: integer, example: 69 }
+ *                       collection_id: { type: integer, example: 636 }
+ *                       id: { type: integer, example: 789 }
  *       401:
  *         description: 인증 필요
  *       500:
@@ -1352,22 +1344,14 @@
  *                   items:
  *                     type: object
  *                     properties:
- *                       created_date:
- *                         type: string
- *                         example: "2026-04-15"
- *                       selections:
- *                         type: array
- *                         items:
- *                           type: object
- *                           properties:
- *                             created_time: { type: string, example: "16:31:27" }
- *                             selection_name: { type: string, example: "일인칭 단수" }
- *                             user_name: { type: string, example: "iris3455" }
- *                             image_id: { type: string, nullable: true }
- *                             owner_name: { type: string, example: "siriya" }
- *                             owner_id: { type: integer, example: 69 }
- *                             collection_id: { type: integer, example: 636 }
- *                             id: { type: integer, example: 789 }
+ *                       created_at: { type: string, format: date-time, example: "2026-04-15T07:31:27.000Z" }
+ *                       selection_name: { type: string, example: "일인칭 단수" }
+ *                       user_name: { type: string, example: "iris3455" }
+ *                       image_id: { type: string, nullable: true }
+ *                       owner_name: { type: string, example: "siriya" }
+ *                       owner_id: { type: integer, example: 69 }
+ *                       collection_id: { type: integer, example: 636 }
+ *                       id: { type: integer, example: 789 }
  *       401:
  *         description: 인증 필요
  *       500:
