@@ -106,13 +106,19 @@ export async function GET(request: NextRequest) {
   }
   const { offset, size } = pagination.value;
 
+  // 최신 CANDIDATE_POOL 개를 후보로 제한한다. 상한이 없으면 PostgREST 의 암묵적
+  // 1000행 캡에 걸려, 이후 가시성 필터에서 최신 셀렉션이 조용히 누락될 수 있다.
+  // 1000 은 요청당 최대 반환 행수와 동일한 상한이며, 그 이상은 이 조회 구조로는 불가하다.
+  const CANDIDATE_POOL = 1000;
+
   let selectionQuery = getSupabase()
     .from("selections")
     .select(
       `id, title, keywords, owner_id,
        selection_images(image_id, sort_order)`
     )
-    .order("id", { ascending: false });
+    .order("id", { ascending: false })
+    .limit(CANDIDATE_POOL);
 
   if (categoryId !== null) {
     selectionQuery = selectionQuery.eq("category_id", categoryId);

@@ -12,6 +12,47 @@ export type SelectionHomeInfo = {
   ownerId: number;
 };
 
+type HomeRow = {
+  collection_id: number;
+  selection_id: number;
+  user_id: number;
+  selections: { owner_id: number } | { owner_id: number }[];
+  collections: { is_public: boolean } | { is_public: boolean }[];
+};
+
+// PostgREST 는 요청당 최대 1000행을 반환한다. selection 한 개가 여러 컬렉션에
+// 셀렉팅되면 collection_selections 행 수가 selection 수를 초과할 수 있으므로,
+// selection_id 를 배치로 나눈 뒤 각 배치를 .range 로 끝까지 페이지네이션해서
+// 행이 조용히 잘려 home 이 누락되는 일을 막는다.
+const HOME_ID_BATCH = 500;
+const HOME_PAGE = 1000;
+
+async function fetchHomeRows(selectionIds: number[]): Promise<HomeRow[]> {
+  const rows: HomeRow[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await getSupabase()
+      .from("collection_selections")
+      .select(
+        `collection_id, selection_id, user_id,
+         selections!inner(owner_id),
+         collections!inner(is_public)`
+      )
+      .in("selection_id", selectionIds)
+      .range(from, from + HOME_PAGE - 1);
+
+    if (error) {
+      console.error("getSelectionHomeMap error:", error);
+      break;
+    }
+    const chunk = (data ?? []) as unknown as HomeRow[];
+    rows.push(...chunk);
+    if (chunk.length < HOME_PAGE) break;
+    from += HOME_PAGE;
+  }
+  return rows;
+}
+
 /**
  * 여러 selection_id 의 home 정보를 한 번에 조회.
  *
@@ -25,29 +66,13 @@ export async function getSelectionHomeMap(
   const unique = Array.from(new Set(selectionIds));
   if (unique.length === 0) return result;
 
-  const { data, error } = await getSupabase()
-    .from("collection_selections")
-    .select(
-      `collection_id, selection_id, user_id,
-       selections!inner(owner_id),
-       collections!inner(is_public)`
-    )
-    .in("selection_id", unique);
-
-  if (error) {
-    console.error("getSelectionHomeMap error:", error);
-    return result;
+  const batches: number[][] = [];
+  for (let i = 0; i < unique.length; i += HOME_ID_BATCH) {
+    batches.push(unique.slice(i, i + HOME_ID_BATCH));
   }
 
-  type Row = {
-    collection_id: number;
-    selection_id: number;
-    user_id: number;
-    selections: { owner_id: number } | { owner_id: number }[];
-    collections: { is_public: boolean } | { is_public: boolean }[];
-  };
-
-  const rows = (data ?? []) as unknown as Row[];
+  const rowGroups = await Promise.all(batches.map((b) => fetchHomeRows(b)));
+  const rows = rowGroups.flat();
 
   for (const r of rows) {
     const sel = Array.isArray(r.selections) ? r.selections[0] : r.selections;

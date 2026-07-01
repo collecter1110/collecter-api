@@ -70,8 +70,18 @@ fi
 TAG="$(next_tag "${TAG_PREFIX}")"
 echo "next tag: ${TAG}"
 
-# Merge dev into main (non-fast-forward merge commit)
-git merge --no-ff "${DEV_BRANCH}" -m "Merge branch '${DEV_BRANCH}' into ${MAIN_BRANCH}"
+# Commits being released (for the squash commit body)
+SQUASH_LOG="$(git log --oneline "${MAIN_BRANCH}..${DEV_BRANCH}" | sed 's/^/- /' || true)"
+
+# Squash-merge dev into main: main keeps a single clean commit per release
+# instead of a merge commit plus every dev commit.
+git merge --squash "${DEV_BRANCH}"
+git commit -m "$(cat <<EOF
+Release ${TAG}
+
+${SQUASH_LOG}
+EOF
+)"
 
 # Tag message with commits since previous tag (best-effort)
 PREV_TAG="$(git tag -l "${TAG_PREFIX}*" --sort=-v:refname | head -1 || true)"
@@ -96,16 +106,18 @@ else
   echo "PUSH=0 set; skipping push."
 fi
 
-# Sync main back into dev. main is exactly one merge commit ahead of dev,
-# so this fast-forwards dev to main without creating an extra merge commit
-# (avoids crisscrossing merge commits between the two branches).
-echo "syncing ${MAIN_BRANCH} -> ${DEV_BRANCH}..."
+# Reset dev to main. A squash merge does NOT record dev as an ancestor of
+# main, so a fast-forward is impossible and the two branches would diverge.
+# Without this, the next release would see the already-squashed commits again
+# via `main..dev` and produce an empty/duplicate release. Resetting keeps dev
+# identical to main (requires a force push; safe on a single-maintainer branch).
+echo "syncing ${MAIN_BRANCH} -> ${DEV_BRANCH} (reset)..."
 git checkout "${DEV_BRANCH}" >/dev/null 2>&1 || die "branch '${DEV_BRANCH}' not found"
-git merge --ff-only "${MAIN_BRANCH}"
+git reset --hard "${MAIN_BRANCH}"
 
 if [[ "${PUSH}" == "1" ]]; then
-  echo "pushing ${DEV_BRANCH}..."
-  git push "${REMOTE}" "${DEV_BRANCH}"
+  echo "force-pushing ${DEV_BRANCH}..."
+  git push --force-with-lease "${REMOTE}" "${DEV_BRANCH}"
 else
   echo "PUSH=0 set; skipping ${DEV_BRANCH} push."
 fi
