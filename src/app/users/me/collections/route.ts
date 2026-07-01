@@ -43,6 +43,7 @@ import { getUserImageMap } from "@/lib/userInfo";
  *                         user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
  *                         selection_num: 12
  *                         is_public: true
+ *                         created_at: "2026-04-06T12:34:56.000Z"
  *               empty:
  *                 summary: 컬렉션 없음
  *                 value:
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await getSupabase()
     .from("collections")
     .select(
-      "category_id, id, title, image_id, user_id, user_name, selection_num, is_public"
+      "category_id, id, title, image_id, user_id, user_name, selection_num, is_public, created_at"
     )
     .eq("user_id", auth.userId);
 

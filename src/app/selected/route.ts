@@ -38,19 +38,17 @@ import {
  *                   msg: ok
  *                   data:
  *                     selected:
- *                       - created_date: "2026-04-15"
- *                         selections:
- *                           - created_time: "16:31:27"
- *                             selection_name: "일인칭 단수"
- *                             user_id: 70
- *                             user_name: "iris3455"
- *                             user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
- *                             image_id: null
- *                             owner_name: "siriya"
- *                             owner_id: 69
- *                             owner_image_id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
- *                             id: 789
- *                             collection_id: 636
+ *                       - created_at: "2026-04-15T07:31:27.000Z"
+ *                         selection_name: "일인칭 단수"
+ *                         user_id: 70
+ *                         user_name: "iris3455"
+ *                         user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                         image_id: null
+ *                         owner_name: "siriya"
+ *                         owner_id: 69
+ *                         owner_image_id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+ *                         id: 789
+ *                         collection_id: 636
  *               empty:
  *                 summary: 셀렉팅 당한 내역 없음
  *                 value:
@@ -136,19 +134,14 @@ export async function GET(request: NextRequest) {
     userImageMap.set(u.user_id, (u.image_id as string | null) ?? null);
   }
 
-  // 날짜별 그룹핑
-  const grouped = new Map<string, Array<Record<string, unknown>>>();
-
-  for (const row of rows) {
+  // rows 는 created_at 기준 내림차순 정렬되어 있다.
+  // 날짜 그룹핑/시간 포맷은 클라이언트가 created_at(ISO, UTC)을 파싱해 처리한다.
+  const selected = rows.map((row) => {
     const sel = row.selections;
-    const createdAt = new Date(row.created_at);
-    const dateStr = createdAt.toISOString().slice(0, 10);
-    const timeStr = createdAt.toTimeString().slice(0, 8);
-
     const imgs = [...sel.selection_images].sort((a, b) => a.sort_order - b.sort_order);
 
-    const item = {
-      created_time: timeStr,
+    return {
+      created_at: row.created_at,
       selection_name: sel.title,
       user_id: row.user_id,
       user_name: userMap.get(row.user_id) ?? "",
@@ -160,17 +153,7 @@ export async function GET(request: NextRequest) {
       id: sel.id,
       collection_id: row.collection_id,
     };
-
-    if (!grouped.has(dateStr)) {
-      grouped.set(dateStr, []);
-    }
-    grouped.get(dateStr)!.push(item);
-  }
-
-  const selected = Array.from(grouped.entries()).map(([date, selections]) => ({
-    created_date: date,
-    selections,
-  }));
+  });
 
   return apiResponse({ selected });
 }

@@ -37,16 +37,13 @@
  *
  *     MyUserInfo:
  *       type: object
- *       required: [user_id, user_name, email, selecting_count, selected_count, like_count]
+ *       required: [user_id, user_name, email]
  *       properties:
  *         user_id: { type: integer, example: 45 }
  *         user_name: { type: string, example: "gimgahui" }
  *         email: { type: string, format: email, example: "user@example.com" }
  *         description: { type: string, nullable: true, example: "안녕하세요" }
  *         image_id: { type: string, nullable: true, example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
- *         selecting_count: { type: integer, example: 12 }
- *         selected_count: { type: integer, example: 5 }
- *         like_count: { type: integer, example: 30 }
  *
  *     UserDetailCollection:
  *       type: object
@@ -157,7 +154,7 @@
  *           type: array
  *           items:
  *             $ref: "#/components/schemas/KeywordEntry"
- *         created_at: { type: string, example: "2026-04-06" }
+ *         created_at: { type: string, format: date-time, example: "2026-04-06T12:34:56.000Z" }
  *         owner_name: { type: string, example: "gimgahui" }
  *         user_id: { type: integer, example: 45, description: "작성자(owner) 유저 ID (owner_id와 동일)" }
  *         user_image_id: { type: string, nullable: true, example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", description: "작성자 프로필 이미지 (userinfo.image_id)" }
