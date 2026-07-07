@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
@@ -362,15 +362,31 @@ export async function GET(request: NextRequest, { params }: Params) {
     return apiError("Invalid collection_id", 400);
   }
 
-  const { data, error } = await getSupabase()
-    .from("selections")
-    .select(
-      `id, category_id, owner_id, title, description,
-       is_ordered, link, items, keywords, created_at, owner_name, is_selectable,
-       selection_images(image_id, sort_order)`
-    )
-    .eq("id", id)
-    .single();
+  // 독립적인 조회들을 병렬 실행 (검사 순서는 아래에서 기존과 동일하게 유지)
+  const [
+    { data, error },
+    { data: collection, error: colError },
+    home,
+    blockedIds,
+  ] = await Promise.all([
+    getSupabase()
+      .from("selections")
+      .select(
+        `id, category_id, owner_id, title, description,
+         is_ordered, link, items, keywords, created_at, owner_name, is_selectable,
+         selection_images(image_id, sort_order)`
+      )
+      .eq("id", id)
+      .single(),
+    getSupabase()
+      .from("collections")
+      .select("user_id, is_public")
+      .eq("id", collectionId)
+      .single(),
+    // 원본(home) 컬렉션 기준 비공개 필터용 정보
+    getSelectionHome(id),
+    auth ? getBlockedUserIds(auth.userId) : Promise.resolve([]),
+  ]);
 
   if (error) {
     if (error.code === "PGRST116") {
@@ -381,12 +397,6 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   // 비공개 컬렉션 체크
-  const { data: collection, error: colError } = await getSupabase()
-    .from("collections")
-    .select("user_id, is_public")
-    .eq("id", collectionId)
-    .single();
-
   if (colError || !collection) {
     return apiError("Selection not found", 404, "SU001");
   }
@@ -396,7 +406,6 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   if (auth && auth.userId !== collection.user_id) {
-    const blockedIds = await getBlockedUserIds(auth.userId);
     if (blockedIds.includes(collection.user_id as number)) {
       return apiError("Selection not found", 404, "SU003");
     }
@@ -404,31 +413,30 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   // 원본(home) 컬렉션 기준 비공개 필터: 원작자의 홈 컬렉션이 비공개이면
   // 원작자 외에는 어떤 맥락에서 조회하든 숨긴다.
-  const home = await getSelectionHome(id);
   if (!isSelectionVisibleToViewer(home, auth?.userId ?? null)) {
     return apiError("Selection not found", 404, "SU002");
   }
 
   // has_selecting: 로그인 유저가 이 셀렉션을 셀렉팅했는지 여부
-  let hasSelecting = false;
-  if (auth && auth.userId !== data.owner_id) {
-    const { data: csRow } = await getSupabase()
-      .from("collection_selections")
-      .select("collection_id")
-      .eq("selection_id", id)
-      .eq("user_id", auth.userId)
-      .limit(1)
-      .maybeSingle();
+  // 작성자(owner) 프로필 이미지 조회 (userinfo.image_id) — 병렬 실행
+  const [csRowResult, { data: ownerInfo }] = await Promise.all([
+    auth && auth.userId !== data.owner_id
+      ? getSupabase()
+          .from("collection_selections")
+          .select("collection_id")
+          .eq("selection_id", id)
+          .eq("user_id", auth.userId)
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve(null),
+    getSupabase()
+      .from("userinfo")
+      .select("image_id")
+      .eq("user_id", data.owner_id)
+      .maybeSingle(),
+  ]);
 
-    hasSelecting = !!csRow;
-  }
-
-  // 작성자(owner) 프로필 이미지 조회 (userinfo.image_id)
-  const { data: ownerInfo } = await getSupabase()
-    .from("userinfo")
-    .select("image_id")
-    .eq("user_id", data.owner_id)
-    .maybeSingle();
+  const hasSelecting = !!csRowResult?.data;
 
   const { title, ...rest } = data;
   return apiResponse({
@@ -455,10 +463,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return apiError("Invalid ID", 400);
   }
 
-  // 소유자만 수정 가능
+  // 소유자만 수정 가능 (keywords 처리용 category_id도 함께 조회해 추가 쿼리 제거)
   const { data: selection } = await getSupabase()
     .from("selections")
-    .select("owner_id")
+    .select("owner_id, category_id")
     .eq("id", id)
     .single();
 
@@ -505,13 +513,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       const categoryIdForKeywords =
         category_idRaw !== null
           ? parseInt(category_idRaw, 10)
-          : (
-            await getSupabase()
-              .from("selections")
-              .select("category_id")
-              .eq("id", id)
-              .single()
-          ).data?.category_id;
+          : selection.category_id;
 
       if (categoryIdForKeywords === undefined || categoryIdForKeywords === null) {
         return apiError("Selection not found", 404);
@@ -635,24 +637,19 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   }
 
   // 소유자인 경우: 셀렉션 자체 삭제 (cascade로 매핑도 삭제됨)
-  const { data: csData } = await getSupabase()
-    .from("collection_selections")
-    .select("collection_id")
-    .eq("selection_id", id);
+  const [{ data: csData }, { data: selImgs }] = await Promise.all([
+    getSupabase()
+      .from("collection_selections")
+      .select("collection_id")
+      .eq("selection_id", id),
+    getSupabase()
+      .from("selection_images")
+      .select("image_id")
+      .eq("selection_id", id),
+  ]);
 
   const collectionIds = (csData ?? []).map((r) => r.collection_id);
-
-  const { data: selImgs } = await getSupabase()
-    .from("selection_images")
-    .select("image_id")
-    .eq("selection_id", id);
-
   const deletedIds = (selImgs ?? []).map((x) => x.image_id);
-
-  // 이미지 삭제
-  for (const si of selImgs ?? []) {
-    await deleteImageById(si.image_id);
-  }
 
   const { error } = await getSupabase()
     .from("selections")
@@ -664,12 +661,24 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return apiError("Failed to delete selection", 500);
   }
 
-  await recalcCollectionSelectionNums(collectionIds);
+  // 이미지 삭제 / 셀렉션 수 재계산 / 커버 복구는 응답에 영향이 없는 후처리이므로
+  // 응답 전송 후 기존 순서 그대로 순차 실행한다.
+  after(async () => {
+    try {
+      for (const si of selImgs ?? []) {
+        await deleteImageById(si.image_id);
+      }
 
-  // 관련 컬렉션 커버 복구
-  for (const colId of collectionIds) {
-    await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
-  }
+      await recalcCollectionSelectionNums(collectionIds);
+
+      // 관련 컬렉션 커버 복구
+      for (const colId of collectionIds) {
+        await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
+      }
+    } catch (err) {
+      console.error("deleteSelection post-response cleanup error:", err);
+    }
+  });
 
   return apiResponse({ success: true });
 }

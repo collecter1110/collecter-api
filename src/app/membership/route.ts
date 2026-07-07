@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
@@ -70,10 +70,6 @@ export async function DELETE(request: NextRequest) {
     .eq("user_id", auth.userId)
     .single();
 
-  if (user?.image_id) {
-    await deleteImageById(user.image_id);
-  }
-
   // Soft delete: keep collections/selections, but make user unresolvable by user_id.
   // Also revoke refresh sessions so tokens can't be refreshed.
   await getSupabase()
@@ -87,6 +83,18 @@ export async function DELETE(request: NextRequest) {
     .update({ deleted_at: new Date().toISOString() })
     .eq("user_id", auth.userId)
     .is("deleted_at", null);
+
+  // 프로필 이미지 삭제(S3 + images)는 응답에 영향이 없는 후처리이므로 응답 후 실행
+  if (user?.image_id) {
+    const imageId = user.image_id as string;
+    after(async () => {
+      try {
+        await deleteImageById(imageId);
+      } catch (err) {
+        console.error("cancelMembership image delete error:", err);
+      }
+    });
+  }
 
   if (error) {
     console.error("cancelMembership soft-delete error:", error);

@@ -61,11 +61,24 @@ export async function GET(_request: NextRequest, { params }: Params) {
     return publicError("Invalid collection ID", 400);
   }
 
-  const { data: collection, error: colErr } = await getSupabase()
-    .from("collections")
-    .select("is_public")
-    .eq("id", collectionId)
-    .single();
+  // 컬렉션 확인 + 셀렉션 목록 조회를 병렬 실행 (검사 순서는 기존과 동일)
+  const [{ data: collection, error: colErr }, { data, error }] =
+    await Promise.all([
+      getSupabase()
+        .from("collections")
+        .select("is_public")
+        .eq("id", collectionId)
+        .single(),
+      getSupabase()
+        .from("collection_selections")
+        .select(
+          `collection_id, selections(
+            id, category_id, title, keywords, owner_name,
+            selection_images(image_id, sort_order)
+          )`
+        )
+        .eq("collection_id", collectionId),
+    ]);
 
   if (colErr || !collection) {
     return publicError("Collection not found", 404, "SU001");
@@ -73,16 +86,6 @@ export async function GET(_request: NextRequest, { params }: Params) {
   if (!collection.is_public) {
     return publicError("Collection is private", 404, "SU002");
   }
-
-  const { data, error } = await getSupabase()
-    .from("collection_selections")
-    .select(
-      `collection_id, selections(
-        id, category_id, title, keywords, owner_name,
-        selection_images(image_id, sort_order)
-      )`
-    )
-    .eq("collection_id", collectionId);
 
   if (error) {
     console.error("public getSelections error:", error);

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
@@ -187,10 +187,6 @@ export async function PATCH(request: NextRequest) {
       .eq("user_id", auth.userId)
       .single();
 
-    if (old?.image_id) {
-      await deleteImageById(old.image_id);
-    }
-
     try {
       const buffer = Buffer.from(await imageFile.arrayBuffer());
       const { imageId } = await uploadImageAndSave(
@@ -200,6 +196,18 @@ export async function PATCH(request: NextRequest) {
       updates.image_id = imageId;
     } catch {
       return apiError("Failed to upload image", 500);
+    }
+
+    // 기존 이미지 삭제(S3 + images)는 응답에 영향이 없는 후처리이므로 응답 후 실행
+    if (old?.image_id) {
+      const oldImageId = old.image_id as string;
+      after(async () => {
+        try {
+          await deleteImageById(oldImageId);
+        } catch (err) {
+          console.error("editUserInfo old image delete error:", err);
+        }
+      });
     }
   }
 

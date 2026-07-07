@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
@@ -204,11 +204,29 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const auth = await getAuthContext(request);
 
-  const { data: collection, error: collectionError } = await getSupabase()
-    .from("collections")
-    .select("user_id, is_public")
-    .eq("id", collectionId)
-    .single();
+  // 컬렉션 확인 / 차단 목록 / 셀렉션 목록 조회를 병렬 실행
+  // (검사 순서는 아래에서 기존과 동일하게 유지)
+  const [
+    { data: collection, error: collectionError },
+    blockedIds,
+    { data, error },
+  ] = await Promise.all([
+    getSupabase()
+      .from("collections")
+      .select("user_id, is_public")
+      .eq("id", collectionId)
+      .single(),
+    auth ? getBlockedUserIds(auth.userId) : Promise.resolve([] as number[]),
+    getSupabase()
+      .from("collection_selections")
+      .select(
+        `collection_id, selections(
+          id, category_id, title, keywords, owner_name, owner_id,
+          selection_images(image_id, sort_order)
+        )`
+      )
+      .eq("collection_id", collectionId),
+  ]);
 
   if (collectionError) {
     return apiError("Collection not found", 404);
@@ -219,21 +237,10 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   if (auth && auth.userId !== collection.user_id) {
-    const blockedIds = await getBlockedUserIds(auth.userId);
     if (blockedIds.includes(collection.user_id as number)) {
       return apiError("Collection not found", 404);
     }
   }
-
-  const { data, error } = await getSupabase()
-    .from("collection_selections")
-    .select(
-      `collection_id, selections(
-        id, category_id, title, keywords, owner_name, owner_id,
-        selection_images(image_id, sort_order)
-      )`
-    )
-    .eq("collection_id", collectionId);
 
   if (error) {
     console.error("getSelections error:", error);
@@ -258,17 +265,18 @@ export async function GET(request: NextRequest, { params }: Params) {
   // 원본(home) 컬렉션이 비공개인 셀렉션은 원작자 외에는 숨김.
   // 뷰어 기준: 로그인 상태라면 auth.userId, 비로그인이면 null.
   const viewerId = auth?.userId ?? null;
-  let visibleRows = csRows;
-  if (csRows.length > 0) {
-    const homeMap = await getSelectionHomeMap(csRows.map((r) => r.selections.id));
-    visibleRows = csRows.filter((row) =>
-      isSelectionVisibleToViewer(homeMap.get(row.selections.id), viewerId)
-    );
-  }
 
-  // 작성자(owner) 프로필 이미지 조회
-  const ownerImageMap = await getUserImageMap(
-    visibleRows.map((row) => row.selections.owner_id)
+  // home 조회 / 작성자(owner) 프로필 이미지 조회를 병렬 실행
+  // (ownerImageMap 은 필터 전 rows 의 상위집합으로 조회해도 결과 동일)
+  const [homeMap, ownerImageMap] = await Promise.all([
+    csRows.length > 0
+      ? getSelectionHomeMap(csRows.map((r) => r.selections.id))
+      : Promise.resolve(new Map()),
+    getUserImageMap(csRows.map((row) => row.selections.owner_id)),
+  ]);
+
+  const visibleRows = csRows.filter((row) =>
+    isSelectionVisibleToViewer(homeMap.get(row.selections.id), viewerId)
   );
 
   const selections = visibleRows.map((row) => {
@@ -370,8 +378,6 @@ export async function POST(request: NextRequest, { params }: Params) {
     return apiError("Failed to create selection", 500);
   }
 
-  await recalcCollectionSelectionNum(collectionId);
-
   for (let i = 0; i < imageFiles.length; i++) {
     const file = imageFiles[i];
     if (!file || file.size === 0) continue;
@@ -395,6 +401,15 @@ export async function POST(request: NextRequest, { params }: Params) {
       console.error("Failed to upload selection image:", err);
     }
   }
+
+  // 셀렉션 수 재계산은 응답에 영향이 없는 후처리이므로 응답 후 실행
+  after(async () => {
+    try {
+      await recalcCollectionSelectionNum(collectionId);
+    } catch (err) {
+      console.error("addSelections post-response recalc error:", err);
+    }
+  });
 
   return apiResponse({ success: true }, 201);
 }

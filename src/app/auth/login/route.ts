@@ -117,8 +117,11 @@ export async function POST(request: NextRequest) {
 
   const name = String(userRow.name ?? "");
   const sessionId = newSessionId();
-  const access_token = await signAccessToken({ typ: "access", user_id: claims.user_id, email: claims.email, name });
-  const refresh_token = await signRefreshToken({ typ: "refresh", sid: sessionId, user_id: claims.user_id, email: claims.email, name });
+  // 토큰 서명 병렬 실행
+  const [access_token, refresh_token] = await Promise.all([
+    signAccessToken({ typ: "access", user_id: claims.user_id, email: claims.email, name }),
+    signRefreshToken({ typ: "refresh", sid: sessionId, user_id: claims.user_id, email: claims.email, name }),
+  ]);
 
   const refreshTtl = Number(process.env.AUTH_REFRESH_TOKEN_TTL_SECONDS ?? 60 * 60 * 24 * 30);
   await createRefreshSession({

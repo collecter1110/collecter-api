@@ -104,31 +104,33 @@ export async function GET(request: NextRequest) {
   }
 
   const auth = await getAuthContext(request);
-  const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
 
+  // 차단 목록 / 키워드 매칭 / 셀렉션 조인 조회는 서로 독립적이므로 병렬 실행
   // keywords 형식: [{"keyword_id": N, "keyword_name": "..."}]
-  const { data: kwData } = await getSupabase()
-    .from("keywordinfo")
-    .select("keyword_id")
-    .ilike("keyword_name", `%${q.trim()}%`);
+  const [blockedIds, { data: kwData }, { data, error }] = await Promise.all([
+    auth ? getBlockedUserIds(auth.userId) : Promise.resolve([] as number[]),
+    getSupabase()
+      .from("keywordinfo")
+      .select("keyword_id")
+      .ilike("keyword_name", `%${q.trim()}%`),
+    // collection_selections → collections(is_public) + selections(keywords 매칭) 조인
+    getSupabase()
+      .from("collection_selections")
+      .select(
+        `collection_id,
+         collections!inner(title, is_public),
+         selections!inner(
+           id, owner_id, title, keywords,
+           selection_images(image_id, sort_order)
+         )`
+      )
+      .eq("collections.is_public", true),
+  ]);
 
   const kwIds = (kwData ?? []).map((k) => k.keyword_id as number);
   if (kwIds.length === 0) {
     return apiResponse({ selections: [] });
   }
-
-  // collection_selections → collections(is_public) + selections(keywords 매칭) 조인
-  const { data, error } = await getSupabase()
-    .from("collection_selections")
-    .select(
-      `collection_id,
-       collections!inner(title, is_public),
-       selections!inner(
-         id, owner_id, title, keywords,
-         selection_images(image_id, sort_order)
-       )`
-    )
-    .eq("collections.is_public", true);
 
   if (error) {
     console.error("searchSelections error:", error);

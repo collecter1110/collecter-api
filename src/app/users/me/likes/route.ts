@@ -81,19 +81,21 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
-  const { data, error } = await getSupabase()
-    .from("likes")
-    .select(
-      "collections(id, category_id, title, image_id, user_id, user_name, selection_num, is_public)"
-    )
-    .eq("user_id", auth.userId);
+  // 좋아요 목록과 차단 목록 조회를 병렬 실행
+  const [{ data, error }, blockedIds] = await Promise.all([
+    getSupabase()
+      .from("likes")
+      .select(
+        "collections(id, category_id, title, image_id, user_id, user_name, selection_num, is_public)"
+      )
+      .eq("user_id", auth.userId),
+    getBlockedUserIds(auth.userId),
+  ]);
 
   if (error) {
     console.error("getLikeCollections error:", error);
     return apiError("Failed to fetch liked collections", 500);
   }
-
-  const blockedIds = await getBlockedUserIds(auth.userId);
 
   const mapped = (data ?? [])
     .map((item) => {

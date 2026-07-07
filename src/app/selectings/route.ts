@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
@@ -279,28 +279,27 @@ export async function GET(request: NextRequest) {
   // selections가 null인 경우 (neq 필터로 제외된 경우) 필터링
   let rows = ((data ?? []) as unknown as CSRow[]).filter((r) => r.selections !== null);
 
-  // 원본(home) 컬렉션이 비공개면 원작자 외에는 숨김
-  if (rows.length > 0) {
-    const homeMap = await getSelectionHomeMap(rows.map((r) => r.selection_id));
-    rows = rows.filter((r) =>
-      isSelectionVisibleToViewer(homeMap.get(r.selection_id), auth.userId)
-    );
-  }
+  // home 조회 / 현재 유저 정보 / owner 프로필 이미지 조회를 병렬 실행
+  // (ownerImageMap 은 필터 전 rows 의 상위집합으로 조회해도 결과 동일)
+  const [homeMap, { data: userInfo }, ownerImageMap] = await Promise.all([
+    rows.length > 0
+      ? getSelectionHomeMap(rows.map((r) => r.selection_id))
+      : Promise.resolve(new Map()),
+    getSupabase()
+      .from("userinfo")
+      .select("name, image_id")
+      .eq("user_id", auth.userId)
+      .single(),
+    getUserImageMap(rows.map((r) => r.selections!.owner_id)),
+  ]);
 
-  // 현재 유저 이름/프로필 이미지 조회
-  const { data: userInfo } = await getSupabase()
-    .from("userinfo")
-    .select("name, image_id")
-    .eq("user_id", auth.userId)
-    .single();
+  // 원본(home) 컬렉션이 비공개면 원작자 외에는 숨김
+  rows = rows.filter((r) =>
+    isSelectionVisibleToViewer(homeMap.get(r.selection_id), auth.userId)
+  );
 
   const userName = userInfo?.name ?? "";
   const userImageId = (userInfo?.image_id as string | null) ?? null;
-
-  // owner 프로필 이미지 조회
-  const ownerImageMap = await getUserImageMap(
-    rows.map((r) => r.selections!.owner_id)
-  );
 
   // rows 는 created_at 기준 내림차순 정렬되어 있다.
   // 날짜 그룹핑/시간 포맷은 클라이언트가 created_at(ISO, UTC)을 파싱해 처리한다.
@@ -335,12 +334,23 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { selecting_collection_id, selected_selection_id } = body;
 
-  // 원본 셀렉션 존재 확인
-  const { data: selectedSelection, error: fetchError } = await getSupabase()
-    .from("selections")
-    .select("id, is_selectable, owner_id")
-    .eq("id", selected_selection_id)
-    .single();
+  // 원본 셀렉션 존재 확인 + 기존 매핑 확인 (독립 조회 병렬 실행)
+  const [
+    { data: selectedSelection, error: fetchError },
+    { data: existing },
+  ] = await Promise.all([
+    getSupabase()
+      .from("selections")
+      .select("id, is_selectable, owner_id")
+      .eq("id", selected_selection_id)
+      .single(),
+    getSupabase()
+      .from("collection_selections")
+      .select("selection_id")
+      .eq("collection_id", selecting_collection_id)
+      .eq("selection_id", selected_selection_id)
+      .maybeSingle(),
+  ]);
 
   if (fetchError || !selectedSelection) {
     return apiError("Source selection not found", 404);
@@ -356,13 +366,6 @@ export async function POST(request: NextRequest) {
   }
 
   // 이미 해당 컬렉션에 매핑되어 있는지 확인
-  const { data: existing } = await getSupabase()
-    .from("collection_selections")
-    .select("selection_id")
-    .eq("collection_id", selecting_collection_id)
-    .eq("selection_id", selected_selection_id)
-    .maybeSingle();
-
   if (existing) {
     return apiError("Already selected in this collection", 409);
   }
@@ -381,19 +384,27 @@ export async function POST(request: NextRequest) {
     return apiError("Failed to create selecting", 500);
   }
 
-  await recalcCollectionSelectionNum(selecting_collection_id);
+  // 셀렉션 수 재계산 / 커버 자동 설정은 응답에 영향이 없는 후처리이므로
+  // 응답 전송 후 기존 순서 그대로 순차 실행한다.
+  after(async () => {
+    try {
+      await recalcCollectionSelectionNum(selecting_collection_id);
 
-  // 컬렉션 커버가 비어있으면 셀렉션의 첫 이미지로 자동 설정
-  const { data: sourceImages } = await getSupabase()
-    .from("selection_images")
-    .select("image_id, sort_order")
-    .eq("selection_id", selected_selection_id)
-    .order("sort_order", { ascending: true })
-    .limit(1);
+      // 컬렉션 커버가 비어있으면 셀렉션의 첫 이미지로 자동 설정
+      const { data: sourceImages } = await getSupabase()
+        .from("selection_images")
+        .select("image_id, sort_order")
+        .eq("selection_id", selected_selection_id)
+        .order("sort_order", { ascending: true })
+        .limit(1);
 
-  if (sourceImages && sourceImages.length > 0) {
-    await ensureCollectionCoverIfEmpty(selecting_collection_id, sourceImages[0].image_id);
-  }
+      if (sourceImages && sourceImages.length > 0) {
+        await ensureCollectionCoverIfEmpty(selecting_collection_id, sourceImages[0].image_id);
+      }
+    } catch (err) {
+      console.error("selecting post-response cleanup error:", err);
+    }
+  });
 
   return apiResponse({ success: true }, 201);
 }
@@ -414,12 +425,39 @@ export async function DELETE(request: NextRequest) {
     return apiError("Invalid request body", 400);
   }
 
-  // 본인 컬렉션인지 확인 (다른 사람 컬렉션에서 제거 방지)
-  const { data: col } = await getSupabase()
-    .from("collections")
-    .select("user_id")
-    .eq("id", selecting_collection_id)
-    .single();
+  // 독립적인 확인/조회들을 병렬 실행 (검사 순서는 기존과 동일하게 유지)
+  const [
+    { data: col },
+    { data: selection },
+    { data: selImgs },
+    { data: existing },
+  ] = await Promise.all([
+    // 본인 컬렉션인지 확인 (다른 사람 컬렉션에서 제거 방지)
+    getSupabase()
+      .from("collections")
+      .select("user_id")
+      .eq("id", selecting_collection_id)
+      .single(),
+    // 소유자 셀렉션은 selecting 취소 대상이 아님
+    getSupabase()
+      .from("selections")
+      .select("owner_id")
+      .eq("id", selected_selection_id)
+      .maybeSingle(),
+    // 삭제 전: 해당 셀렉션 이미지 목록 (커버 복구 판단용)
+    getSupabase()
+      .from("selection_images")
+      .select("image_id")
+      .eq("selection_id", selected_selection_id),
+    // 본인이 만든 selecting 매핑 존재 확인
+    getSupabase()
+      .from("collection_selections")
+      .select("selection_id")
+      .eq("collection_id", selecting_collection_id)
+      .eq("selection_id", selected_selection_id)
+      .eq("user_id", auth.userId)
+      .maybeSingle(),
+  ]);
 
   if (!col) {
     return apiError("Collection not found", 404);
@@ -428,13 +466,6 @@ export async function DELETE(request: NextRequest) {
     return apiError("You can only cancel selecting from your own collection", 403);
   }
 
-  // 소유자 셀렉션은 selecting 취소 대상이 아님
-  const { data: selection } = await getSupabase()
-    .from("selections")
-    .select("owner_id")
-    .eq("id", selected_selection_id)
-    .maybeSingle();
-
   if (!selection) {
     return apiError("Source selection not found", 404);
   }
@@ -442,21 +473,7 @@ export async function DELETE(request: NextRequest) {
     return apiError("You cannot cancel selecting for your own selection", 400);
   }
 
-  // 삭제 전: 해당 셀렉션 이미지 목록 (커버 복구 판단용)
-  const { data: selImgs } = await getSupabase()
-    .from("selection_images")
-    .select("image_id")
-    .eq("selection_id", selected_selection_id);
   const imageIds = (selImgs ?? []).map((x) => x.image_id as string);
-
-  // 본인이 만든 selecting 매핑만 삭제
-  const { data: existing } = await getSupabase()
-    .from("collection_selections")
-    .select("selection_id")
-    .eq("collection_id", selecting_collection_id)
-    .eq("selection_id", selected_selection_id)
-    .eq("user_id", auth.userId)
-    .maybeSingle();
 
   if (!existing) {
     return apiError("Selecting not found", 404);
@@ -474,10 +491,18 @@ export async function DELETE(request: NextRequest) {
     return apiError("Failed to cancel selecting", 500);
   }
 
-  await recalcCollectionSelectionNum(selecting_collection_id);
+  // 셀렉션 수 재계산 / 커버 복구는 응답에 영향이 없는 후처리이므로
+  // 응답 전송 후 기존 순서 그대로 순차 실행한다.
+  after(async () => {
+    try {
+      await recalcCollectionSelectionNum(selecting_collection_id);
 
-  // 컬렉션 커버가 방금 제거한 셀렉션 이미지라면, 남은 셀렉션들 기준으로 복구
-  await repairCollectionCoverIfUsingDeletedImage(selecting_collection_id, imageIds);
+      // 컬렉션 커버가 방금 제거한 셀렉션 이미지라면, 남은 셀렉션들 기준으로 복구
+      await repairCollectionCoverIfUsingDeletedImage(selecting_collection_id, imageIds);
+    } catch (err) {
+      console.error("cancel selecting post-response cleanup error:", err);
+    }
+  });
 
   return apiResponse({ success: true });
 }

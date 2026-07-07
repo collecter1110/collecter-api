@@ -103,29 +103,31 @@ export async function GET(request: NextRequest) {
 
   let rows = (data ?? []) as unknown as CSRow[];
 
-  // 원본(home) 컬렉션이 비공개인 셀렉션은 숨김.
-  // 이 엔드포인트는 auth.userId == owner_id 조건으로 이미 필터되어 있어
-  // home.isPublic=false 이어도 원작자 본인에게는 visible 로 판정된다.
-  // 다만 일관된 동작을 위해 동일 유틸을 사용한다.
-  if (rows.length > 0) {
-    const homeMap = await getSelectionHomeMap(rows.map((r) => r.selection_id));
-    rows = rows.filter((r) =>
-      isSelectionVisibleToViewer(homeMap.get(r.selection_id), auth.userId)
-    );
-  }
-
   // 퍼간 유저 + owner 의 이름/프로필 이미지 조회
   // (owner_id 는 항상 auth.userId 지만 일관성을 위해 함께 조회)
+  // 필터 전 rows 의 상위집합으로 조회해도 결과가 동일하므로 home 조회와 병렬 실행
   const lookupUserIds = [
     ...new Set([
       ...rows.map((r) => r.user_id),
       ...rows.map((r) => r.selections.owner_id),
     ]),
   ];
-  const { data: users } = await getSupabase()
-    .from("userinfo")
-    .select("user_id, name, image_id")
-    .in("user_id", lookupUserIds);
+
+  const [homeMap, { data: users }] = await Promise.all([
+    getSelectionHomeMap(rows.map((r) => r.selection_id)),
+    getSupabase()
+      .from("userinfo")
+      .select("user_id, name, image_id")
+      .in("user_id", lookupUserIds),
+  ]);
+
+  // 원본(home) 컬렉션이 비공개인 셀렉션은 숨김.
+  // 이 엔드포인트는 auth.userId == owner_id 조건으로 이미 필터되어 있어
+  // home.isPublic=false 이어도 원작자 본인에게는 visible 로 판정된다.
+  // 다만 일관된 동작을 위해 동일 유틸을 사용한다.
+  rows = rows.filter((r) =>
+    isSelectionVisibleToViewer(homeMap.get(r.selection_id), auth.userId)
+  );
 
   const userMap = new Map<number, string>();
   const userImageMap = new Map<number, string | null>();

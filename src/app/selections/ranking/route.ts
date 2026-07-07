@@ -95,7 +95,10 @@ import { parsePagination } from "@/lib/pagination";
 // 최근 500개 후보 풀을 Fisher-Yates 셔플 후 최대 20개
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
-  const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
+  // 차단 필터는 아래에서 JS 로 적용되므로 메인 조회와 병렬 실행
+  const blockedIdsPromise = auth
+    ? getBlockedUserIds(auth.userId)
+    : Promise.resolve([] as number[]);
 
   const categoryParam = request.nextUrl.searchParams.get("category_id");
   const categoryId = categoryParam !== null ? parseInt(categoryParam, 10) : null;
@@ -125,7 +128,10 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(500);
 
-  const { data, error } = await selectionQuery;
+  const [{ data, error }, blockedIds] = await Promise.all([
+    selectionQuery,
+    blockedIdsPromise,
+  ]);
 
   if (error) {
     console.error("getRankingSelections error:", error);

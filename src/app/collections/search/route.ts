@@ -115,7 +115,19 @@ export async function GET(request: NextRequest) {
   }
 
   const auth = await getAuthContext(request);
-  const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
+
+  // 차단 목록과 키워드 매칭 조회는 서로 독립적이므로 병렬 실행
+  // keyword 검색: keywordinfo에서 ILIKE로 keyword_id 목록 조회
+  // primary_keywords 형식: [{"count": N, "keyword_id": N, "keyword_name": "..."}]
+  const [blockedIds, { data: kwData }] = await Promise.all([
+    auth ? getBlockedUserIds(auth.userId) : Promise.resolve([] as number[]),
+    type === "tag"
+      ? Promise.resolve({ data: null })
+      : getSupabase()
+          .from("keywordinfo")
+          .select("keyword_id")
+          .ilike("keyword_name", `%${q.trim()}%`),
+  ]);
 
   let dbQuery = getSupabase()
     .from("collections")
@@ -145,14 +157,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // keyword 검색: keywordinfo에서 ILIKE로 keyword_id 목록 조회
-  // primary_keywords 형식: [{"count": N, "keyword_id": N, "keyword_name": "..."}]
   // @> 연산자로 {"keyword_id": N} 부분 매칭 가능
-  const { data: kwData } = await getSupabase()
-    .from("keywordinfo")
-    .select("keyword_id")
-    .ilike("keyword_name", `%${q.trim()}%`);
-
   const kwIds = (kwData ?? []).map((k) => k.keyword_id as number);
   if (kwIds.length === 0) {
     return apiResponse({ collections: [] });
