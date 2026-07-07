@@ -115,19 +115,22 @@ export async function POST(request: NextRequest) {
   // Token rotation: 기존 session 폐기 후 새 session 발급
   const newSid = newSessionId();
   const name = claims.name;
-  const new_access_token = await signAccessToken({
-    typ: "access",
-    user_id: claims.user_id,
-    email: claims.email,
-    name,
-  });
-  const new_refresh_token = await signRefreshToken({
-    typ: "refresh",
-    sid: newSid,
-    user_id: claims.user_id,
-    email: claims.email,
-    name,
-  });
+  // 토큰 서명 병렬 실행
+  const [new_access_token, new_refresh_token] = await Promise.all([
+    signAccessToken({
+      typ: "access",
+      user_id: claims.user_id,
+      email: claims.email,
+      name,
+    }),
+    signRefreshToken({
+      typ: "refresh",
+      sid: newSid,
+      user_id: claims.user_id,
+      email: claims.email,
+      name,
+    }),
+  ]);
 
   const refreshTtl = Number(process.env.AUTH_REFRESH_TOKEN_TTL_SECONDS ?? 60 * 60 * 24 * 30);
   await createRefreshSession({

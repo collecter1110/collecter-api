@@ -76,11 +76,37 @@ export async function GET(_request: NextRequest, { params }: Params) {
     return publicError("Invalid ID", 400);
   }
 
-  const { data: collection, error: colErr } = await getSupabase()
-    .from("collections")
-    .select("is_public")
-    .eq("id", collectionId)
-    .single();
+  // 독립적인 조회 4개를 병렬 실행 (검사 순서는 기존과 동일하게 유지)
+  const [
+    { data: collection, error: colErr },
+    { data: mapping },
+    home,
+    { data, error },
+  ] = await Promise.all([
+    getSupabase()
+      .from("collections")
+      .select("is_public")
+      .eq("id", collectionId)
+      .single(),
+    // 부모 컬렉션에 실제로 매핑된 셀렉션인지 확인 (URL 위조 방지)
+    getSupabase()
+      .from("collection_selections")
+      .select("selection_id")
+      .eq("collection_id", collectionId)
+      .eq("selection_id", sid)
+      .maybeSingle(),
+    // 원작 홈 컬렉션 비공개 체크용 정보
+    getSelectionHome(sid),
+    getSupabase()
+      .from("selections")
+      .select(
+        `id, category_id, title, description,
+         is_ordered, link, items, keywords, created_at, owner_name, is_selectable,
+         selection_images(image_id, sort_order)`
+      )
+      .eq("id", sid)
+      .single(),
+  ]);
 
   if (colErr || !collection) {
     return publicError("Selection not found", 404, "SU001");
@@ -89,33 +115,13 @@ export async function GET(_request: NextRequest, { params }: Params) {
     return publicError("Parent collection is private", 404, "SU002");
   }
 
-  // 부모 컬렉션에 실제로 매핑된 셀렉션인지 확인 (URL 위조 방지)
-  const { data: mapping } = await getSupabase()
-    .from("collection_selections")
-    .select("selection_id")
-    .eq("collection_id", collectionId)
-    .eq("selection_id", sid)
-    .maybeSingle();
-
   if (!mapping) {
     return publicError("Selection not found", 404, "SU001");
   }
 
-  // 원작 홈 컬렉션 비공개 체크
-  const home = await getSelectionHome(sid);
   if (!isSelectionVisibleToViewer(home, null)) {
     return publicError("Home collection is private", 404, "SU002");
   }
-
-  const { data, error } = await getSupabase()
-    .from("selections")
-    .select(
-      `id, category_id, title, description,
-       is_ordered, link, items, keywords, created_at, owner_name, is_selectable,
-       selection_images(image_id, sort_order)`
-    )
-    .eq("id", sid)
-    .single();
 
   if (error) {
     if (error.code === "PGRST116") {

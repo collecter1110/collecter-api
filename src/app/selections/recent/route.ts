@@ -92,7 +92,10 @@ import { parsePagination } from "@/lib/pagination";
 // 최신순(id desc) + 카테고리 필터 + 가시성 필터 후 page/size 페이지네이션
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
-  const blockedIds = auth ? await getBlockedUserIds(auth.userId) : [];
+  // 차단 필터는 아래에서 JS 로 적용되므로 메인 조회와 병렬 실행
+  const blockedIdsPromise = auth
+    ? getBlockedUserIds(auth.userId)
+    : Promise.resolve([] as number[]);
 
   const categoryParam = request.nextUrl.searchParams.get("category_id");
   const categoryId = categoryParam !== null ? parseInt(categoryParam, 10) : null;
@@ -124,7 +127,10 @@ export async function GET(request: NextRequest) {
     selectionQuery = selectionQuery.eq("category_id", categoryId);
   }
 
-  const { data, error } = await selectionQuery;
+  const [{ data, error }, blockedIds] = await Promise.all([
+    selectionQuery,
+    blockedIdsPromise,
+  ]);
 
   if (error) {
     console.error("getRecentSelections error:", error);

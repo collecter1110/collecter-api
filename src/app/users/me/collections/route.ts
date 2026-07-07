@@ -81,20 +81,22 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
-  const { data, error } = await getSupabase()
-    .from("collections")
-    .select(
-      "category_id, id, title, image_id, user_id, user_name, selection_num, is_public, created_at"
-    )
-    .eq("user_id", auth.userId);
+  // 컬렉션 목록과 본인 프로필 이미지(모든 컬렉션의 작성자 = auth.userId) 병렬 조회
+  const [{ data, error }, userImageMap] = await Promise.all([
+    getSupabase()
+      .from("collections")
+      .select(
+        "category_id, id, title, image_id, user_id, user_name, selection_num, is_public, created_at"
+      )
+      .eq("user_id", auth.userId),
+    getUserImageMap([auth.userId]),
+  ]);
 
   if (error) {
     console.error("initializeMyCollections error:", error);
     return apiError("Failed to fetch collections", 500);
   }
 
-  // 본인 프로필 이미지 조회 (모든 컬렉션의 작성자 = auth.userId)
-  const userImageMap = await getUserImageMap([auth.userId]);
   const userImageId = userImageMap.get(auth.userId) ?? null;
 
   return apiResponse({

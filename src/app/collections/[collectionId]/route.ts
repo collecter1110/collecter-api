@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
@@ -251,8 +251,19 @@ export async function GET(request: NextRequest, { params }: Params) {
     return apiError("Collection not found", 404);
   }
 
+  // 차단 목록 / 작성자 프로필 이미지 조회를 병렬 실행
+  const [blockedIds, { data: ownerInfo }] = await Promise.all([
+    auth && auth.userId !== data.user_id
+      ? getBlockedUserIds(auth.userId)
+      : Promise.resolve([] as number[]),
+    getSupabase()
+      .from("userinfo")
+      .select("image_id")
+      .eq("user_id", data.user_id)
+      .maybeSingle(),
+  ]);
+
   if (auth && auth.userId !== data.user_id) {
-    const blockedIds = await getBlockedUserIds(auth.userId);
     if (blockedIds.includes(data.user_id as number)) {
       return apiError("Collection not found", 404);
     }
@@ -261,13 +272,6 @@ export async function GET(request: NextRequest, { params }: Params) {
   const hasLiked = auth
     ? (data.likes as { user_id: number }[]).some((l) => l.user_id === auth.userId)
     : false;
-
-  // 작성자 프로필 이미지 조회 (userinfo.image_id)
-  const { data: ownerInfo } = await getSupabase()
-    .from("userinfo")
-    .select("image_id")
-    .eq("user_id", data.user_id)
-    .maybeSingle();
 
   const { likes: _likes, title, id, ...rest } = data;
   return apiResponse({
@@ -331,21 +335,24 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return apiError("Invalid collection ID", 400);
   }
 
-  const { data: collection, error: fetchError } = await getSupabase()
-    .from("collections")
-    .select("image_id, user_id")
-    .eq("id", collectionId)
-    .single();
+  // 컬렉션 조회 + 매핑된 셀렉션 조회를 병렬 실행
+  const [{ data: collection, error: fetchError }, { data: csData }] =
+    await Promise.all([
+      getSupabase()
+        .from("collections")
+        .select("image_id, user_id")
+        .eq("id", collectionId)
+        .single(),
+      // 이 컬렉션에 매핑된 셀렉션 조회 (내가 만든 것 vs 셀렉팅한 것 구분)
+      getSupabase()
+        .from("collection_selections")
+        .select("selection_id, selections!inner(owner_id)")
+        .eq("collection_id", collectionId),
+    ]);
 
   if (fetchError) {
     return apiError("Collection not found", 404);
   }
-
-  // 이 컬렉션에 매핑된 셀렉션 조회 (내가 만든 것 vs 셀렉팅한 것 구분)
-  const { data: csData } = await getSupabase()
-    .from("collection_selections")
-    .select("selection_id, selections!inner(owner_id)")
-    .eq("collection_id", collectionId);
 
   type CSRow = { selection_id: number; selections: { owner_id: number } };
   const mappings = (csData ?? []) as unknown as CSRow[];
@@ -360,7 +367,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     .delete()
     .eq("collection_id", collectionId);
 
-  // 내가 만든 셀렉션의 이미지 삭제
+  // 내가 만든 셀렉션의 이미지 ID 수집 (셀렉션 삭제 전에 조회해 둔다)
+  const ownedImageIds: string[] = [];
   for (const selId of ownedSelectionIds) {
     const { data: selImgs } = await getSupabase()
       .from("selection_images")
@@ -368,7 +376,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       .eq("selection_id", selId);
 
     for (const si of selImgs ?? []) {
-      await deleteImageById(si.image_id);
+      ownedImageIds.push(si.image_id);
     }
   }
 
@@ -378,11 +386,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       .from("selections")
       .delete()
       .in("id", ownedSelectionIds);
-  }
-
-  // 컬렉션 대표 이미지 삭제
-  if (collection.image_id) {
-    await deleteImageById(collection.image_id);
   }
 
   // 컬렉션 삭제
@@ -395,6 +398,23 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     console.error("deleteCollection error:", error);
     return apiError("Failed to delete collection", 500);
   }
+
+  // 이미지 삭제(S3 + images)는 응답에 영향이 없는 후처리이므로
+  // 응답 전송 후 순차 실행한다. (셀렉션 이미지 → 컬렉션 대표 이미지 순)
+  after(async () => {
+    try {
+      for (const imageId of ownedImageIds) {
+        await deleteImageById(imageId);
+      }
+
+      // 컬렉션 대표 이미지 삭제
+      if (collection.image_id) {
+        await deleteImageById(collection.image_id);
+      }
+    } catch (err) {
+      console.error("deleteCollection post-response cleanup error:", err);
+    }
+  });
 
   return apiResponse({ success: true });
 }

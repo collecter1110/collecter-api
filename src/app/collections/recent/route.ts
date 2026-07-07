@@ -146,20 +146,21 @@ export async function GET(request: NextRequest) {
   const userIds = [...new Set(rows.map((r) => r.user_id))];
   const collectionIds = rows.map((r) => r.id);
 
-  // 작성자 프로필 이미지 조회 (userinfo.image_id)
-  const userImageMap = await getUserImageMap(userIds);
+  // 작성자 프로필 이미지 / 로그인 유저의 좋아요 여부 병렬 조회
+  const [userImageMap, { data: likeRows }] = await Promise.all([
+    getUserImageMap(userIds),
+    auth && collectionIds.length > 0
+      ? getSupabase()
+          .from("likes")
+          .select("collection_id")
+          .eq("user_id", auth.userId)
+          .in("collection_id", collectionIds)
+      : Promise.resolve({ data: null }),
+  ]);
 
-  // 로그인 유저의 좋아요 여부 조회
   const likedSet = new Set<number>();
-  if (auth && collectionIds.length > 0) {
-    const { data: likeRows } = await getSupabase()
-      .from("likes")
-      .select("collection_id")
-      .eq("user_id", auth.userId)
-      .in("collection_id", collectionIds);
-    for (const l of likeRows ?? []) {
-      likedSet.add(l.collection_id as number);
-    }
+  for (const l of likeRows ?? []) {
+    likedSet.add(l.collection_id as number);
   }
 
   const collections = rows.map((col) => ({

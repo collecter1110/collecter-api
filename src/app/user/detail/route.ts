@@ -114,13 +114,6 @@ export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
   const isOwner = auth?.userId === userId;
 
-  if (auth && !isOwner) {
-    const blockedIds = await getBlockedUserIds(auth.userId);
-    if (blockedIds.includes(userId)) {
-      return apiError("User not found", 404);
-    }
-  }
-
   let colQuery = getSupabase()
     .from("collections")
     .select("id, title, image_id, selection_num, is_public")
@@ -130,7 +123,18 @@ export async function GET(request: NextRequest) {
     colQuery = colQuery.eq("is_public", true);
   }
 
-  const { data: collectionsRows, error: collectionsError } = await colQuery;
+  // 차단 목록과 컬렉션 목록 조회를 병렬 실행 (검사 순서는 기존과 동일)
+  const [blockedIds, { data: collectionsRows, error: collectionsError }] =
+    await Promise.all([
+      auth && !isOwner ? getBlockedUserIds(auth.userId) : Promise.resolve([]),
+      colQuery,
+    ]);
+
+  if (auth && !isOwner) {
+    if (blockedIds.includes(userId)) {
+      return apiError("User not found", 404);
+    }
+  }
 
   if (collectionsError) {
     console.error("getUserDetail collections error:", collectionsError);

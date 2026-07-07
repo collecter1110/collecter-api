@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
@@ -78,11 +78,20 @@ export async function DELETE(request: NextRequest) {
   const supabase = getSupabase();
   const userId = auth.userId;
 
-  // 1) 이 유저가 owner인 모든 셀렉션의 이미지 ID 수집
-  const { data: ownedSelections } = await supabase
-    .from("selections")
-    .select("id")
-    .eq("owner_id", userId);
+  // 1~3) 셀렉션/컬렉션/프로필 이미지 ID 수집 — 독립 조회 병렬 실행
+  const [{ data: ownedSelections }, { data: ownedCollections }, { data: profile }] =
+    await Promise.all([
+      // 1) 이 유저가 owner인 모든 셀렉션
+      supabase.from("selections").select("id").eq("owner_id", userId),
+      // 2) 이 유저의 컬렉션 대표 이미지
+      supabase.from("collections").select("image_id").eq("user_id", userId),
+      // 3) 프로필 이미지
+      supabase
+        .from("userinfo")
+        .select("image_id, email")
+        .eq("user_id", userId)
+        .single(),
+    ]);
 
   const ownedSelectionIds = (ownedSelections ?? []).map((s) => s.id as number);
 
@@ -97,27 +106,14 @@ export async function DELETE(request: NextRequest) {
     }
   }
 
-  // 2) 이 유저의 컬렉션 대표 이미지 ID 수집
-  const { data: ownedCollections } = await supabase
-    .from("collections")
-    .select("image_id")
-    .eq("user_id", userId);
-
   const collectionImageIds = (ownedCollections ?? [])
     .map((c) => c.image_id as string | null)
     .filter((id): id is string => !!id);
 
-  // 3) 프로필 이미지
-  const { data: profile } = await supabase
-    .from("userinfo")
-    .select("image_id, email")
-    .eq("user_id", userId)
-    .single();
-
   const profileImageId = (profile?.image_id as string | null) ?? null;
   const userEmail = profile?.email as string | undefined;
 
-  // 4) S3 + images 삭제 (중복 제거)
+  // 4) S3 + images 삭제 대상 수집 (중복 제거)
   const allImageIds = Array.from(
     new Set<string>([
       ...selectionImageIds,
@@ -125,14 +121,6 @@ export async function DELETE(request: NextRequest) {
       ...(profileImageId ? [profileImageId] : []),
     ])
   );
-
-  for (const imageId of allImageIds) {
-    try {
-      await deleteImageById(imageId);
-    } catch (err) {
-      console.error("deleteAuthUser image delete error:", imageId, err);
-    }
-  }
 
   // 5) 세션 / OTP 정리
   await supabase
@@ -146,6 +134,18 @@ export async function DELETE(request: NextRequest) {
       .delete()
       .eq("email", userEmail);
   }
+
+  // 이미지 삭제(S3 + images)는 응답에 영향이 없는 후처리이므로
+  // 응답 전송 후 순차 실행한다.
+  after(async () => {
+    for (const imageId of allImageIds) {
+      try {
+        await deleteImageById(imageId);
+      } catch (err) {
+        console.error("deleteAuthUser image delete error:", imageId, err);
+      }
+    }
+  });
 
   // 6) userinfo DELETE → CASCADE로 나머지 연관 테이블(collections / selections /
   //    collection_selections / likes / block 등) 정리
