@@ -187,10 +187,23 @@
  *       required:
  *         - collection_id
  *         - collection_title
+ *         - user_id
+ *         - primary_keywords
+ *         - created_at
+ *         - category_id
  *       properties:
  *         collection_id: { type: integer, example: 123 }
  *         collection_title: { type: string, example: "내 컬렉션" }
  *         image_id: { type: string, nullable: true, example: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1" }
+ *         user_id: { type: integer, example: 45 }
+ *         user_name: { type: string, nullable: true, example: "gimgahui" }
+ *         user_image_id: { type: string, nullable: true, example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+ *         primary_keywords:
+ *           type: array
+ *           items:
+ *             $ref: "#/components/schemas/KeywordEntry"
+ *         created_at: { type: string, format: date, example: "2026-07-08" }
+ *         category_id: { type: integer, example: 3 }
  *
  *     SearchSelection:
  *       type: object
@@ -198,13 +211,20 @@
  *         - id
  *         - selection_title
  *         - collection_id
- *         - collection_title
+ *         - keywords
+ *         - created_at
+ *         - category_id
  *       properties:
  *         id: { type: integer, example: 456 }
  *         selection_title: { type: string, example: "내 셀렉션" }
  *         image_id: { type: string, nullable: true, example: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a" }
  *         collection_id: { type: integer, example: 123 }
- *         collection_title: { type: string, example: "내 컬렉션" }
+ *         keywords:
+ *           type: array
+ *           items:
+ *             $ref: "#/components/schemas/KeywordEntry"
+ *         created_at: { type: string, format: date, example: "2026-07-08" }
+ *         category_id: { type: integer, example: 3 }
  *
  *     SearchUser:
  *       type: object
