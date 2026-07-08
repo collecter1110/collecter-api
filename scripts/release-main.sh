@@ -70,16 +70,15 @@ fi
 TAG="$(next_tag "${TAG_PREFIX}")"
 echo "next tag: ${TAG}"
 
-# Commits being released (for the squash commit body)
-SQUASH_LOG="$(git log --oneline "${MAIN_BRANCH}..${DEV_BRANCH}" | sed 's/^/- /' || true)"
+# Commits being released (for the merge commit body)
+RELEASE_LOG="$(git log --oneline "${MAIN_BRANCH}..${DEV_BRANCH}" | sed 's/^/- /' || true)"
 
-# Squash-merge dev into main: main keeps a single clean commit per release
-# instead of a merge commit plus every dev commit.
-git merge --squash "${DEV_BRANCH}"
-git commit -m "$(cat <<EOF
+# Real merge (--no-ff) dev into main: main keeps a release merge commit AND
+# every individual dev commit + branch topology stays visible in history.
+git merge --no-ff "${DEV_BRANCH}" -m "$(cat <<EOF
 Release ${TAG}
 
-${SQUASH_LOG}
+${RELEASE_LOG}
 EOF
 )"
 
@@ -106,18 +105,18 @@ else
   echo "PUSH=0 set; skipping push."
 fi
 
-# Reset dev to main. A squash merge does NOT record dev as an ancestor of
-# main, so a fast-forward is impossible and the two branches would diverge.
-# Without this, the next release would see the already-squashed commits again
-# via `main..dev` and produce an empty/duplicate release. Resetting keeps dev
-# identical to main (requires a force push; safe on a single-maintainer branch).
-echo "syncing ${MAIN_BRANCH} -> ${DEV_BRANCH} (reset)..."
+# Fast-forward dev up to the release merge commit. Because this was a real
+# (--no-ff) merge, the release commit is a descendant of the dev tip, so dev
+# advances with a plain fast-forward — no reset, no force push. dev and main
+# end up identical while all commits stay in history, and the next release
+# sees only genuinely new commits via `main..dev`.
+echo "syncing ${MAIN_BRANCH} -> ${DEV_BRANCH} (fast-forward)..."
 git checkout "${DEV_BRANCH}" >/dev/null 2>&1 || die "branch '${DEV_BRANCH}' not found"
-git reset --hard "${MAIN_BRANCH}"
+git merge --ff-only "${MAIN_BRANCH}"
 
 if [[ "${PUSH}" == "1" ]]; then
-  echo "force-pushing ${DEV_BRANCH}..."
-  git push --force-with-lease "${REMOTE}" "${DEV_BRANCH}"
+  echo "pushing ${DEV_BRANCH}..."
+  git push "${REMOTE}" "${DEV_BRANCH}"
 else
   echo "PUSH=0 set; skipping ${DEV_BRANCH} push."
 fi
