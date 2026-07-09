@@ -62,7 +62,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                         selection_title: 내 셀렉션
  *                         image_id: "7c2c8fb0-4d1b-4bd1-9e2c-9a0c5d6d2d3a"
  *                         collection_id: 123
- *                         collection_title: 내 컬렉션
+ *                         keywords: [{ keyword_id: 7, keyword_name: 사과 }]
+ *                         created_at: "2026-07-08"
+ *                         category_id: 3
  *               empty:
  *                 summary: 검색 결과 없음
  *                 value:
@@ -120,22 +122,21 @@ export async function GET(request: NextRequest) {
         `collection_id,
          collections!inner(title, is_public),
          selections!inner(
-           id, owner_id, title, keywords,
+           id, owner_id, category_id, created_at, title, keywords,
            selection_images(image_id, sort_order)
          )`
       )
       .eq("collections.is_public", true),
   ]);
 
-  const kwIds = (kwData ?? []).map((k) => k.keyword_id as number);
-  if (kwIds.length === 0) {
-    return apiResponse({ selections: [] });
-  }
-
   if (error) {
     console.error("searchSelections error:", error);
     return apiError("Failed to search selections", 500);
   }
+
+  // 키워드명 부분 일치로 찾은 keyword_id 목록 (예: "지구" → 지구본, 지구과학)
+  const kwIds = (kwData ?? []).map((k) => k.keyword_id as number);
+  const term = q.trim().toLowerCase();
 
   type CSRow = {
     collection_id: number;
@@ -143,6 +144,8 @@ export async function GET(request: NextRequest) {
     selections: {
       id: number;
       owner_id: number;
+      category_id: number;
+      created_at: string;
       title: string;
       keywords: { keyword_id: number; keyword_name: string }[] | null;
       selection_images: { image_id: string; sort_order: number }[];
@@ -151,7 +154,7 @@ export async function GET(request: NextRequest) {
 
   const rows = (data ?? []) as unknown as CSRow[];
 
-  // 키워드 필터링 + 본인/차단 제외 + 중복 제거
+  // 타이틀/키워드 필터링 + 본인/차단 제외 + 중복 제거
   const seen = new Set<number>();
   const filtered: CSRow[] = [];
 
@@ -159,9 +162,10 @@ export async function GET(request: NextRequest) {
     const s = row.selections;
     if (seen.has(s.id)) continue;
 
-    // 키워드 매칭
-    const hasMatch = s.keywords?.some((kw) => kwIds.includes(kw.keyword_id));
-    if (!hasMatch) continue;
+    // 타이틀 부분 일치 OR 키워드 매칭
+    const titleMatch = s.title?.toLowerCase().includes(term);
+    const keywordMatch = s.keywords?.some((kw) => kwIds.includes(kw.keyword_id));
+    if (!titleMatch && !keywordMatch) continue;
 
     if (blockedIds.includes(s.owner_id)) continue;
 
@@ -172,8 +176,6 @@ export async function GET(request: NextRequest) {
   // public 컬렉션에 매핑된 셀렉션이면 본인/타인 구분 없이 모두 반환한다.
   const selections = filtered.map((row) => {
     const s = row.selections;
-    const coll = row.collections;
-    const collectionTitle = Array.isArray(coll) ? coll[0]?.title : coll?.title;
 
     const cover = (s.selection_images ?? [])
       .slice()
@@ -184,7 +186,9 @@ export async function GET(request: NextRequest) {
       selection_title: s.title,
       image_id: cover?.image_id ?? null,
       collection_id: row.collection_id,
-      collection_title: collectionTitle ?? "",
+      keywords: s.keywords ?? [],
+      created_at: s.created_at,
+      category_id: s.category_id,
     };
   });
 
