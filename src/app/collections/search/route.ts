@@ -3,6 +3,7 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
+import { getUserImageMap } from "@/lib/userInfo";
 
 /**
  * @openapi
@@ -11,9 +12,9 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *     tags: [Collections]
  *     summary: 컬렉션 검색
  *     description: |
- *       키워드 또는 태그로 공개 컬렉션을 검색합니다.
- *       - `type=keyword` (기본값): `primary_keywords`에서 키워드명으로 검색
- *       - `type=tag`: `tags` 배열에서 정확히 일치하는 태그로 검색
+ *       공개 컬렉션을 검색어로 검색합니다.
+ *       검색어가 컬렉션 `title` 또는 `primary_keywords`(키워드명)에 부분 일치하면 모두 반환합니다.
+ *       예) `사과` → `사과농장`, `사과케잌` 등도 포함됩니다.
  *
  *       Authorization 헤더가 있으면 차단한 유저의 컬렉션을 제외합니다. (본인 컬렉션은 포함)
  *     parameters:
@@ -23,14 +24,6 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *         schema:
  *           type: string
  *         example: 책
- *       - in: query
- *         name: type
- *         required: false
- *         schema:
- *           type: string
- *           enum: [keyword, tag]
- *           default: keyword
- *         example: keyword
  *       - in: header
  *         name: Authorization
  *         required: false
@@ -59,8 +52,14 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   data:
  *                     collections:
  *                       - collection_id: 123
- *                         collection_title: 내 컬렉션
+ *                         collection_title: 사과농장
  *                         image_id: "b7c6f3b0-6a0f-4b4a-9a90-2c02e4a2b9a1"
+ *                         user_id: 45
+ *                         user_name: gimgahui
+ *                         user_image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                         primary_keywords: [{ keyword_id: 7, keyword_name: 사과, count: 3 }]
+ *                         created_at: "2026-07-08"
+ *                         category_id: 3
  *               empty:
  *                 summary: 검색 결과 없음
  *                 value:
@@ -93,46 +92,60 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   msg: Failed to search collections
  *                   data: {}
  */
-function mapSearchCollection(row: {
+type CollectionRow = {
   id: number;
   title: string;
   image_id: string | null;
-}) {
+  user_id: number;
+  user_name: string | null;
+  primary_keywords: unknown;
+  created_at: string;
+  category_id: number;
+};
+
+function mapSearchCollection(
+  row: CollectionRow,
+  userImageMap: Map<number, string | null>
+) {
   return {
     collection_id: row.id,
     collection_title: row.title,
     image_id: row.image_id ?? null,
+    user_id: row.user_id,
+    user_name: row.user_name,
+    user_image_id: userImageMap.get(row.user_id) ?? null,
+    primary_keywords: row.primary_keywords ?? [],
+    created_at: row.created_at,
+    category_id: row.category_id,
   };
 }
 
-// GET /collections/search?q=...&type=keyword|tag
+// GET /collections/search?q=...
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q");
-  const type = request.nextUrl.searchParams.get("type") ?? "keyword";
 
   if (!q || q.trim() === "") {
     return apiError("Query parameter 'q' is required", 400);
   }
 
+  const term = q.trim();
   const auth = await getAuthContext(request);
 
   // 차단 목록과 키워드 매칭 조회는 서로 독립적이므로 병렬 실행
-  // keyword 검색: keywordinfo에서 ILIKE로 keyword_id 목록 조회
+  // keywordinfo에서 ILIKE로 keyword_id 목록 조회 (예: "사과" → 사과농장, 사과케잌)
   // primary_keywords 형식: [{"count": N, "keyword_id": N, "keyword_name": "..."}]
   const [blockedIds, { data: kwData }] = await Promise.all([
     auth ? getBlockedUserIds(auth.userId) : Promise.resolve([] as number[]),
-    type === "tag"
-      ? Promise.resolve({ data: null })
-      : getSupabase()
-          .from("keywordinfo")
-          .select("keyword_id")
-          .ilike("keyword_name", `%${q.trim()}%`),
+    getSupabase()
+      .from("keywordinfo")
+      .select("keyword_id")
+      .ilike("keyword_name", `%${term}%`),
   ]);
 
   let dbQuery = getSupabase()
     .from("collections")
     .select(
-      "category_id, id, title, description, image_id, tags, user_id, user_name, primary_keywords, selection_num, like_num, is_public"
+      "category_id, id, title, description, image_id, tags, user_id, user_name, primary_keywords, selection_num, like_num, is_public, created_at"
     )
     .eq("is_public", true);
 
@@ -140,43 +153,27 @@ export async function GET(request: NextRequest) {
     dbQuery = dbQuery.not("user_id", "in", `(${blockedIds.join(",")})`);
   }
 
-  if (type === "tag") {
-    // tags가 jsonb 배열인 경우가 많아서 JSON 문자열로 명시 (PostgREST cs)
-    // 예: tags @> '["책"]'::jsonb
-    dbQuery = dbQuery.filter("tags", "cs", JSON.stringify([q.trim()]));
-
-    const { data, error } = await dbQuery;
-    if (error) {
-      console.error("searchCollectionsByTag error:", error);
-      return apiError("Failed to search collections", 500);
-    }
-    return apiResponse({
-      collections: (data ?? []).map((row) =>
-        mapSearchCollection(row as { id: number; title: string; image_id: string | null })
-      ),
-    });
-  }
-
-  // @> 연산자로 {"keyword_id": N} 부분 매칭 가능
+  // title 부분 일치 OR primary_keywords에 매칭된 keyword_id 포함
+  // - title.ilike.*사과*  → 콤마/괄호가 or() 파싱을 깨지 않도록 값을 큰따옴표로 감쌈
+  // - primary_keywords.cs.[{"keyword_id": N}] → @> 부분 매칭
   const kwIds = (kwData ?? []).map((k) => k.keyword_id as number);
-  if (kwIds.length === 0) {
-    return apiResponse({ collections: [] });
-  }
-
-  // 각 keyword_id에 대해 primary_keywords @> '[{"keyword_id": N}]' OR 조건
-  dbQuery = dbQuery.or(
-    kwIds.map((id) => `primary_keywords.cs.${JSON.stringify([{ keyword_id: id }])}`).join(",")
-  );
+  const orConditions = [
+    `title.ilike."*${term}*"`,
+    ...kwIds.map((id) => `primary_keywords.cs.${JSON.stringify([{ keyword_id: id }])}`),
+  ];
+  dbQuery = dbQuery.or(orConditions.join(","));
 
   const { data, error } = await dbQuery;
   if (error) {
-    console.error("searchCollectionsByKeyword error:", error);
+    console.error("searchCollections error:", error);
     return apiError("Failed to search collections", 500);
   }
 
+  const rows = (data ?? []) as unknown as CollectionRow[];
+  // 작성자 프로필 이미지(userinfo.image_id)를 한 번에 조회
+  const userImageMap = await getUserImageMap(rows.map((r) => r.user_id));
+
   return apiResponse({
-    collections: (data ?? []).map((row) =>
-      mapSearchCollection(row as { id: number; title: string; image_id: string | null })
-    ),
+    collections: rows.map((row) => mapSearchCollection(row, userImageMap)),
   });
 }
