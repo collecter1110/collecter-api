@@ -13,8 +13,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  *     description: |
  *       네이티브 Google Sign-In SDK가 발급한 `id_token`을 검증하고 단기 `verified_token`을 반환합니다.
  *       OTP 검증(`/auth/otp/verify`)과 동일한 응답 형태로, 이후 흐름이 동일합니다.
- *       - 기존 유저: `/auth/login`에 `verified_token` 전달
- *       - 신규 유저: `/signup`에 `verified_token` 전달
+ *       이후 `/auth/login`에 `verified_token`을 전달합니다.
  *     requestBody:
  *       required: true
  *       content:
@@ -118,7 +117,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  */
 // POST /auth/oauth/google
 // body: { id_token: string }
-// 구글 ID 토큰 검증 후 단기 verified_token 반환 — 이후 /auth/login 또는 /signup 에서 실제 토큰 발급
+// 구글 ID 토큰 검증 후 단기 verified_token 반환 — 이후 /auth/login 에서 실제 토큰 발급
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const id_token = body?.id_token as string | undefined;

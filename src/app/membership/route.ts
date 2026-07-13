@@ -10,6 +10,7 @@ import { deleteImageById } from "@/lib/storage";
  *   delete:
  *     tags: [Auth]
  *     summary: 회원 탈퇴 (Soft Delete)
+ *     deprecated: true
  *     description: |
  *       유저 계정을 soft delete 처리합니다. `userinfo.deleted_at`을 설정하고 모든 세션을 폐기합니다.
  *       컬렉션/셀렉션 데이터는 유지됩니다. 계정 완전 삭제는 `/auth/delete`를 사용하세요.
