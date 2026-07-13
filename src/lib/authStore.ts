@@ -69,8 +69,18 @@ function sha256(input: string) {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
+// Keyed hash for the OTP. A plain SHA-256 of email|code is brute-forceable:
+// the email sits in the same row and the code is only 6 digits (1M values), so
+// anyone holding the hash can recover the code in milliseconds. HMAC folds in a
+// server-only secret, so a stolen DB is useless without AUTH_JWT_SECRET.
+function hmacSha256(input: string) {
+  const secret = process.env.AUTH_JWT_SECRET;
+  if (!secret) throw new Error("Missing AUTH_JWT_SECRET");
+  return crypto.createHmac("sha256", secret).update(input).digest("hex");
+}
+
 export function hashOtp(email: string, code: string) {
-  return sha256(`${email.toLowerCase()}|${code}`);
+  return hmacSha256(`otp|${email.toLowerCase()}|${code}`);
 }
 
 export function hashRefreshToken(token: string) {

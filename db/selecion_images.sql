@@ -13,3 +13,8 @@ create table public.selection_images (
 create index IF not exists selection_images_selection_idx on public.selection_images using btree (selection_id) TABLESPACE pg_default;
 
 create index IF not exists selection_images_image_idx on public.selection_images using btree (image_id) TABLESPACE pg_default;
+
+-- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
+-- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
+alter table public.selection_images enable row level security;
+revoke all on table public.selection_images from anon, authenticated;

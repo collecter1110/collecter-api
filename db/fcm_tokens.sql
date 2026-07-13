@@ -13,3 +13,8 @@ create table public.fcm_tokens (
 ) TABLESPACE pg_default;
 
 create index IF not exists fcm_tokens_user_id_idx on public.fcm_tokens using btree (user_id) TABLESPACE pg_default;
+
+-- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
+-- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
+alter table public.fcm_tokens enable row level security;
+revoke all on table public.fcm_tokens from anon, authenticated;

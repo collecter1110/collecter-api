@@ -22,3 +22,8 @@ create table public.push_logs (
 create index IF not exists push_logs_sent_on_idx on public.push_logs using btree (sent_on) TABLESPACE pg_default;
 
 create index IF not exists push_logs_user_id_type_idx on public.push_logs using btree (user_id, type) TABLESPACE pg_default;
+
+-- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
+-- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
+alter table public.push_logs enable row level security;
+revoke all on table public.push_logs from anon, authenticated;
