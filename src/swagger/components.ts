@@ -37,13 +37,14 @@
  *
  *     MyUserInfo:
  *       type: object
- *       required: [user_id, user_name, email]
+ *       required: [user_id, user_name, email, push_enabled]
  *       properties:
  *         user_id: { type: integer, example: 45 }
  *         user_name: { type: string, example: "gimgahui" }
  *         email: { type: string, format: email, example: "user@example.com" }
  *         description: { type: string, nullable: true, example: "안녕하세요" }
  *         image_id: { type: string, nullable: true, example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+ *         push_enabled: { type: boolean, example: true, description: "앱 내 알림 수신 설정. PATCH /users/alarm 으로 변경" }
  *
  *     UserDetailCollection:
  *       type: object

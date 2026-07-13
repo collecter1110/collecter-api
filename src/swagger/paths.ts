@@ -1,31 +1,5 @@
 /**
  * @openapi
- * /auth/check-email:
- *   get:
- *     tags:
- *       - Auth
- *     summary: 이메일 중복 확인
- *     parameters:
- *       - in: query
- *         name: email
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: 성공 (success=true이면 사용 가능)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *       400:
- *         description: 파라미터 없음
- *       500:
- *         description: 서버 오류
- *
  * /auth/check-username:
  *   get:
  *     tags:
@@ -247,50 +221,6 @@
  *       401:
  *         description: 세션 만료 또는 폐기됨
  *
- * /signup:
- *   post:
- *     tags:
- *       - Signup
- *     summary: 회원가입 (프로필 설정 + 토큰 발급)
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - verified_token
- *               - email
- *               - user_name
- *             properties:
- *               verified_token:
- *                 type: string
- *               email:
- *                 type: string
- *               user_name:
- *                 type: string
- *               description:
- *                 type: string
- *               image:
- *                 type: string
- *                 format: binary
- *     responses:
- *       200:
- *         description: 성공 (access/refresh token 반환)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 access_token:
- *                   type: string
- *                 refresh_token:
- *                   type: string
- *       400:
- *         description: 잘못된 요청
- *       500:
- *         description: 서버 오류
- *
  * /collections/ranking:
  *   get:
  *     tags:
@@ -472,34 +402,6 @@
  *         description: 잘못된 ID
  *       401:
  *         description: 인증 필요
- *       404:
- *         description: 컬렉션 없음
- *       500:
- *         description: 서버 오류
- *
- * /collections/{collectionId}/title:
- *   get:
- *     tags:
- *       - Collections
- *     summary: 컬렉션 제목 조회
- *     parameters:
- *       - in: path
- *         name: collectionId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: 성공
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 collection_title:
- *                   type: string
- *       400:
- *         description: 잘못된 ID
  *       404:
  *         description: 컬렉션 없음
  *       500:
@@ -1357,28 +1259,6 @@
  *       500:
  *         description: 서버 오류
  *
- * /users/ranking:
- *   get:
- *     tags:
- *       - Users
- *     summary: 랭킹 유저 목록
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: 성공
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 users:
- *                   type: array
- *                   items:
- *                     type: object
- *       500:
- *         description: 서버 오류
- *
  * /users/search:
  *   get:
  *     tags:
@@ -1581,48 +1461,6 @@
  *       500:
  *         description: 서버 오류
  *
- * /keywords:
- *   post:
- *     tags:
- *       - Keywords
- *     summary: 키워드 추가
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - keywords
- *               - category_id
- *             properties:
- *               keywords:
- *                 type: array
- *                 items:
- *                   type: string
- *               category_id:
- *                 type: integer
- *     responses:
- *       200:
- *         description: 성공
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 keywords:
- *                   type: array
- *                   items:
- *                     type: object
- *       400:
- *         description: 잘못된 요청
- *       401:
- *         description: 인증 필요
- *       500:
- *         description: 서버 오류
- *
  * /reports:
  *   post:
  *     tags:
@@ -1670,6 +1508,7 @@
  *     tags:
  *       - Membership
  *     summary: 회원 탈퇴 (Soft delete)
+ *     deprecated: true
  *     security:
  *       - bearerAuth: []
  *     responses:

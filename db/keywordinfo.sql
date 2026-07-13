@@ -11,3 +11,8 @@ create table public.keywordinfo (
 create index IF not exists idx_keywordinfo_id on public.keywordinfo using btree (keyword_id) TABLESPACE pg_default;
 
 create index IF not exists idx_keywordinfo_name on public.keywordinfo using btree (keyword_name) TABLESPACE pg_default;
+
+-- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
+-- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
+alter table public.keywordinfo enable row level security;
+revoke all on table public.keywordinfo from anon, authenticated;

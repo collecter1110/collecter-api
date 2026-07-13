@@ -8,3 +8,8 @@ create table public.block (
   constraint block_blocked_user_id_fkey foreign KEY (blocked_user_id) references userinfo (user_id) on update CASCADE on delete CASCADE,
   constraint block_blocker_user_id_fkey foreign KEY (blocker_user_id) references userinfo (user_id) on update CASCADE on delete CASCADE
 ) TABLESPACE pg_default;
+
+-- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
+-- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
+alter table public.block enable row level security;
+revoke all on table public.block from anon, authenticated;

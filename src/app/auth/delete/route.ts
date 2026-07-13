@@ -17,8 +17,6 @@ import { deleteImageById } from "@/lib/storage";
  *       - 유저 프로필 이미지 (S3 + `images`)
  *       - `auth_refresh_sessions`, `auth_otp` 정리
  *       - `userinfo` 삭제 → CASCADE로 `collections`, `selections`, `collection_selections`, `likes`, `block` 등 정리
- *
- *       일반 회원 탈퇴(soft delete)는 `/membership` DELETE를 사용하세요.
  *     security:
  *       - bearerAuth: []
  *     responses:
