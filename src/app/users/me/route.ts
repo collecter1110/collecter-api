@@ -36,6 +36,7 @@ import { emptyToNull } from "@/lib/formData";
  *                       email: user@example.com
  *                       description: 안녕하세요
  *                       image_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *                       push_enabled: true
  *       401:
  *         description: 인증 필요
  *         content:
@@ -142,7 +143,7 @@ export async function GET(request: NextRequest) {
 
   const userResult = await getSupabase()
     .from("userinfo")
-    .select("user_id, name, email, description, image_id")
+    .select("user_id, name, email, description, image_id, push_enabled")
     .eq("user_id", auth.userId)
     .single();
 

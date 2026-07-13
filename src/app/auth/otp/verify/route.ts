@@ -11,8 +11,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  *     summary: OTP 검증
  *     description: |
  *       이메일로 받은 OTP 코드를 검증하고 단기 `verified_token`을 반환합니다.
- *       - 기존 유저: `/auth/login`에 `verified_token` 전달
- *       - 신규 유저: `/signup`에 `verified_token` 전달
+ *       이후 `/auth/login`에 `verified_token`을 전달합니다.
  *     requestBody:
  *       required: true
  *       content:
@@ -127,7 +126,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  */
 // POST /auth/otp/verify
 // body: { email: string, token: string }
-// OTP 검증 후 단기 verified_token 반환 — 이후 /auth/login 또는 /signup 에서 실제 토큰 발급
+// OTP 검증 후 단기 verified_token 반환 — 이후 /auth/login 에서 실제 토큰 발급
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { email, token } = body;

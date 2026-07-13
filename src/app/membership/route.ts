@@ -10,6 +10,7 @@ import { deleteImageById } from "@/lib/storage";
  *   delete:
  *     tags: [Auth]
  *     summary: 회원 탈퇴 (Soft Delete)
+ *     deprecated: true
  *     description: |
  *       유저 계정을 soft delete 처리합니다. `userinfo.deleted_at`을 설정하고 모든 세션을 폐기합니다.
  *       컬렉션/셀렉션 데이터는 유지됩니다. 계정 완전 삭제는 `/auth/delete`를 사용하세요.
@@ -77,6 +78,17 @@ export async function DELETE(request: NextRequest) {
     .update({ revoked_at: new Date().toISOString() })
     .eq("user_id", auth.userId)
     .is("revoked_at", null);
+
+  // The FK cascade only fires on a hard delete, so drop fcm tokens here or a
+  // withdrawn user keeps receiving push.
+  const { error: tokensError } = await getSupabase()
+    .from("fcm_tokens")
+    .delete()
+    .eq("user_id", auth.userId);
+
+  if (tokensError) {
+    console.error("cancelMembership fcm token delete error:", tokensError);
+  }
 
   const { error } = await getSupabase()
     .from("userinfo")

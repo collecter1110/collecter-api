@@ -13,8 +13,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  *     description: |
  *       Apple Sign In SDK가 발급한 `identity_token`을 검증하고 단기 `verified_token`을 반환합니다.
  *       OTP 검증(`/auth/otp/verify`), Google OAuth와 동일한 응답 형태로, 이후 흐름이 동일합니다.
- *       - 기존 유저: `/auth/login`에 `verified_token` 전달
- *       - 신규 유저: `/signup`에 `verified_token` 전달
+ *       이후 `/auth/login`에 `verified_token`을 전달합니다.
  *
  *       **주의**: Apple은 첫 로그인 시에만 사용자 이메일을 제공합니다.
  *       JWT 클레임에 email이 없으면 body의 `email`을 사용하며, 신규 유저인데 email이 없으면 400을 반환합니다.
@@ -115,7 +114,7 @@ import { signVerifiedToken } from "@/lib/jwt";
  */
 // POST /auth/oauth/apple
 // body: { identity_token: string }
-// Apple ID 토큰 검증 후 단기 verified_token 반환 — 이후 /auth/login 또는 /signup 에서 실제 토큰 발급
+// Apple ID 토큰 검증 후 단기 verified_token 반환 — 이후 /auth/login 에서 실제 토큰 발급
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const identity_token = body?.identity_token as string | undefined;

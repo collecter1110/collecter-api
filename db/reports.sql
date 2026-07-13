@@ -14,3 +14,8 @@ create trigger trigger_delete_report_post
 after
 update OF status on reports for EACH row when (new.status = true)
 execute FUNCTION delete_report_post ();
+
+-- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
+-- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
+alter table public.reports enable row level security;
+revoke all on table public.reports from anon, authenticated;

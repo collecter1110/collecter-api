@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt, type AccessTokenClaims } from "./jwt";
+import { touchLastActive } from "./lastActive";
 
 export interface AuthContext {
   userId: number;
@@ -24,6 +25,9 @@ export async function getAuthContext(
 
   if (!claims || claims.typ !== "access") return null;
   if (!claims.user_id || !claims.email || !claims.name) return null;
+
+  // Not awaited: a failed or slow write must never cost the caller a request.
+  touchLastActive(claims.user_id);
 
   return {
     userId: claims.user_id,
