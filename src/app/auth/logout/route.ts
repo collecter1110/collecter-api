@@ -3,6 +3,7 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { requireAuth } from "@/lib/auth";
 import { revokeRefreshSessionByToken } from "@/lib/authStore";
 import { verifyJwt, type RefreshTokenClaims } from "@/lib/jwt";
+import { getSupabase } from "@/lib/supabase";
 
 /**
  * @openapi
@@ -10,7 +11,12 @@ import { verifyJwt, type RefreshTokenClaims } from "@/lib/jwt";
  *   post:
  *     tags: [Auth]
  *     summary: 로그아웃
- *     description: 현재 세션의 refresh_token을 폐기합니다.
+ *     description: |
+ *       현재 세션의 refresh_token을 폐기합니다.
+ *
+ *       `fcm_token`을 함께 보내면 이 기기의 FCM 토큰도 같이 삭제합니다. 보내지 않으면
+ *       토큰이 남아 로그아웃한 기기로 계속 알림이 갑니다. **이 기기의 토큰만** 지우므로
+ *       같은 유저가 다른 기기에 로그인해 있어도 그쪽 알림은 유지됩니다.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -23,10 +29,14 @@ import { verifyJwt, type RefreshTokenClaims } from "@/lib/jwt";
  *             properties:
  *               refresh_token:
  *                 type: string
+ *               fcm_token:
+ *                 type: string
+ *                 description: 이 기기의 FCM 토큰. 있으면 함께 삭제합니다.
  *           examples:
  *             ok:
  *               value:
  *                 refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoic2Vzc2lvbi11dWlkIiwidXNlcl9pZCI6NDUsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSJ9.signature
+ *                 fcm_token: "fZx1...token"
  *     responses:
  *       200:
  *         description: 로그아웃 성공
@@ -90,6 +100,7 @@ export async function POST(request: NextRequest) {
   // Client should send refresh token to revoke current session
   const body = await request.json().catch(() => ({}));
   const refresh_token = body?.refresh_token as string | undefined;
+  const fcm_token = body?.fcm_token as string | undefined;
   if (!refresh_token) {
     return apiError("refresh_token is required", 400);
   }
@@ -106,6 +117,21 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error("logout error:", e);
     return apiError("Failed to logout", 500);
+  }
+
+  // Only this handset's token: the same user may stay logged in on another
+  // device, and clearing every row would silently kill push there too. A
+  // failure here must not fail the logout — the session is already revoked.
+  if (fcm_token) {
+    const { error } = await getSupabase()
+      .from("fcm_tokens")
+      .delete()
+      .eq("fcm_token", fcm_token)
+      .eq("user_id", auth.userId);
+
+    if (error) {
+      console.error("logout fcm token delete error:", error);
+    }
   }
 
   return apiResponse({ success: true });

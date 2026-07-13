@@ -79,6 +79,17 @@ export async function DELETE(request: NextRequest) {
     .eq("user_id", auth.userId)
     .is("revoked_at", null);
 
+  // The FK cascade only fires on a hard delete, so drop fcm tokens here or a
+  // withdrawn user keeps receiving push.
+  const { error: tokensError } = await getSupabase()
+    .from("fcm_tokens")
+    .delete()
+    .eq("user_id", auth.userId);
+
+  if (tokensError) {
+    console.error("cancelMembership fcm token delete error:", tokensError);
+  }
+
   const { error } = await getSupabase()
     .from("userinfo")
     .update({ deleted_at: new Date().toISOString() })

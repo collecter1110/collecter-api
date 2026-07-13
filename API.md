@@ -90,8 +90,9 @@ curl -X POST "https://<host>/auth/login" \
 ### POST `/auth/logout`
 
 - 토큰: 필수
-- Body: `refresh_token` (string, required)
-- 동작: refresh session을 폐기합니다.
+- Body: `refresh_token` (string, required), `fcm_token` (string, optional)
+- 동작: refresh session을 폐기합니다. `fcm_token`을 함께 보내면 **이 기기의** FCM 토큰도 삭제합니다.
+- 참고: `fcm_token`을 보내지 않으면 토큰이 남아 로그아웃한 기기로 계속 알림이 갑니다. 같은 유저가 다른 기기에 로그인해 있어도 그쪽 알림은 유지됩니다.
 
 ### POST `/auth/refresh`
 
