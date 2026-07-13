@@ -10,7 +10,7 @@ create table public.selections (
   is_ordered boolean not null default false,
   is_selectable boolean not null default false,
   owner_name text not null,
-  created_at date not null default CURRENT_DATE,
+  created_at timestamp with time zone not null default now(),
   constraint selections_v2_pkey primary key (id),
   constraint selections_owner_id_fkey foreign KEY (owner_id) references userinfo (user_id) on update CASCADE on delete CASCADE,
   constraint selections_v2_category_id_fkey foreign KEY (category_id) references categoryinfo (category_id) on update CASCADE on delete CASCADE,
