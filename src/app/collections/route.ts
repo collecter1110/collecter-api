@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
+import { getUserName } from "@/lib/userInfo";
 
 /**
  * @openapi
@@ -112,10 +113,17 @@ export async function POST(request: NextRequest) {
   // 컬렉션 생성 시에는 비워두고, 셀렉션 업로드/수정 과정에서 채워집니다.
   const image_id: string | null = null;
 
+  // auth.name은 토큰 발급 시점 스냅샷이라 개명 이후 어긋날 수 있으므로 DB에서 읽는다.
+  const userName = await getUserName(auth.userId);
+  if (!userName) {
+    console.error("addCollection error: user name not found", auth.userId);
+    return apiError("Failed to create collection", 500);
+  }
+
   const { error } = await getSupabase().from("collections").insert({
     category_id,
     user_id: auth.userId,
-    user_name: auth.name,
+    user_name: userName,
     title,
     description,
     tags,

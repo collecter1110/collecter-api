@@ -8,7 +8,7 @@ import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 import { emptyToNull } from "@/lib/formData";
-import { getUserImageMap } from "@/lib/userInfo";
+import { getUserImageMap, getUserName } from "@/lib/userInfo";
 import {
   getSelectionHomeMap,
   isSelectionVisibleToViewer,
@@ -342,12 +342,19 @@ export async function POST(request: NextRequest, { params }: Params) {
     return apiError("Failed to save keywords", 500);
   }
 
+  // auth.name은 토큰 발급 시점 스냅샷이라 개명 이후 어긋날 수 있으므로 DB에서 읽는다.
+  const ownerName = await getUserName(auth.userId);
+  if (!ownerName) {
+    console.error("addSelections error: user name not found", auth.userId);
+    return apiError("Failed to create selection", 500);
+  }
+
   const { data: newSelection, error } = await getSupabase()
     .from("selections")
     .insert({
       category_id,
       owner_id: auth.userId,
-      owner_name: auth.name,
+      owner_name: ownerName,
       title,
       description,
       keywords: keywordEntries,
