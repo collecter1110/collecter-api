@@ -150,6 +150,11 @@ import {
  *                   format: binary
  *               keep_image_ids:
  *                 type: string
+ *                 description: |
+ *                   유지할 기존 image_id JSON 배열. 빈 배열이면 전체 삭제.
+ *                   **배열 순서가 곧 이미지 순서**이며, 이 순서대로 `sort_order`가 0부터 다시 부여된다.
+ *                   새로 업로드한 `images`는 그 뒤에 파일 순서대로 이어 붙는다.
+ *                   생략하면 기존 이미지의 순서를 그대로 두고 새 이미지만 맨 뒤에 추가한다.
  *     responses:
  *       200:
  *         description: 수정 성공
@@ -438,10 +443,17 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const hasSelecting = !!csRowResult?.data;
 
-  const { title, ...rest } = data;
+  // 임베드된 selection_images는 PostgREST가 순서를 보장하지 않으므로
+  // 공개 API(serializeSelectionDetail)와 동일하게 sort_order로 정렬해 내려준다.
+  const { title, selection_images, ...rest } = data;
+  const images = [
+    ...((selection_images ?? []) as { image_id: string; sort_order: number }[]),
+  ].sort((a, b) => a.sort_order - b.sort_order);
+
   return apiResponse({
     selection: {
       ...rest,
+      selection_images: images,
       selection_title: title,
       collection_id: collectionId,
       user_id: data.owner_id,
@@ -546,20 +558,33 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
   }
 
-  // 이미지 업데이트: keep_image_ids가 있으면 명시된 것 외 삭제
+  // 이미지 업데이트: keep_image_ids가 있으면 명시된 것 외 삭제.
+  // 배열 순서가 곧 유지할 이미지의 순서이므로 그 순서대로 sort_order를 0부터 다시 매기고,
+  // 새로 업로드된 이미지는 그 뒤에 이어 붙인다.
+  let nextSortOrder: number | null = null;
+
   if (keepImageIdsRaw !== null) {
     const keepIds: string[] = JSON.parse(keepImageIdsRaw);
     const { data: existingImgs } = await getSupabase()
       .from("selection_images")
-      .select("image_id")
+      .select("image_id, sort_order")
       .eq("selection_id", id);
 
-    const deletedIds: string[] = [];
-    for (const si of existingImgs ?? []) {
-      if (!keepIds.includes(si.image_id)) {
-        deletedIds.push(si.image_id);
-      }
-    }
+    const existing = (existingImgs ?? []) as {
+      image_id: string;
+      sort_order: number;
+    }[];
+    const existingById = new Map(existing.map((si) => [si.image_id, si]));
+
+    // 실제로 존재하는 image_id만, 배열에 처음 등장한 순서대로 (중복/유령 id 방어)
+    const orderedKeepIds = keepIds.filter(
+      (imageId, i) => existingById.has(imageId) && keepIds.indexOf(imageId) === i
+    );
+    const keepIdSet = new Set(orderedKeepIds);
+
+    const deletedIds = existing
+      .filter((si) => !keepIdSet.has(si.image_id))
+      .map((si) => si.image_id);
 
     if (deletedIds.length > 0) {
       await getSupabase()
@@ -569,6 +594,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         .in("image_id", deletedIds);
     }
 
+    // sort_order에는 unique 제약이 없으므로 중간 상태 충돌 없이 병렬 갱신할 수 있다.
+    await Promise.all(
+      orderedKeepIds
+        .map((imageId, i) => ({ imageId, i }))
+        .filter(({ imageId, i }) => existingById.get(imageId)!.sort_order !== i)
+        .map(({ imageId, i }) =>
+          getSupabase()
+            .from("selection_images")
+            .update({ sort_order: i })
+            .eq("selection_id", id)
+            .eq("image_id", imageId)
+        )
+    );
+
+    nextSortOrder = orderedKeepIds.length;
+
     for (const colId of collectionIds) {
       await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
     }
@@ -576,15 +617,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   // 새 이미지 추가
   if (imageFiles.length > 0) {
-    const { data: lastImg } = await getSupabase()
-      .from("selection_images")
-      .select("sort_order")
-      .eq("selection_id", id)
-      .order("sort_order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // keep_image_ids가 없으면 기존 이미지를 그대로 두고 뒤에만 이어 붙인다.
+    if (nextSortOrder === null) {
+      const { data: lastImg } = await getSupabase()
+        .from("selection_images")
+        .select("sort_order")
+        .eq("selection_id", id)
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    let nextSortOrder = (lastImg?.sort_order ?? -1) + 1;
+      nextSortOrder =
+        ((lastImg?.sort_order as number | undefined) ?? -1) + 1;
+    }
+
+    // 업로드에 실패한 파일은 번호를 소비하지 않아 sort_order가 연속으로 유지된다.
+    let sortOrder: number = nextSortOrder;
 
     for (const file of imageFiles) {
       if (!file || file.size === 0) continue;
@@ -594,7 +642,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         await getSupabase().from("selection_images").insert({
           selection_id: id,
           image_id: imageId,
-          sort_order: nextSortOrder++,
+          sort_order: sortOrder++,
         });
 
         for (const colId of collectionIds) {
