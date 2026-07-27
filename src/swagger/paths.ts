@@ -639,7 +639,11 @@
  *                 type: string
  *               keep_image_ids:
  *                 type: string
- *                 description: 유지할 기존 image_id JSON 배열. 빈 배열이면 전체 삭제
+ *                 description: |
+ *                   유지할 기존 image_id JSON 배열. 빈 배열이면 전체 삭제.
+ *                   **배열 순서가 곧 이미지 순서**이며, 이 순서대로 `sort_order`가 0부터 다시 부여된다.
+ *                   새로 업로드한 `images`는 그 뒤에 파일 순서대로 이어 붙는다.
+ *                   생략하면 기존 이미지의 순서를 그대로 두고 새 이미지만 맨 뒤에 추가한다.
  *               images:
  *                 type: array
  *                 items:
