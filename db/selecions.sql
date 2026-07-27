@@ -13,6 +13,7 @@ create table public.selections (
   created_at timestamp with time zone not null default now(),
   constraint selections_v2_pkey primary key (id),
   constraint selections_owner_id_fkey foreign KEY (owner_id) references userinfo (user_id) on update CASCADE on delete CASCADE,
+  constraint selections_owner_id_name_fkey foreign KEY (owner_id, owner_name) references userinfo (user_id, name) on update CASCADE on delete CASCADE,
   constraint selections_v2_category_id_fkey foreign KEY (category_id) references categoryinfo (category_id) on update CASCADE on delete CASCADE,
   constraint check_items_format_v2 check (
     (
@@ -29,6 +30,8 @@ create table public.selections (
 ) TABLESPACE pg_default;
 
 create index IF not exists selections_v2_keywords_gin_idx on public.selections using gin (keywords jsonb_path_ops) TABLESPACE pg_default;
+
+create index IF not exists selections_owner_id_name_idx on public.selections using btree (owner_id, owner_name) TABLESPACE pg_default;
 
 -- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
 -- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
