@@ -3,7 +3,12 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
-import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
+import { storeOptimizedImage, deleteImageById } from "@/lib/storage";
+import {
+  SELECTION_IMAGE_PRESET,
+  optimizeUploadedImages,
+  isRejectableImageError,
+} from "@/lib/image";
 import {
   ensureCollectionCoverIfEmpty,
   repairCollectionCoverIfUsingDeletedImage,
@@ -538,6 +543,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
   }
 
+  // 이미지 검증·최적화를 셀렉션 수정보다 먼저 끝낸다.
+  // 잘못된 이미지로 400을 반환할 때 본문만 바뀌는 상황을 막기 위한 순서다.
+  let optimizedImages: Buffer[];
+  try {
+    optimizedImages = await optimizeUploadedImages(imageFiles, SELECTION_IMAGE_PRESET);
+  } catch (err) {
+    if (isRejectableImageError(err)) {
+      // 기존 앱 업로드가 새 제한에 걸리는지 배포 후 확인할 수 있도록 사유를 남긴다.
+      console.warn("selection image rejected (edit):", (err as Error).message);
+      return apiError("Unsupported, corrupted, or oversized image file", 400);
+    }
+    console.error("editSelection image optimize error:", err);
+    return apiError("Failed to process image", 500);
+  }
+
   // 매핑 테이블에서 컬렉션 ID 조회 (커버 복구용)
   const { data: csData } = await getSupabase()
     .from("collection_selections")
@@ -616,7 +636,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   // 새 이미지 추가
-  if (imageFiles.length > 0) {
+  if (optimizedImages.length > 0) {
     // keep_image_ids가 없으면 기존 이미지를 그대로 두고 뒤에만 이어 붙인다.
     if (nextSortOrder === null) {
       const { data: lastImg } = await getSupabase()
@@ -631,14 +651,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         ((lastImg?.sort_order as number | undefined) ?? -1) + 1;
     }
 
-    // 업로드에 실패한 파일은 번호를 소비하지 않아 sort_order가 연속으로 유지된다.
+    // 저장에 실패한 이미지는 번호를 소비하지 않아 sort_order가 연속으로 유지된다.
     let sortOrder: number = nextSortOrder;
 
-    for (const file of imageFiles) {
-      if (!file || file.size === 0) continue;
+    for (const optimized of optimizedImages) {
       try {
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const { imageId } = await uploadImageAndSave(buffer, file.type);
+        // 이미 검증·최적화가 끝난 버퍼이므로 여기서는 저장만 한다.
+        const { imageId } = await storeOptimizedImage(optimized);
         await getSupabase().from("selection_images").insert({
           selection_id: id,
           image_id: imageId,
