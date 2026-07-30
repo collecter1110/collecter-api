@@ -3,6 +3,7 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
+import { PROFILE_IMAGE_PRESET, isRejectableImageError } from "@/lib/image";
 import { emptyToNull } from "@/lib/formData";
 
 /**
@@ -192,10 +193,16 @@ export async function PATCH(request: NextRequest) {
       const buffer = Buffer.from(await imageFile.arrayBuffer());
       const { imageId } = await uploadImageAndSave(
         buffer,
-        imageFile.type
+        PROFILE_IMAGE_PRESET
       );
       updates.image_id = imageId;
-    } catch {
+    } catch (err) {
+      if (isRejectableImageError(err)) {
+        // 기존 앱 업로드가 새 제한에 걸리는지 배포 후 확인할 수 있도록 사유를 남긴다.
+        console.warn("profile image rejected:", (err as Error).message);
+        return apiError("Unsupported, corrupted, or oversized image file", 400);
+      }
+      console.error("editUserInfo image upload error:", err);
       return apiError("Failed to upload image", 500);
     }
 
