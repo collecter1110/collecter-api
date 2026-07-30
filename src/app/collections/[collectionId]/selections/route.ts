@@ -3,8 +3,12 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
-import { uploadImageAndSave } from "@/lib/storage";
-import { SELECTION_IMAGE_PRESET } from "@/lib/image";
+import { storeOptimizedImage } from "@/lib/storage";
+import {
+  SELECTION_IMAGE_PRESET,
+  optimizeUploadedImages,
+  isRejectableImageError,
+} from "@/lib/image";
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
@@ -335,6 +339,21 @@ export async function POST(request: NextRequest, { params }: Params) {
     return apiError("keywords must be a non-empty JSON array of strings", 400);
   }
 
+  // 이미지 검증·최적화를 셀렉션 생성보다 먼저 끝낸다.
+  // 이렇게 해야 잘못된 이미지 때문에 400을 반환할 때 빈 셀렉션이 남지 않는다.
+  let optimizedImages: Buffer[];
+  try {
+    optimizedImages = await optimizeUploadedImages(imageFiles, SELECTION_IMAGE_PRESET);
+  } catch (err) {
+    if (isRejectableImageError(err)) {
+      // 기존 앱 업로드가 새 제한에 걸리는지 배포 후 확인할 수 있도록 사유를 남긴다.
+      console.warn("selection image rejected (create):", (err as Error).message);
+      return apiError("Unsupported, corrupted, or oversized image file", 400);
+    }
+    console.error("addSelections image optimize error:", err);
+    return apiError("Failed to process image", 500);
+  }
+
   let keywordEntries;
   try {
     keywordEntries = await ensureKeywordsInCategory(category_id, keywords);
@@ -386,15 +405,10 @@ export async function POST(request: NextRequest, { params }: Params) {
     return apiError("Failed to create selection", 500);
   }
 
-  for (let i = 0; i < imageFiles.length; i++) {
-    const file = imageFiles[i];
-    if (!file || file.size === 0) continue;
+  for (let i = 0; i < optimizedImages.length; i++) {
     try {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const { imageId } = await uploadImageAndSave(
-        buffer,
-        SELECTION_IMAGE_PRESET
-      );
+      // 이미 검증·최적화가 끝난 버퍼이므로 여기서는 저장만 한다.
+      const { imageId } = await storeOptimizedImage(optimizedImages[i]);
       await getSupabase().from("selection_images").insert({
         selection_id: newSelection.id,
         image_id: imageId,
