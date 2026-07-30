@@ -3,6 +3,7 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
+import { PROFILE_IMAGE_PRESET, InvalidImageError } from "@/lib/image";
 import { emptyToNull } from "@/lib/formData";
 
 /**
@@ -192,10 +193,13 @@ export async function PATCH(request: NextRequest) {
       const buffer = Buffer.from(await imageFile.arrayBuffer());
       const { imageId } = await uploadImageAndSave(
         buffer,
-        imageFile.type
+        PROFILE_IMAGE_PRESET
       );
       updates.image_id = imageId;
-    } catch {
+    } catch (err) {
+      if (err instanceof InvalidImageError) {
+        return apiError("Unsupported or corrupted image file", 400);
+      }
       return apiError("Failed to upload image", 500);
     }
 

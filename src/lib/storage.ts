@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSupabase } from "@/lib/supabase";
+import { optimizeImage, type ImagePreset } from "@/lib/image";
 import { randomUUID } from "crypto";
 
 function pickEnv(...names: string[]): string | undefined {
@@ -51,8 +52,10 @@ export function buildImageUrl(imageId: string | null | undefined): string | null
 
 export async function uploadImageAndSave(
   buffer: Buffer,
-  contentType: string
+  preset: ImagePreset
 ): Promise<{ imageId: string; filePath: string }> {
+  const optimized = await optimizeImage(buffer, preset);
+
   const s3 = getS3Client();
   const bucket = getBucketName();
   const imageId = randomUUID();
@@ -62,8 +65,8 @@ export async function uploadImageAndSave(
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,
-      Body: buffer,
-      ContentType: contentType,
+      Body: optimized,
+      ContentType: "image/jpeg",
     })
   );
 

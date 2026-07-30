@@ -4,6 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { requireAuth, getAuthContext } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
+import { SELECTION_IMAGE_PRESET } from "@/lib/image";
 import {
   ensureCollectionCoverIfEmpty,
   repairCollectionCoverIfUsingDeletedImage,
@@ -638,7 +639,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       if (!file || file.size === 0) continue;
       try {
         const buffer = Buffer.from(await file.arrayBuffer());
-        const { imageId } = await uploadImageAndSave(buffer, file.type);
+        const { imageId } = await uploadImageAndSave(
+          buffer,
+          SELECTION_IMAGE_PRESET
+        );
         await getSupabase().from("selection_images").insert({
           selection_id: id,
           image_id: imageId,
