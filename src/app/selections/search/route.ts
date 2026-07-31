@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
-import { getAuthContext } from "@/lib/auth";
+import { optionalAuth } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 
 /**
@@ -27,6 +27,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *         schema:
  *           type: string
  *         description: Bearer access token (optional)
+ *           토큰이 만료·무효하면 401 을 반환한다. 헤더를 아예 보내지 않으면 비로그인으로 간주해 200 을 반환한다.
  *         example: Bearer eyJhbGciOi...
  *     responses:
  *       200:
@@ -84,6 +85,22 @@ import { getBlockedUserIds } from "@/lib/blocks";
  *                   errorCode: SU000
  *                   msg: "Query parameter 'q' is required"
  *                   data: {}
+ *       401:
+ *         description: >-
+ *           Authorization 헤더를 보냈으나 토큰이 만료·변조되었거나 access 토큰이 아님.
+ *           클라이언트는 토큰을 갱신한 뒤 재시도해야 한다.
+ *           헤더를 보내지 않은 비로그인 요청은 401 이 아니라 200 이다.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
  *       500:
  *         description: 검색 실패
  *         content:
@@ -105,7 +122,8 @@ export async function GET(request: NextRequest) {
     return apiError("Query parameter 'q' is required", 400);
   }
 
-  const auth = await getAuthContext(request);
+  const auth = await optionalAuth(request);
+  if (auth instanceof NextResponse) return auth;
 
   // 차단 목록 / 키워드 매칭 / 셀렉션 조인 조회는 서로 독립적이므로 병렬 실행
   // keywords 형식: [{"keyword_id": N, "keyword_name": "..."}]

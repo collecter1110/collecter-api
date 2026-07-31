@@ -1,7 +1,7 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
-import { getAuthContext } from "@/lib/auth";
+import { optionalAuth } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { getSelectionHomeMap } from "@/lib/selectionVisibility";
 import { parsePagination } from "@/lib/pagination";
@@ -24,6 +24,7 @@ import { parsePagination } from "@/lib/pagination";
  *         schema:
  *           type: string
  *         description: Bearer access token (optional)
+ *           토큰이 만료·무효하면 401 을 반환한다. 헤더를 아예 보내지 않으면 비로그인으로 간주해 200 을 반환한다.
  *         example: Bearer eyJhbGciOi...
  *       - in: query
  *         name: category_id
@@ -75,6 +76,22 @@ import { parsePagination } from "@/lib/pagination";
  *                         keywords:
  *                           - keyword_id: 7
  *                             keyword_name: "키워드"
+ *       401:
+ *         description: >-
+ *           Authorization 헤더를 보냈으나 토큰이 만료·변조되었거나 access 토큰이 아님.
+ *           클라이언트는 토큰을 갱신한 뒤 재시도해야 한다.
+ *           헤더를 보내지 않은 비로그인 요청은 401 이 아니라 200 이다.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
  *       500:
  *         description: Failed to fetch recent selections
  *         content:
@@ -91,7 +108,8 @@ import { parsePagination } from "@/lib/pagination";
 // GET /selections/recent — getRecentSelections
 // 최신순(id desc) + 카테고리 필터 + 가시성 필터 후 page/size 페이지네이션
 export async function GET(request: NextRequest) {
-  const auth = await getAuthContext(request);
+  const auth = await optionalAuth(request);
+  if (auth instanceof NextResponse) return auth;
   // 차단 필터는 아래에서 JS 로 적용되므로 메인 조회와 병렬 실행
   const blockedIdsPromise = auth
     ? getBlockedUserIds(auth.userId)
