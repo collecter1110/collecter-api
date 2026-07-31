@@ -4,7 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { uploadImageAndSave, deleteImageById } from "@/lib/storage";
 import { PROFILE_IMAGE_PRESET, isRejectableImageError } from "@/lib/image";
-import { emptyToNull } from "@/lib/formData";
+import { emptyToNull, drainThenRespond } from "@/lib/formData";
 
 /**
  * @openapi
@@ -165,8 +165,10 @@ export async function GET(request: NextRequest) {
 // PATCH /users/me — editUserInfo
 // body: multipart/form-data { name, description?, image? }
 export async function PATCH(request: NextRequest) {
+  // 본문을 읽기 전에 나가는 응답이므로 드레인해서 내보낸다.
+  // 그러지 않으면 프로필 이미지를 올리던 클라이언트가 401 대신 커넥션 리셋을 받는다.
   const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+  if (auth instanceof NextResponse) return drainThenRespond(request, auth);
 
   const formData = await request.formData();
   const user_name = formData.get("user_name") as string | null;

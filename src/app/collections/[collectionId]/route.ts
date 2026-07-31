@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
-import { requireAuth, getAuthContext } from "@/lib/auth";
+import { requireAuth, optionalAuth } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { deleteImageById } from "@/lib/storage";
-import { emptyToNull } from "@/lib/formData";
+import { emptyToNull, drainThenRespond } from "@/lib/formData";
 
 /**
  * @openapi
@@ -26,6 +26,7 @@ import { emptyToNull } from "@/lib/formData";
  *         schema:
  *           type: string
  *         description: Bearer access token (optional, 좋아요 여부 확인용)
+ *           토큰이 만료·무효하면 401 을 반환한다. 헤더를 아예 보내지 않으면 비로그인으로 간주해 200 을 반환한다.
  *         example: Bearer eyJhbGciOi...
  *     responses:
  *       200:
@@ -75,6 +76,22 @@ import { emptyToNull } from "@/lib/formData";
  *                   errorCode: SU000
  *                   msg: Collection not found
  *                   data: {}
+ *       401:
+ *         description: >-
+ *           Authorization 헤더를 보냈으나 토큰이 만료·변조되었거나 access 토큰이 아님.
+ *           클라이언트는 토큰을 갱신한 뒤 재시도해야 한다.
+ *           헤더를 보내지 않은 비로그인 요청은 401 이 아니라 200 이다.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *             examples:
+ *               error:
+ *                 value:
+ *                   error: Unauthorized
  *       500:
  *         description: 서버 오류
  *         content:
@@ -227,7 +244,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     return apiError("Invalid collection ID", 400);
   }
 
-  const auth = await getAuthContext(request);
+  const auth = await optionalAuth(request);
+  if (auth instanceof NextResponse) return auth;
 
   const { data, error } = await getSupabase()
     .from("collections")
@@ -288,13 +306,15 @@ export async function GET(request: NextRequest, { params }: Params) {
 // PATCH /collections/:collectionId — editCollection
 // body: multipart/form-data { category_id?, title?, description?, tags?, is_public? }
 export async function PATCH(request: NextRequest, { params }: Params) {
+  // 본문을 읽기 전에 나가는 응답이므로 드레인해서 내보낸다.
+  // 그러지 않으면 업로드 중인 클라이언트가 상태 코드 대신 커넥션 리셋을 받는다.
   const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+  if (auth instanceof NextResponse) return drainThenRespond(request, auth);
 
   const { collectionId: idParam } = await params;
   const collectionId = parseInt(idParam, 10);
   if (isNaN(collectionId)) {
-    return apiError("Invalid collection ID", 400);
+    return drainThenRespond(request, apiError("Invalid collection ID", 400));
   }
 
   const formData = await request.formData();

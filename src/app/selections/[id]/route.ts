@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
-import { requireAuth, getAuthContext } from "@/lib/auth";
+import { requireAuth, optionalAuth } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { storeOptimizedImage, deleteImageById } from "@/lib/storage";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNums } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
-import { emptyToNull } from "@/lib/formData";
+import { emptyToNull, drainThenRespond } from "@/lib/formData";
 import {
   getSelectionHome,
   isSelectionVisibleToViewer,
@@ -360,7 +360,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     return apiError("Invalid ID", 400);
   }
 
-  const auth = await getAuthContext(request);
+  const auth = await optionalAuth(request);
+  if (auth instanceof NextResponse) return auth;
 
   // collection_id: 조회 컨텍스트의 컬렉션 ID (필수)
   const collectionIdParam = request.nextUrl.searchParams.get("collection_id");
@@ -470,14 +471,17 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 // PATCH /selections/:id
 export async function PATCH(request: NextRequest, { params }: Params) {
+  // 아래 검사들은 본문을 읽기 전에 끝나므로, 여기서 나가는 응답은 모두
+  // drainThenRespond로 감싼다. 그러지 않으면 업로드 중인 클라이언트가
+  // 상태 코드 대신 커넥션 리셋을 받는다.
   const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+  if (auth instanceof NextResponse) return drainThenRespond(request, auth);
 
   const { id: idParam } = await params;
   const id = parseInt(idParam, 10);
 
   if (isNaN(id)) {
-    return apiError("Invalid ID", 400);
+    return drainThenRespond(request, apiError("Invalid ID", 400));
   }
 
   // 소유자만 수정 가능 (keywords 처리용 category_id도 함께 조회해 추가 쿼리 제거)
@@ -488,11 +492,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .single();
 
   if (!selection) {
-    return apiError("Selection not found", 404);
+    return drainThenRespond(request, apiError("Selection not found", 404));
   }
 
   if (selection.owner_id !== auth.userId) {
-    return apiError("Only the owner can edit this selection", 403);
+    return drainThenRespond(
+      request,
+      apiError("Only the owner can edit this selection", 403)
+    );
   }
 
   const formData = await request.formData();
@@ -728,19 +735,18 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return apiError("Failed to delete selection", 500);
   }
 
-  // 이미지 삭제 / 셀렉션 수 재계산 / 커버 복구는 응답에 영향이 없는 후처리이므로
-  // 응답 전송 후 기존 순서 그대로 순차 실행한다.
+  await recalcCollectionSelectionNums(collectionIds);
+
+  // 관련 컬렉션 커버 복구
+  for (const colId of collectionIds) {
+    await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
+  }
+
+  // 실제 스토리지 이미지 삭제는 응답과 분리해도 API 조회 정합성에 영향이 없다.
   after(async () => {
     try {
       for (const si of selImgs ?? []) {
         await deleteImageById(si.image_id);
-      }
-
-      await recalcCollectionSelectionNums(collectionIds);
-
-      // 관련 컬렉션 커버 복구
-      for (const colId of collectionIds) {
-        await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
       }
     } catch (err) {
       console.error("deleteSelection post-response cleanup error:", err);
