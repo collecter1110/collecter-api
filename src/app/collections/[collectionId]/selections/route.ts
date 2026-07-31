@@ -12,7 +12,7 @@ import {
 import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
-import { emptyToNull } from "@/lib/formData";
+import { emptyToNull, drainThenRespond } from "@/lib/formData";
 import { getUserImageMap, getUserName } from "@/lib/userInfo";
 import {
   getSelectionHomeMap,
@@ -324,14 +324,16 @@ export async function GET(request: NextRequest, { params }: Params) {
 // POST /collections/:collectionId/selections — addSelections
 // body: multipart/form-data { category_id, title, description?, images?, keywords?, link?, items?, is_ordered?, is_selectable? }
 export async function POST(request: NextRequest, { params }: Params) {
+  // 본문을 읽기 전에 나가는 응답이므로 드레인해서 내보낸다.
+  // 그러지 않으면 업로드 중인 클라이언트가 상태 코드 대신 커넥션 리셋을 받는다.
   const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+  if (auth instanceof NextResponse) return drainThenRespond(request, auth);
 
   const { collectionId: idParam } = await params;
   const collectionId = parseInt(idParam, 10);
 
   if (isNaN(collectionId)) {
-    return apiError("Invalid collection ID", 400);
+    return drainThenRespond(request, apiError("Invalid collection ID", 400));
   }
 
   const formData = await request.formData();

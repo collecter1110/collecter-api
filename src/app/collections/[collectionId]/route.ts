@@ -4,7 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { requireAuth, optionalAuth } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { deleteImageById } from "@/lib/storage";
-import { emptyToNull } from "@/lib/formData";
+import { emptyToNull, drainThenRespond } from "@/lib/formData";
 
 /**
  * @openapi
@@ -306,13 +306,15 @@ export async function GET(request: NextRequest, { params }: Params) {
 // PATCH /collections/:collectionId — editCollection
 // body: multipart/form-data { category_id?, title?, description?, tags?, is_public? }
 export async function PATCH(request: NextRequest, { params }: Params) {
+  // 본문을 읽기 전에 나가는 응답이므로 드레인해서 내보낸다.
+  // 그러지 않으면 업로드 중인 클라이언트가 상태 코드 대신 커넥션 리셋을 받는다.
   const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+  if (auth instanceof NextResponse) return drainThenRespond(request, auth);
 
   const { collectionId: idParam } = await params;
   const collectionId = parseInt(idParam, 10);
   if (isNaN(collectionId)) {
-    return apiError("Invalid collection ID", 400);
+    return drainThenRespond(request, apiError("Invalid collection ID", 400));
   }
 
   const formData = await request.formData();

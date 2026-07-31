@@ -3,6 +3,7 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { getUserName } from "@/lib/userInfo";
+import { drainThenRespond } from "@/lib/formData";
 
 /**
  * @openapi
@@ -93,8 +94,10 @@ import { getUserName } from "@/lib/userInfo";
 // POST /collections — addCollection
 // body: multipart/form-data { category_id, title, description?, tags?, is_public? }
 export async function POST(request: NextRequest) {
+  // 본문을 읽기 전에 나가는 응답이므로 드레인해서 내보낸다.
+  // 그러지 않으면 업로드 중인 클라이언트가 401 대신 커넥션 리셋을 받는다.
   const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+  if (auth instanceof NextResponse) return drainThenRespond(request, auth);
 
   const formData = await request.formData();
   const category_id = parseInt(formData.get("category_id") as string, 10);
