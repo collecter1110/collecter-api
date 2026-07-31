@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
-import { requireAuth, getAuthContext } from "@/lib/auth";
+import { requireAuth, optionalAuth } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { storeOptimizedImage, deleteImageById } from "@/lib/storage";
 import {
@@ -360,7 +360,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     return apiError("Invalid ID", 400);
   }
 
-  const auth = await getAuthContext(request);
+  const auth = await optionalAuth(request);
+  if (auth instanceof NextResponse) return auth;
 
   // collection_id: 조회 컨텍스트의 컬렉션 ID (필수)
   const collectionIdParam = request.nextUrl.searchParams.get("collection_id");
