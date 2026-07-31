@@ -12,7 +12,9 @@ import { getUserImageMap } from "@/lib/userInfo";
  *   get:
  *     tags: [Users]
  *     summary: 내가 좋아요한 컬렉션 목록
- *     description: 차단한 유저의 컬렉션은 제외됩니다.
+ *     description: |
+ *       차단한 유저의 컬렉션과 남의 비공개 컬렉션은 제외됩니다.
+ *       내가 만든 컬렉션은 비공개여도 포함됩니다.
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -108,7 +110,11 @@ export async function GET(request: NextRequest) {
       );
     })
     .filter((c): c is NonNullable<typeof c> => c !== null)
-    .filter((c) => (c as Record<string, unknown>).is_public !== false)
+    .filter(
+      (c) =>
+        c.user_id === auth.userId ||
+        (c as Record<string, unknown>).is_public !== false
+    )
     .filter((c) =>
       blockedIds.length === 0 || !blockedIds.includes(c.user_id as number)
     );
