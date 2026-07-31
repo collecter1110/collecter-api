@@ -160,34 +160,60 @@ export async function GET(request: NextRequest) {
       .ilike("keyword_name", `%${term}%`),
   ]);
 
-  let dbQuery = getSupabase()
-    .from("collections")
-    .select(
-      "category_id, id, title, description, image_id, tags, user_id, user_name, primary_keywords, selection_num, like_num, is_public, created_at"
-    )
-    .eq("is_public", true);
+  const buildQuery = (orConditions: string[]) => {
+    let dbQuery = getSupabase()
+      .from("collections")
+      .select(
+        "category_id, id, title, description, image_id, tags, user_id, user_name, primary_keywords, selection_num, like_num, is_public, created_at"
+      )
+      .eq("is_public", true);
 
-  if (blockedIds.length > 0) {
-    dbQuery = dbQuery.not("user_id", "in", `(${blockedIds.join(",")})`);
-  }
+    if (blockedIds.length > 0) {
+      dbQuery = dbQuery.not("user_id", "in", `(${blockedIds.join(",")})`);
+    }
+
+    return dbQuery.or(orConditions.join(","));
+  };
 
   // title 부분 일치 OR primary_keywords에 매칭된 keyword_id 포함
   // - title.ilike.*사과*  → 콤마/괄호가 or() 파싱을 깨지 않도록 값을 큰따옴표로 감쌈
   // - primary_keywords.cs.[{"keyword_id": N}] → @> 부분 매칭
+  //
+  // PostgREST 는 or 조건을 URL 쿼리스트링으로 실어 보내므로, 매칭 키워드가 많으면
+  // URL 길이 한도를 넘겨 요청 자체가 실패한다. (예: q=a → 키워드 274개, 조건 11k자 → fetch failed)
+  // 조건을 청크로 나눠 병렬 조회한 뒤 id 기준으로 합친다.
   const kwIds = (kwData ?? []).map((k) => k.keyword_id as number);
-  const orConditions = [
-    `title.ilike."*${term}*"`,
-    ...kwIds.map((id) => `primary_keywords.cs.${JSON.stringify([{ keyword_id: id }])}`),
-  ];
-  dbQuery = dbQuery.or(orConditions.join(","));
+  const KEYWORDS_PER_QUERY = 40;
+  const kwChunks: number[][] = [];
+  for (let i = 0; i < kwIds.length; i += KEYWORDS_PER_QUERY) {
+    kwChunks.push(kwIds.slice(i, i + KEYWORDS_PER_QUERY));
+  }
 
-  const { data, error } = await dbQuery;
-  if (error) {
-    console.error("searchCollections error:", error);
+  const results = await Promise.all([
+    buildQuery([`title.ilike."*${term}*"`]),
+    ...kwChunks.map((chunk) =>
+      buildQuery(
+        chunk.map((id) => `primary_keywords.cs.${JSON.stringify([{ keyword_id: id }])}`)
+      )
+    ),
+  ]);
+
+  const failed = results.find((r) => r.error);
+  if (failed?.error) {
+    console.error("searchCollections error:", failed.error);
     return apiError("Failed to search collections", 500);
   }
 
-  const rows = (data ?? []) as unknown as CollectionRow[];
+  // 청크 간 중복 제거. 여러 쿼리를 합치므로 순서가 임의가 되지 않도록 최신순으로 정렬한다.
+  const byId = new Map<number, CollectionRow>();
+  for (const r of results) {
+    for (const row of (r.data ?? []) as unknown as CollectionRow[]) {
+      byId.set(row.id, row);
+    }
+  }
+  const rows = [...byId.values()].sort((a, b) =>
+    (b.created_at ?? "").localeCompare(a.created_at ?? "")
+  );
   // 작성자 프로필 이미지(userinfo.image_id)를 한 번에 조회
   const userImageMap = await getUserImageMap(rows.map((r) => r.user_id));
 
