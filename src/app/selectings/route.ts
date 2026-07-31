@@ -491,18 +491,10 @@ export async function DELETE(request: NextRequest) {
     return apiError("Failed to cancel selecting", 500);
   }
 
-  // 셀렉션 수 재계산 / 커버 복구는 응답에 영향이 없는 후처리이므로
-  // 응답 전송 후 기존 순서 그대로 순차 실행한다.
-  after(async () => {
-    try {
-      await recalcCollectionSelectionNum(selecting_collection_id);
+  await recalcCollectionSelectionNum(selecting_collection_id);
 
-      // 컬렉션 커버가 방금 제거한 셀렉션 이미지라면, 남은 셀렉션들 기준으로 복구
-      await repairCollectionCoverIfUsingDeletedImage(selecting_collection_id, imageIds);
-    } catch (err) {
-      console.error("cancel selecting post-response cleanup error:", err);
-    }
-  });
+  // 컬렉션 커버가 방금 제거한 셀렉션 이미지라면, 남은 셀렉션들 기준으로 복구
+  await repairCollectionCoverIfUsingDeletedImage(selecting_collection_id, imageIds);
 
   return apiResponse({ success: true });
 }

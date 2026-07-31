@@ -735,19 +735,18 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return apiError("Failed to delete selection", 500);
   }
 
-  // 이미지 삭제 / 셀렉션 수 재계산 / 커버 복구는 응답에 영향이 없는 후처리이므로
-  // 응답 전송 후 기존 순서 그대로 순차 실행한다.
+  await recalcCollectionSelectionNums(collectionIds);
+
+  // 관련 컬렉션 커버 복구
+  for (const colId of collectionIds) {
+    await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
+  }
+
+  // 실제 스토리지 이미지 삭제는 응답과 분리해도 API 조회 정합성에 영향이 없다.
   after(async () => {
     try {
       for (const si of selImgs ?? []) {
         await deleteImageById(si.image_id);
-      }
-
-      await recalcCollectionSelectionNums(collectionIds);
-
-      // 관련 컬렉션 커버 복구
-      for (const colId of collectionIds) {
-        await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
       }
     } catch (err) {
       console.error("deleteSelection post-response cleanup error:", err);
