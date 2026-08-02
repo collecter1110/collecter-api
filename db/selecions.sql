@@ -32,8 +32,3 @@ create table public.selections (
 create index IF not exists selections_owner_id_name_idx on public.selections using btree (owner_id, owner_name) TABLESPACE pg_default;
 
 create index IF not exists selections_v2_keywords_gin_idx on public.selections using gin (keywords jsonb_path_ops) TABLESPACE pg_default;
-
--- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
--- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
-alter table public.selections enable row level security;
-revoke all on table public.selections from anon, authenticated;

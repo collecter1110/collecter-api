@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiError } from "./apiResponse";
 import { verifyJwt, type AccessTokenClaims } from "./jwt";
 import { touchLastActive } from "./lastActive";
 
@@ -68,10 +69,7 @@ export async function getAuthContext(
 }
 
 export function unauthorized() {
-  return NextResponse.json(
-    { error: "Unauthorized" },
-    { status: 401, headers: { "Cache-Control": "private, no-store" } }
-  );
+  return apiError("Unauthorized", 401);
 }
 
 export async function requireAuth(
