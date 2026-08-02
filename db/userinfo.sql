@@ -21,8 +21,3 @@ create index IF not exists userinfo_deleted_at_idx on public.userinfo using btre
 create index IF not exists userinfo_name_gin_idx on public.userinfo using gin (to_tsvector('simple'::regconfig, name)) TABLESPACE pg_default;
 
 create index IF not exists userinfo_last_active_at_idx on public.userinfo using btree (last_active_at) TABLESPACE pg_default;
-
--- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
--- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
-alter table public.userinfo enable row level security;
-revoke all on table public.userinfo from anon, authenticated;
