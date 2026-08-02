@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { requireAuth } from "@/lib/auth";
-import { revokeRefreshSessionByToken } from "@/lib/authStore";
+import { revokeRefreshChainByToken } from "@/lib/authStore";
 import { verifyJwt, type RefreshTokenClaims } from "@/lib/jwt";
 import { getSupabase } from "@/lib/supabase";
 
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     if (claims.user_id !== auth.userId) {
       return apiError("Refresh token does not belong to this user", 403);
     }
-    await revokeRefreshSessionByToken(refresh_token);
+    await revokeRefreshChainByToken(refresh_token);
   } catch (e) {
     console.error("logout error:", e);
     return apiError("Failed to logout", 500);

@@ -1,6 +1,21 @@
 import crypto from "crypto";
 import { getSupabase } from "./supabase";
 
+// 회전된 세션을 몇 초간 더 받아줄지. 잘못된 값이 들어오면 NaN 이 되어 유예 만료
+// 비교(`... > NaN`)가 항상 false 가 되고, 회전된 토큰이 expires_at 까지 살아남아
+// 로테이션이 통째로 무력화된다. 그래서 유한한 음이 아닌 수만 받는다.
+// 빈 문자열은 미설정으로 본다. `?? 60` 은 "" 를 통과시키고 Number("") 는 0 이라,
+// 변수만 선언하고 값을 비워두면 유예가 0 초가 되어 수정이 조용히 무력화된다.
+const DEFAULT_ROTATION_GRACE_SECONDS = 60;
+const rawRotationGrace = process.env.AUTH_REFRESH_ROTATION_GRACE_SECONDS?.trim();
+const rotationGraceSeconds = rawRotationGrace
+  ? Number(rawRotationGrace)
+  : DEFAULT_ROTATION_GRACE_SECONDS;
+const REFRESH_ROTATION_GRACE_MS =
+  (Number.isFinite(rotationGraceSeconds) && rotationGraceSeconds >= 0
+    ? rotationGraceSeconds
+    : DEFAULT_ROTATION_GRACE_SECONDS) * 1000;
+
 /* ─── OTP Rate Limit (in-memory) ─── */
 
 const OTP_SEND_WINDOW_MS = 60_000; // 이메일당 발송 윈도우 60초
@@ -273,6 +288,8 @@ export async function createRefreshSession(params: {
   email: string;
   refresh_token: string;
   expiresAt: Date;
+  /** 갱신으로 파생된 세션이면 원본의 체인 id. 로그인이면 생략한다. */
+  chain_id?: string;
 }) {
   const { error } = await getSupabase().from("auth_refresh_sessions").insert({
     id: params.session_id,
@@ -280,47 +297,87 @@ export async function createRefreshSession(params: {
     email: params.email.toLowerCase(),
     refresh_token_hash: hashRefreshToken(params.refresh_token),
     revoked_at: null,
+    rotated_at: null,
+    // 로그인으로 처음 생긴 세션은 자기 자신이 체인의 뿌리다.
+    chain_id: params.chain_id ?? params.session_id,
     expires_at: params.expiresAt.toISOString(),
   });
   if (error) throw error;
 }
 
-export async function revokeRefreshSessionByToken(refreshToken: string) {
+/**
+ * 로그아웃: 제시된 토큰이 속한 회전 체인 전체를 폐기한다.
+ *
+ * 유예 창 안에서 동시에 들어온 갱신 요청은 각자 새 세션을 만들기 때문에, 앱이
+ * 실제로 보관하는 토큰은 그중 하나뿐이고 나머지는 아무도 안 쓰는 채로 살아있다.
+ * 제시된 토큰 하나만 폐기하면 그 형제 세션들이 만료일까지 유효하게 남는다.
+ * 체인 단위로 지워야 로그아웃이 실제로 로그아웃이 된다.
+ *
+ * 같은 유저의 다른 기기는 로그인 시점에 별도 체인을 받으므로 영향받지 않는다.
+ */
+export async function revokeRefreshChainByToken(refreshToken: string) {
   const tokenHash = hashRefreshToken(refreshToken);
-  const { error } = await getSupabase()
+  const { data, error } = await getSupabase()
     .from("auth_refresh_sessions")
-    .update({ revoked_at: new Date().toISOString() })
+    .select("id, chain_id")
     .eq("refresh_token_hash", tokenHash)
-    .is("revoked_at", null);
+    .maybeSingle();
   if (error) throw error;
-}
+  if (!data) return;
 
-export async function revokeRefreshSessionById(sessionId: string) {
-  const { error } = await getSupabase()
+  const chainId = (data.chain_id as string | null) ?? (data.id as string);
+  // chain_id 도입 이전에 만들어진 행은 chain_id 가 비어 있어 chain_id 매칭에
+  // 걸리지 않는다. 그 행 자신도 id 로 함께 지운다.
+  const { error: updError } = await getSupabase()
     .from("auth_refresh_sessions")
     .update({ revoked_at: new Date().toISOString() })
-    .eq("id", sessionId)
+    .or(`chain_id.eq.${chainId},id.eq.${chainId}`)
     .is("revoked_at", null);
+  if (updError) throw updError;
+}
+
+export async function rotateRefreshSessionById(sessionId: string) {
+  const { error } = await getSupabase()
+    .from("auth_refresh_sessions")
+    .update({ rotated_at: new Date().toISOString() })
+    .eq("id", sessionId)
+    .is("revoked_at", null)
+    .is("rotated_at", null);
   if (error) throw error;
 }
 
-export async function isRefreshSessionValid(params: { session_id: string; refresh_token: string }) {
+/**
+ * 유효한 세션이면 체인 id 를, 아니면 null 을 돌려준다.
+ * 갱신 시 새 세션이 같은 체인을 이어받아야 하므로 검증과 체인 조회를 한 번의
+ * 왕복으로 처리한다.
+ */
+export async function getValidRefreshSession(params: {
+  session_id: string;
+  refresh_token: string;
+}): Promise<{ chain_id: string } | null> {
   const tokenHash = hashRefreshToken(params.refresh_token);
   const { data, error } = await getSupabase()
     .from("auth_refresh_sessions")
-    .select("id, revoked_at, expires_at, refresh_token_hash")
+    .select("id, chain_id, revoked_at, rotated_at, expires_at, refresh_token_hash")
     .eq("id", params.session_id)
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) return false;
-  if (data.revoked_at) return false;
-  if (String(data.refresh_token_hash) !== tokenHash) return false;
-  if (new Date(String(data.expires_at)).getTime() < Date.now()) return false;
-  return true;
+  if (!data) return null;
+  if (data.revoked_at) return null;
+  if (String(data.refresh_token_hash) !== tokenHash) return null;
+  if (new Date(String(data.expires_at)).getTime() < Date.now()) return null;
+  // 회전된 세션도 유예 시간 안이면 받아준다. 만료된 access 토큰으로 여러 요청이
+  // 동시에 401 을 받으면 같은 refresh 토큰으로 갱신이 중복 호출되는데, 여기서
+  // 즉시 거절하면 늦게 도착한 요청이 401 을 받아 앱이 로그아웃해버린다.
+  if (data.rotated_at) {
+    const rotatedAt = new Date(String(data.rotated_at)).getTime();
+    if (!Number.isFinite(rotatedAt)) return null;
+    if (Date.now() - rotatedAt > REFRESH_ROTATION_GRACE_MS) return null;
+  }
+  return { chain_id: (data.chain_id as string | null) ?? (data.id as string) };
 }
 
 export function newSessionId() {
   return crypto.randomUUID();
 }
-
