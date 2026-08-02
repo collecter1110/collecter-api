@@ -26,8 +26,3 @@ create index IF not exists collections_user_id_name_idx on public.collections us
 create index IF not exists idx_tags_gin on public.collections using gin (tags jsonb_path_ops) TABLESPACE pg_default;
 
 create index IF not exists idx_keywords_on_collections on public.collections using gin (primary_keywords jsonb_path_ops) TABLESPACE pg_default;
-
--- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
--- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
-alter table public.collections enable row level security;
-revoke all on table public.collections from anon, authenticated;

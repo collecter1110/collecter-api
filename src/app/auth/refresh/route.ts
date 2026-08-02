@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import {
   createRefreshSession,
-  isRefreshSessionValid,
+  getValidRefreshSession,
   newSessionId,
-  revokeRefreshSessionById,
+  rotateRefreshSessionById,
 } from "@/lib/authStore";
 import {
   signAccessToken,
@@ -21,7 +21,7 @@ import {
  *     summary: 토큰 갱신
  *     description: |
  *       `refresh_token`을 사용해 새 `access_token`과 `refresh_token`을 발급합니다.
- *       기존 세션은 폐기되고 새 세션이 생성됩니다 (Token Rotation).
+ *       기존 세션은 회전 처리되고 짧은 유예 시간 동안 중복 갱신 요청을 허용합니다.
  *     requestBody:
  *       required: true
  *       content:
@@ -103,8 +103,8 @@ export async function POST(request: NextRequest) {
     return apiError("Invalid refresh token", 400);
   }
 
-  const ok = await isRefreshSessionValid({ session_id: claims.sid, refresh_token });
-  if (!ok) {
+  const session = await getValidRefreshSession({ session_id: claims.sid, refresh_token });
+  if (!session) {
     return apiError("Unauthorized", 401);
   }
 
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     return apiError("Unauthorized", 401);
   }
 
-  // Token rotation: 기존 session 폐기 후 새 session 발급
+  // Token rotation: 기존 session은 짧은 유예 시간 동안만 중복 refresh를 허용한다.
   const newSid = newSessionId();
   const name = claims.name;
   // 토큰 서명 병렬 실행
@@ -139,8 +139,10 @@ export async function POST(request: NextRequest) {
     email: claims.email,
     refresh_token: new_refresh_token,
     expiresAt: new Date(Date.now() + refreshTtl * 1000),
+    // 로그아웃이 체인 단위로 폐기할 수 있도록 원본 체인을 이어받는다.
+    chain_id: session.chain_id,
   });
-  await revokeRefreshSessionById(claims.sid);
+  await rotateRefreshSessionById(claims.sid);
 
   return apiResponse({ access_token: new_access_token, refresh_token: new_refresh_token });
 }

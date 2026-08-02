@@ -13,8 +13,3 @@ create trigger update_like_num_trigger
 after INSERT
 or DELETE on likes for EACH row
 execute FUNCTION update_like_num ();
-
--- Row Level Security: server(service_role) 전용. anon/authenticated 전면 차단.
--- service_role은 GRANT/RLS를 모두 우회하므로 백엔드 접근은 유지된다.
-alter table public.likes enable row level security;
-revoke all on table public.likes from anon, authenticated;
