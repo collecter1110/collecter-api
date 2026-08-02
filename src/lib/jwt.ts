@@ -1,9 +1,22 @@
 import { SignJWT, jwtVerify } from "jose";
 
-function getSecretKey() {
+function getSecretKeys() {
   const secret = process.env.AUTH_JWT_SECRET;
   if (!secret) throw new Error("Missing AUTH_JWT_SECRET");
-  return new TextEncoder().encode(secret);
+
+  const encoder = new TextEncoder();
+  const keys = secret
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .map((s) => encoder.encode(s));
+
+  if (keys.length === 0) throw new Error("Missing AUTH_JWT_SECRET");
+  return keys;
+}
+
+function getSigningKey() {
+  return getSecretKeys()[0];
 }
 
 export type AccessTokenClaims = {
@@ -37,7 +50,7 @@ export async function signAccessToken(payload: AccessTokenClaims) {
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuedAt(nowSeconds())
     .setExpirationTime(nowSeconds() + ttl)
-    .sign(getSecretKey());
+    .sign(getSigningKey());
 }
 
 export async function signRefreshToken(payload: RefreshTokenClaims) {
@@ -46,7 +59,7 @@ export async function signRefreshToken(payload: RefreshTokenClaims) {
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuedAt(nowSeconds())
     .setExpirationTime(nowSeconds() + ttl)
-    .sign(getSecretKey());
+    .sign(getSigningKey());
 }
 
 export async function signVerifiedToken(payload: VerifiedTokenClaims) {
@@ -54,11 +67,25 @@ export async function signVerifiedToken(payload: VerifiedTokenClaims) {
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuedAt(nowSeconds())
     .setExpirationTime(nowSeconds() + 180) // 3분
-    .sign(getSecretKey());
+    .sign(getSigningKey());
 }
 
 export async function verifyJwt<T extends object>(token: string) {
-  const { payload } = await jwtVerify(token, getSecretKey(), { algorithms: ["HS256"] });
+  const { payload } = await verifyJwtWithKeyIndex(token);
   return payload as unknown as T & { exp?: number; iat?: number };
 }
 
+export async function verifyJwtWithKeyIndex(token: string) {
+  let lastError: unknown;
+
+  for (const [keyIndex, key] of getSecretKeys().entries()) {
+    try {
+      const { payload } = await jwtVerify(token, key, { algorithms: ["HS256"] });
+      return { payload, keyIndex };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError;
+}

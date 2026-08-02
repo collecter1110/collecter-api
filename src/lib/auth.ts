@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiError } from "./apiResponse";
-import { verifyJwt, type AccessTokenClaims } from "./jwt";
+import { verifyJwtWithKeyIndex, type AccessTokenClaims } from "./jwt";
 import { touchLastActive } from "./lastActive";
 
 export interface AuthContext {
@@ -39,7 +39,9 @@ export async function resolveAuth(request: NextRequest): Promise<AuthResult> {
 
   let claims: AccessTokenClaims;
   try {
-    claims = await verifyJwt<AccessTokenClaims>(token);
+    const verified = await verifyJwtWithKeyIndex(token);
+    if (verified.keyIndex !== 0) return { status: "invalid" };
+    claims = verified.payload as unknown as AccessTokenClaims;
   } catch {
     return { status: "invalid" };
   }

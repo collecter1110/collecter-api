@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { createRefreshSession, newSessionId } from "@/lib/authStore";
-import { signAccessToken, signRefreshToken, verifyJwt, type VerifiedTokenClaims } from "@/lib/jwt";
+import { signAccessToken, signRefreshToken, verifyJwtWithKeyIndex, type VerifiedTokenClaims } from "@/lib/jwt";
 
 /**
  * @openapi
@@ -88,7 +88,11 @@ export async function POST(request: NextRequest) {
 
   let claims: VerifiedTokenClaims;
   try {
-    claims = await verifyJwt<VerifiedTokenClaims>(verified_token);
+    const verified = await verifyJwtWithKeyIndex(verified_token);
+    if (verified.keyIndex !== 0) {
+      return apiError("Invalid or expired verified_token", 400);
+    }
+    claims = verified.payload as unknown as VerifiedTokenClaims;
   } catch {
     return apiError("Invalid or expired verified_token", 400);
   }
