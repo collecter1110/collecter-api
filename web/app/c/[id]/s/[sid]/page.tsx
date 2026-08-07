@@ -243,14 +243,12 @@ export default async function SelectionDetailPage({ params }: Params) {
         <div className="min-h-40 flex-1 bg-neutral-100" />
       )}
 
-      <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-white via-white to-white/0 p-4">
-        <OpenInApp
-          schemeUrl={`${scheme}://c/${collectionId}/s/${selectionId}`}
-          source="selection"
-          contentType="product"
-          contentId={`selection-${selectionId}`}
-        />
-      </div>
+      <OpenInApp
+        schemeUrl={`${scheme}://c/${collectionId}/s/${selectionId}`}
+        source="selection"
+        contentType="product"
+        contentId={`selection-${selectionId}`}
+      />
     </main>
   );
 }
