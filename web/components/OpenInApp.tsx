@@ -61,12 +61,29 @@ export default function OpenInApp({
   const buttonLabel = isIOS === false ? "App Store에서 받기" : label;
 
   return (
-    <a
-      href={schemeUrl}
-      onClick={handleClick}
-      className="block w-full max-w-md mx-auto py-3 rounded-xl bg-black text-white text-center text-sm font-medium"
-    >
-      {buttonLabel}
-    </a>
+    // 배경 바 없이 버튼만 떠 있는다. 뒤로 지나가는 본문과 구분되도록 그림자를 준다.
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20">
+      <div className="mx-auto max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+        <a
+          href={schemeUrl}
+          onClick={handleClick}
+          className="pointer-events-auto flex w-full items-center justify-center gap-1.5 rounded-xl bg-black py-3.5 text-[15px] font-semibold text-white shadow-[0_4px_16px_rgba(0,0,0,0.18)] transition-transform active:scale-[0.99]"
+        >
+          {buttonLabel}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+            aria-hidden
+          >
+            <path d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+      </div>
+    </div>
   );
 }
