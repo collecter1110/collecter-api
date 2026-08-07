@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { getPublicSelectionDetail } from "@/lib/api";
@@ -7,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import ImageCarousel from "@/components/ImageCarousel";
 import OpenInApp from "@/components/OpenInApp";
 import MetaViewContent from "@/components/MetaViewContent";
+import BackButton from "@/components/BackButton";
 
 type Params = { params: Promise<{ id: string; sid: string }> };
 
@@ -129,27 +129,10 @@ export default async function SelectionDetailPage({ params }: Params) {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/35 to-transparent" />
 
         {/*
-          컬렉션 페이지와 달리 여기선 돌아갈 곳이 확실해서 부모 컬렉션으로 링크한다.
+          여기선 돌아갈 곳이 확실하므로 히스토리가 없어도 부모 컬렉션으로 폴백한다.
           더보기는 웹에 대응 기능이 없어 넣지 않는다.
         */}
-        <Link
-          href={`/c/${collectionId}`}
-          aria-label="컬렉션으로"
-          className="absolute left-4 top-4 p-2 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-6 w-6"
-            aria-hidden
-          >
-            <path d="M15 5 8 12l7 7" />
-          </svg>
-        </Link>
+        <BackButton fallbackHref={`/c/${collectionId}`} />
       </div>
 
       <section className="px-5 pt-6">

@@ -110,9 +110,7 @@ export default async function CollectionPage({ params }: Params) {
         <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
 
         {/* 공유하기·더보기는 웹에 대응 기능이 없어 넣지 않는다. */}
-        <div className="absolute inset-x-0 top-0 px-4 pt-4">
-          <BackButton />
-        </div>
+        <BackButton />
 
         <div className="absolute inset-x-0 bottom-0 flex items-end gap-4 px-5 pb-7">
           <div className="min-w-0 flex-1">
