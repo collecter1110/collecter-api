@@ -7,6 +7,7 @@ import {
   getPublicSelections,
 } from "@/lib/api";
 import OpenInApp from "@/components/OpenInApp";
+import MetaViewContent from "@/components/MetaViewContent";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -61,6 +62,13 @@ export default async function CollectionPage({ params }: Params) {
 
   return (
     <main className="min-h-screen pb-32">
+      <MetaViewContent
+        contentType="product_group"
+        contentId={`collection-${collectionId}`}
+        contentName={collection.collection_title}
+        contentCategory={String(collection.category_id)}
+      />
+
       <header className="relative">
         {collection.image_url ? (
           <div className="relative w-full aspect-[16/9] bg-gray-100">
@@ -143,6 +151,9 @@ export default async function CollectionPage({ params }: Params) {
       <div className="fixed bottom-0 inset-x-0 p-4 bg-gradient-to-t from-white via-white to-white/0">
         <OpenInApp
           schemeUrl={`${process.env.NEXT_PUBLIC_APP_SCHEME ?? "collecterapp"}://c/${collectionId}`}
+          source="collection"
+          contentType="product_group"
+          contentId={`collection-${collectionId}`}
         />
       </div>
     </main>
