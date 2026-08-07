@@ -7,7 +7,6 @@ import ImageCarousel from "@/components/ImageCarousel";
 import OpenInApp from "@/components/OpenInApp";
 import MetaViewContent from "@/components/MetaViewContent";
 import BackButton from "@/components/BackButton";
-import ParentHistoryEntry from "@/components/ParentHistoryEntry";
 
 type Params = { params: Promise<{ id: string; sid: string }> };
 
@@ -115,9 +114,6 @@ export default async function SelectionDetailPage({ params }: Params) {
         contentName={selection.selection_title}
         contentCategory={String(selection.category_id)}
       />
-
-      {/* 브라우저 뒤로가기도 컬렉션으로 가도록 이전 항목을 심는다 */}
-      <ParentHistoryEntry href={`/c/${collectionId}`} />
 
       <div className="relative">
         {selection.selection_images.length > 0 ? (
