@@ -40,11 +40,13 @@ import {
  *                     collection:
  *                       collection_id: 123
  *                       category_id: 1
+ *                       category_name: 영화
  *                       collection_title: 내 컬렉션
  *                       description: 설명
  *                       image_url: "https://image.collecter.kr/abc.jpg"
  *                       tags: ["태그1"]
  *                       owner_name: gimgahui
+ *                       owner_image_url: "https://image.collecter.kr/def.jpg"
  *                       primary_keywords: []
  *                       selection_num: 12
  *                       like_num: 34
@@ -64,9 +66,12 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   const { data, error } = await getSupabase()
     .from("collections")
+    // userinfo 로의 FK 가 user_id / (user_id, user_name) 두 개라 관계를 명시해야 한다.
     .select(
       `id, category_id, title, description, created_at, image_id,
-       tags, user_name, primary_keywords, selection_num, like_num, is_public`
+       tags, user_name, primary_keywords, selection_num, like_num, is_public,
+       categoryinfo!collections_category_id_fkey(category_name),
+       userinfo!collections_user_id_fkey(image_id)`
     )
     .eq("id", collectionId)
     .single();

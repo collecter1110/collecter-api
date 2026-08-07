@@ -21,6 +21,12 @@ export function publicError(msg: string, status = 404, errorCode = "SU000") {
   );
 }
 
+/** PostgREST의 to-one 임베드는 객체로 오지만, 관계 추론에 따라 배열로 올 때가 있다. */
+function embedOne<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
 type CollectionRow = {
   id: number;
   category_id: number;
@@ -33,17 +39,21 @@ type CollectionRow = {
   primary_keywords: unknown;
   selection_num: number;
   like_num: number;
+  categoryinfo?: { category_name: string } | { category_name: string }[] | null;
+  userinfo?: { image_id: string | null } | { image_id: string | null }[] | null;
 };
 
 export function serializeCollection(row: CollectionRow) {
   return {
     collection_id: row.id,
     category_id: row.category_id,
+    category_name: embedOne(row.categoryinfo)?.category_name ?? null,
     collection_title: row.title,
     description: row.description,
     image_url: buildImageUrl(row.image_id),
     tags: row.tags,
     owner_name: row.user_name,
+    owner_image_url: buildImageUrl(embedOne(row.userinfo)?.image_id),
     primary_keywords: row.primary_keywords,
     selection_num: row.selection_num,
     like_num: row.like_num,
