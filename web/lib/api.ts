@@ -5,11 +5,13 @@ type Json = Record<string, unknown>;
 export type PublicCollection = {
   collection_id: number;
   category_id: number;
+  category_name: string | null;
   collection_title: string;
   description: string | null;
   image_url: string | null;
   tags: string[] | null;
   owner_name: string;
+  owner_image_url: string | null;
   primary_keywords: Array<{ keyword_id: number; keyword_name: string; count: number }> | null;
   selection_num: number;
   like_num: number;
@@ -30,6 +32,7 @@ export type PublicSelectionDetail = {
   id: number;
   collection_id: number;
   category_id: number;
+  category_name: string | null;
   selection_title: string;
   description: string | null;
   is_ordered: boolean;
@@ -38,6 +41,7 @@ export type PublicSelectionDetail = {
   keywords: Array<{ keyword_id: number; keyword_name: string }> | null;
   created_at: string;
   owner_name: string;
+  owner_image_url: string | null;
   is_selectable: boolean;
   selection_images: Array<{ image_url: string; sort_order: number }>;
 };

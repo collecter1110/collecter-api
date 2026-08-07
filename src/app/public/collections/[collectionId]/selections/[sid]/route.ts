@@ -50,6 +50,7 @@ import {
  *                       id: 789
  *                       collection_id: 123
  *                       category_id: 1
+ *                       category_name: 영화
  *                       selection_title: 내 셀렉션
  *                       description: 설명
  *                       is_ordered: false
@@ -58,6 +59,7 @@ import {
  *                       keywords: []
  *                       created_at: "2026-04-06T12:34:56.000Z"
  *                       owner_name: gimgahui
+ *                       owner_image_url: "https://image.collecter.kr/def.jpg"
  *                       is_selectable: true
  *                       selection_images:
  *                         - image_url: "https://image.collecter.kr/abc.jpg"
@@ -99,10 +101,13 @@ export async function GET(_request: NextRequest, { params }: Params) {
     getSelectionHome(sid),
     getSupabase()
       .from("selections")
+      // userinfo 로의 FK 가 owner_id / (owner_id, owner_name) 두 개라 관계를 명시해야 한다.
       .select(
         `id, category_id, title, description,
          is_ordered, link, items, keywords, created_at, owner_name, is_selectable,
-         selection_images(image_id, sort_order)`
+         selection_images(image_id, sort_order),
+         categoryinfo!selections_v2_category_id_fkey(category_name),
+         userinfo!selections_owner_id_fkey(image_id)`
       )
       .eq("id", sid)
       .single(),
