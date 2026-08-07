@@ -1,15 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { trackCustomEvent } from "@/lib/fbq";
 
 type Props = {
   schemeUrl: string;
   label?: string;
+  contentType?: "product" | "product_group";
+  contentId?: string;
 };
 
 export default function OpenInApp({
   schemeUrl,
   label = "앱에서 열기",
+  contentType,
+  contentId,
 }: Props) {
   const [isIOS, setIsIOS] = useState<boolean | null>(null);
 
@@ -21,6 +26,13 @@ export default function OpenInApp({
 
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();
+
+    // 공유 페이지의 유일한 전환 지점. iOS는 앱으로, 그 외는 스토어로 나간다.
+    trackCustomEvent("OpenInApp", {
+      target: isIOS ? "app_scheme" : "app_store",
+      ...(contentType ? { content_type: contentType } : {}),
+      ...(contentId ? { content_ids: [contentId] } : {}),
+    });
 
     if (!isIOS) {
       window.open(storeUrl, "_blank", "noopener");
