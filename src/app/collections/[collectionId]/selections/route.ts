@@ -3,9 +3,10 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth, optionalAuth } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/blocks";
-import { storeOptimizedImage } from "@/lib/storage";
+import { storeOptimizedImage, deleteImageById } from "@/lib/storage";
 import {
   SELECTION_IMAGE_PRESET,
+  SELECTION_IMAGE_MAX_COUNT,
   optimizeUploadedImages,
   isRejectableImageError,
 } from "@/lib/image";
@@ -143,6 +144,7 @@ import {
  *                 description: "JSON 배열 문자열 (예: '[\"키워드1\",\"키워드2\"]')"
  *               images:
  *                 type: array
+ *                 maxItems: 2
  *                 items:
  *                   type: string
  *                   format: binary
@@ -358,6 +360,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!keywords || keywords.length === 0) {
     return apiError("keywords must be a non-empty JSON array of strings", 400);
   }
+  // 앱 검증만 믿으면 초과 업로드가 그대로 저장되므로 서버에서도 강제한다.
+  if (imageFiles.length > SELECTION_IMAGE_MAX_COUNT) {
+    return apiError(
+      `A selection can have at most ${SELECTION_IMAGE_MAX_COUNT} images`,
+      400
+    );
+  }
 
   // 이미지 검증·최적화를 셀렉션 생성보다 먼저 끝낸다.
   // 이렇게 해야 잘못된 이미지 때문에 400을 반환할 때 빈 셀렉션이 남지 않는다.
@@ -429,11 +438,20 @@ export async function POST(request: NextRequest, { params }: Params) {
     try {
       // 이미 검증·최적화가 끝난 버퍼이므로 여기서는 저장만 한다.
       const { imageId } = await storeOptimizedImage(optimizedImages[i]);
-      await getSupabase().from("selection_images").insert({
-        selection_id: newSelection.id,
-        image_id: imageId,
-        sort_order: i,
-      });
+      const { error: siError } = await getSupabase()
+        .from("selection_images")
+        .insert({
+          selection_id: newSelection.id,
+          image_id: imageId,
+          sort_order: i,
+        });
+
+      if (siError) {
+        // 매핑에 실패한 이미지는 고아가 되므로 방금 저장한 것만 되돌린다.
+        console.error("selection_images insert error:", siError);
+        await deleteImageById(imageId);
+        continue;
+      }
 
       // 컬렉션 커버가 비어있으면 첫 셀렉션 이미지로 자동 설정
       if (i === 0) {

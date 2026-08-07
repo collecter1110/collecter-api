@@ -6,6 +6,7 @@ import { getBlockedUserIds } from "@/lib/blocks";
 import { storeOptimizedImage, deleteImageById } from "@/lib/storage";
 import {
   SELECTION_IMAGE_PRESET,
+  SELECTION_IMAGE_MAX_COUNT,
   optimizeUploadedImages,
   isRejectableImageError,
 } from "@/lib/image";
@@ -150,6 +151,7 @@ import {
  *                 type: string
  *               images:
  *                 type: array
+ *                 maxItems: 2
  *                 items:
  *                   type: string
  *                   format: binary
@@ -160,6 +162,7 @@ import {
  *                   **배열 순서가 곧 이미지 순서**이며, 이 순서대로 `sort_order`가 0부터 다시 부여된다.
  *                   새로 업로드한 `images`는 그 뒤에 파일 순서대로 이어 붙는다.
  *                   생략하면 기존 이미지의 순서를 그대로 두고 새 이미지만 맨 뒤에 추가한다.
+ *                   유지 이미지 + 신규 업로드 합계가 2장을 넘으면 400.
  *     responses:
  *       200:
  *         description: 수정 성공
@@ -565,6 +568,37 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return apiError("Failed to process image", 500);
   }
 
+  // 최종 장수(유지 이미지 + 신규 업로드)를 본문 수정 전에 검증한다.
+  // keep_image_ids 정리에도 쓰이므로 기존 이미지 목록을 여기서 한 번만 읽는다.
+  const { data: existingImgs } = await getSupabase()
+    .from("selection_images")
+    .select("image_id, sort_order")
+    .eq("selection_id", id);
+
+  const existing = (existingImgs ?? []) as {
+    image_id: string;
+    sort_order: number;
+  }[];
+  const existingById = new Map(existing.map((si) => [si.image_id, si]));
+
+  // 실제로 존재하는 image_id만, 배열에 처음 등장한 순서대로 (중복/유령 id 방어)
+  let orderedKeepIds: string[] | null = null;
+  if (keepImageIdsRaw !== null) {
+    const keepIds: string[] = JSON.parse(keepImageIdsRaw);
+    orderedKeepIds = keepIds.filter(
+      (imageId, i) => existingById.has(imageId) && keepIds.indexOf(imageId) === i
+    );
+  }
+
+  const finalImageCount =
+    (orderedKeepIds?.length ?? existing.length) + optimizedImages.length;
+  if (finalImageCount > SELECTION_IMAGE_MAX_COUNT) {
+    return apiError(
+      `A selection can have at most ${SELECTION_IMAGE_MAX_COUNT} images`,
+      400
+    );
+  }
+
   // 매핑 테이블에서 컬렉션 ID 조회 (커버 복구용)
   const { data: csData } = await getSupabase()
     .from("collection_selections")
@@ -590,23 +624,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   // 새로 업로드된 이미지는 그 뒤에 이어 붙인다.
   let nextSortOrder: number | null = null;
 
-  if (keepImageIdsRaw !== null) {
-    const keepIds: string[] = JSON.parse(keepImageIdsRaw);
-    const { data: existingImgs } = await getSupabase()
-      .from("selection_images")
-      .select("image_id, sort_order")
-      .eq("selection_id", id);
-
-    const existing = (existingImgs ?? []) as {
-      image_id: string;
-      sort_order: number;
-    }[];
-    const existingById = new Map(existing.map((si) => [si.image_id, si]));
-
-    // 실제로 존재하는 image_id만, 배열에 처음 등장한 순서대로 (중복/유령 id 방어)
-    const orderedKeepIds = keepIds.filter(
-      (imageId, i) => existingById.has(imageId) && keepIds.indexOf(imageId) === i
-    );
+  if (orderedKeepIds !== null) {
     const keepIdSet = new Set(orderedKeepIds);
 
     const deletedIds = existing
@@ -646,36 +664,71 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (optimizedImages.length > 0) {
     // keep_image_ids가 없으면 기존 이미지를 그대로 두고 뒤에만 이어 붙인다.
     if (nextSortOrder === null) {
-      const { data: lastImg } = await getSupabase()
-        .from("selection_images")
-        .select("sort_order")
-        .eq("selection_id", id)
-        .order("sort_order", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
       nextSortOrder =
-        ((lastImg?.sort_order as number | undefined) ?? -1) + 1;
+        existing.reduce((max, si) => Math.max(max, si.sort_order), -1) + 1;
     }
 
     // 저장에 실패한 이미지는 번호를 소비하지 않아 sort_order가 연속으로 유지된다.
     let sortOrder: number = nextSortOrder;
+    const insertedImageIds: string[] = [];
 
     for (const optimized of optimizedImages) {
       try {
         // 이미 검증·최적화가 끝난 버퍼이므로 여기서는 저장만 한다.
         const { imageId } = await storeOptimizedImage(optimized);
-        await getSupabase().from("selection_images").insert({
-          selection_id: id,
-          image_id: imageId,
-          sort_order: sortOrder++,
-        });
+        const { error: siError } = await getSupabase()
+          .from("selection_images")
+          .insert({
+            selection_id: id,
+            image_id: imageId,
+            sort_order: sortOrder,
+          });
+
+        if (siError) {
+          // 매핑에 실패한 이미지는 고아가 되므로 방금 저장한 것만 되돌린다.
+          console.error("selection_images insert error:", siError);
+          await deleteImageById(imageId);
+          continue;
+        }
+
+        sortOrder++;
+        insertedImageIds.push(imageId);
 
         for (const colId of collectionIds) {
           await ensureCollectionCoverIfEmpty(colId, imageId);
         }
       } catch (err) {
         console.error("Failed to upload selection image:", err);
+      }
+    }
+
+    // 위의 장수 검증은 삽입 전 스냅샷 기준이라, 같은 셀렉션에 동시 요청이
+    // 겹치면 둘 다 통과해 초과 저장될 수 있다. 삽입 후 재확인해서 초과면
+    // 이 요청이 넣은 것만 되돌린다.
+    if (insertedImageIds.length > 0) {
+      const { count } = await getSupabase()
+        .from("selection_images")
+        .select("*", { count: "exact", head: true })
+        .eq("selection_id", id);
+
+      if ((count ?? 0) > SELECTION_IMAGE_MAX_COUNT) {
+        await getSupabase()
+          .from("selection_images")
+          .delete()
+          .eq("selection_id", id)
+          .in("image_id", insertedImageIds);
+
+        for (const imageId of insertedImageIds) {
+          await deleteImageById(imageId);
+        }
+        for (const colId of collectionIds) {
+          await repairCollectionCoverIfUsingDeletedImage(colId, insertedImageIds);
+        }
+
+        return apiError(
+          `A selection can have at most ${SELECTION_IMAGE_MAX_COUNT} images`,
+          409
+        );
       }
     }
   }
