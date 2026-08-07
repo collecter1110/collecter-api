@@ -151,6 +151,7 @@ export default async function CollectionPage({ params }: Params) {
       <div className="fixed bottom-0 inset-x-0 p-4 bg-gradient-to-t from-white via-white to-white/0">
         <OpenInApp
           schemeUrl={`${process.env.NEXT_PUBLIC_APP_SCHEME ?? "collecterapp"}://c/${collectionId}`}
+          source="collection"
           contentType="product_group"
           contentId={`collection-${collectionId}`}
         />

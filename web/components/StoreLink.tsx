@@ -15,7 +15,12 @@ export default function StoreLink({ className, children }: Props) {
     <a
       href={storeUrl}
       className={className}
-      onClick={() => trackCustomEvent("OpenInApp", { target: "app_store" })}
+      onClick={() =>
+        trackCustomEvent("OpenInApp", {
+          source: "landing",
+          target: "app_store",
+        })
+      }
     >
       {children}
     </a>
