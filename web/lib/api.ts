@@ -32,6 +32,7 @@ export type PublicSelectionDetail = {
   id: number;
   collection_id: number;
   category_id: number;
+  category_name: string | null;
   selection_title: string;
   description: string | null;
   is_ordered: boolean;
@@ -40,6 +41,7 @@ export type PublicSelectionDetail = {
   keywords: Array<{ keyword_id: number; keyword_name: string }> | null;
   created_at: string;
   owner_name: string;
+  owner_image_url: string | null;
   is_selectable: boolean;
   selection_images: Array<{ image_url: string; sort_order: number }>;
 };

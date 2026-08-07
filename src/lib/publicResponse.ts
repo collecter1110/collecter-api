@@ -99,6 +99,8 @@ type SelectionDetailRow = {
   owner_name: string;
   is_selectable: boolean;
   selection_images: { image_id: string; sort_order: number }[];
+  categoryinfo?: { category_name: string } | { category_name: string }[] | null;
+  userinfo?: { image_id: string | null } | { image_id: string | null }[] | null;
 };
 
 export function serializeSelectionDetail(
@@ -116,6 +118,7 @@ export function serializeSelectionDetail(
     id: row.id,
     collection_id: collectionId,
     category_id: row.category_id,
+    category_name: embedOne(row.categoryinfo)?.category_name ?? null,
     selection_title: row.title,
     description: row.description,
     is_ordered: row.is_ordered,
@@ -124,6 +127,7 @@ export function serializeSelectionDetail(
     keywords: row.keywords,
     created_at: row.created_at,
     owner_name: row.owner_name,
+    owner_image_url: buildImageUrl(embedOne(row.userinfo)?.image_id),
     is_selectable: row.is_selectable,
     selection_images: images,
   };

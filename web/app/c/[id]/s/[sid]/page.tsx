@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import { getPublicSelectionDetail } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 import ImageCarousel from "@/components/ImageCarousel";
 import OpenInApp from "@/components/OpenInApp";
 import MetaViewContent from "@/components/MetaViewContent";
@@ -45,51 +47,37 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
-function getItemText(item: unknown): string {
-  if (typeof item === "string") return item;
-  if (item && typeof item === "object") {
-    const obj = item as Record<string, unknown>;
-    if (typeof obj.item_title === "string") return obj.item_title;
-    if (typeof obj.text === "string") return obj.text;
-  }
-  return "";
+type Item = { text: string; order: number };
+
+/** items 는 [{ item_order, item_title }] 형태지만 과거 데이터가 섞여 있어 방어적으로 읽는다. */
+function parseItems(items: unknown): Item[] {
+  if (!Array.isArray(items)) return [];
+
+  return items
+    .map((raw, idx): Item => {
+      if (typeof raw === "string") return { text: raw, order: idx };
+
+      if (raw && typeof raw === "object") {
+        const obj = raw as Record<string, unknown>;
+        const text =
+          typeof obj.item_title === "string"
+            ? obj.item_title
+            : typeof obj.text === "string"
+              ? obj.text
+              : "";
+        const order =
+          typeof obj.item_order === "number" ? obj.item_order : idx;
+        return { text, order };
+      }
+
+      return { text: "", order: idx };
+    })
+    .filter((item) => item.text.trim().length > 0)
+    .sort((a, b) => a.order - b.order);
 }
 
-function getItemOrder(item: unknown): number {
-  if (item && typeof item === "object") {
-    const order = (item as Record<string, unknown>).item_order;
-    if (typeof order === "number") return order;
-  }
-  return Number.MAX_SAFE_INTEGER;
-}
-
-function renderItems(items: unknown, isOrdered: boolean): React.ReactNode {
-  if (!Array.isArray(items) || items.length === 0) return null;
-
-  const list = isOrdered
-    ? [...items].sort((a, b) => getItemOrder(a) - getItemOrder(b))
-    : items;
-
-  return (
-    <ListTag className="mt-2 space-y-2" isOrdered={isOrdered}>
-      {list.map((item, idx) => (
-        <li
-          key={idx}
-          className="flex gap-3 px-3 py-2 rounded-lg bg-gray-50 text-sm"
-        >
-          <span className="text-gray-400 shrink-0">
-            {isOrdered ? idx + 1 : "•"}
-          </span>
-          <span className="whitespace-pre-wrap break-words">
-            {getItemText(item)}
-          </span>
-        </li>
-      ))}
-    </ListTag>
-  );
-}
-
-function ListTag({
+/** 순서가 의미를 가지면 ol, 아니면 ul 로 낸다. */
+function ItemList({
   isOrdered,
   className,
   children,
@@ -115,10 +103,11 @@ export default async function SelectionDetailPage({ params }: Params) {
   if (!selection) notFound();
 
   const keywords = Array.isArray(selection.keywords) ? selection.keywords : [];
+  const items = parseItems(selection.items);
   const scheme = process.env.NEXT_PUBLIC_APP_SCHEME ?? "collecterapp";
 
   return (
-    <main className="min-h-screen pb-32">
+    <main className="flex min-h-screen flex-col">
       <MetaViewContent
         contentType="product"
         contentId={`selection-${selectionId}`}
@@ -126,64 +115,147 @@ export default async function SelectionDetailPage({ params }: Params) {
         contentCategory={String(selection.category_id)}
       />
 
-      <div className="px-5 pt-4">
-        <Link
-          href={`/c/${collectionId}`}
-          className="text-sm text-gray-500 hover:text-gray-900"
-        >
-          ← 컬렉션으로
-        </Link>
-      </div>
-
-      {selection.selection_images.length > 0 && (
-        <div className="mt-3">
+      <div className="relative">
+        {selection.selection_images.length > 0 ? (
           <ImageCarousel
             images={selection.selection_images}
             alt={selection.selection_title}
           />
-        </div>
-      )}
+        ) : (
+          <div className="aspect-square w-full bg-neutral-200" />
+        )}
 
-      <section className="px-5 mt-5">
-        <h1 className="text-xl font-bold leading-tight">
+        {/* 뒤로가기 아이콘이 밝은 사진 위에서도 보이도록 상단만 살짝 어둡게 */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/35 to-transparent" />
+
+        {/*
+          컬렉션 페이지와 달리 여기선 돌아갈 곳이 확실해서 부모 컬렉션으로 링크한다.
+          더보기는 웹에 대응 기능이 없어 넣지 않는다.
+        */}
+        <Link
+          href={`/c/${collectionId}`}
+          aria-label="컬렉션으로"
+          className="absolute left-4 top-4 p-2 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-6 w-6"
+            aria-hidden
+          >
+            <path d="M15 5 8 12l7 7" />
+          </svg>
+        </Link>
+      </div>
+
+      <section className="px-5 pt-6">
+        {selection.category_name && (
+          <div className="flex items-center gap-1.5 text-[13px] text-neutral-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+            {selection.category_name}
+          </div>
+        )}
+
+        <h1 className="mt-2.5 break-keep text-[26px] font-bold leading-snug">
           {selection.selection_title}
         </h1>
-        <p className="mt-1 text-sm text-gray-500">@{selection.owner_name}</p>
+
+        <div className="mt-4 flex items-center gap-2.5">
+          {/* 프로필 이미지가 없는 계정이 많아 이니셜로 폴백한다. */}
+          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-200 text-[13px] font-semibold uppercase text-neutral-500">
+            {selection.owner_image_url ? (
+              <Image
+                src={selection.owner_image_url}
+                alt=""
+                fill
+                sizes="32px"
+                className="object-cover"
+              />
+            ) : (
+              selection.owner_name.slice(0, 1)
+            )}
+          </span>
+          <span className="truncate text-[15px] font-medium">
+            {selection.owner_name}
+          </span>
+          <span className="text-neutral-300">·</span>
+          <span className="shrink-0 text-[12px] text-neutral-400">
+            {formatDate(selection.created_at)}
+          </span>
+        </div>
+
+        <hr className="mt-5 border-neutral-200" />
 
         {selection.description && (
-          <p className="mt-3 text-gray-700 whitespace-pre-wrap break-words">
+          <p className="mt-5 whitespace-pre-wrap break-keep text-[15px] leading-relaxed text-neutral-800">
             {selection.description}
           </p>
         )}
 
+        {/* 컬렉션 페이지와 같은 민트 칩 */}
         {keywords.length > 0 && (
-          <ul className="mt-4 flex flex-wrap gap-2">
+          <ul className="mt-5 flex flex-wrap gap-2">
             {keywords.map((k) => (
               <li
                 key={k.keyword_id}
-                className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs"
+                className="rounded-full border border-brand-200 bg-brand-50 px-2.5 py-[3px] text-[11px] text-neutral-900"
               >
-                #{k.keyword_name}
+                {k.keyword_name}
               </li>
             ))}
           </ul>
         )}
-
-        {renderItems(selection.items, selection.is_ordered)}
 
         {selection.link && (
           <a
             href={selection.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-5 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline break-all"
+            className="mt-5 inline-block break-all text-[13px] text-neutral-500 underline underline-offset-2"
           >
-            🔗 {selection.link}
+            {selection.link}
           </a>
         )}
+
+        <div className="h-8" />
       </section>
 
-      <div className="fixed bottom-0 inset-x-0 p-4 bg-gradient-to-t from-white via-white to-white/0">
+      {items.length > 0 ? (
+        <section className="flex-1 bg-neutral-100 px-5 pb-32 pt-7">
+          {/* 순서가 있는 셀렉션은 ORDER, 그렇지 않으면 LIST */}
+          <div className="mb-3 flex items-center gap-2">
+            <span className="h-[14px] w-[3px] rounded-full bg-brand" />
+            <h2 className="text-[15px] font-bold tracking-tight">
+              {selection.is_ordered ? "ORDER" : "LIST"}
+            </h2>
+            <span className="text-[13px] text-neutral-400">{items.length}</span>
+          </div>
+
+          <ItemList isOrdered={selection.is_ordered} className="space-y-3">
+            {items.map((item, idx) => (
+              <li key={idx} className="flex items-center gap-3">
+                {/* 번호는 카드 바깥 왼쪽에 세로 중앙 정렬 */}
+                {selection.is_ordered && (
+                  <span className="w-4 shrink-0 text-center text-[15px] font-bold text-neutral-800">
+                    {idx + 1}
+                  </span>
+                )}
+                <div className="flex-1 whitespace-pre-wrap break-keep rounded-xl bg-white px-4 py-5 text-[15px] leading-relaxed text-neutral-800 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                  {item.text}
+                </div>
+              </li>
+            ))}
+          </ItemList>
+        </section>
+      ) : (
+        <div className="flex-1 pb-32" />
+      )}
+
+      <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-white via-white to-white/0 p-4">
         <OpenInApp
           schemeUrl={`${scheme}://c/${collectionId}/s/${selectionId}`}
           source="selection"

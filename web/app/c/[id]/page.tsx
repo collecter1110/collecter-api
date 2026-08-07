@@ -6,6 +6,7 @@ import {
   getPublicCollection,
   getPublicSelections,
 } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 import OpenInApp from "@/components/OpenInApp";
 import MetaViewContent from "@/components/MetaViewContent";
 import BackButton from "@/components/BackButton";
@@ -15,22 +16,6 @@ type Params = { params: Promise<{ id: string }> };
 function parseId(idParam: string): number | null {
   const n = parseInt(idParam, 10);
   return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-/** created_at(ISO) → "2025.01.15". 앱과 같은 KST 기준으로 끊는다. */
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-
-  const parts = new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(d);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-
-  return `${get("year")}.${get("month")}.${get("day")}`;
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
