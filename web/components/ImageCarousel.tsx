@@ -39,7 +39,7 @@ export default function ImageCarousel({ images, alt }: Props) {
         {images.map((img, idx) => (
           <div
             key={img.sort_order}
-            className="relative shrink-0 w-full aspect-square snap-center bg-gray-100"
+            className="relative aspect-square w-full shrink-0 snap-center bg-neutral-200"
           >
             <Image
               src={img.image_url}
