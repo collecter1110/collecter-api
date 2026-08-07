@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { getPublicSelectionDetail } from "@/lib/api";
 import ImageCarousel from "@/components/ImageCarousel";
 import OpenInApp from "@/components/OpenInApp";
+import MetaViewContent from "@/components/MetaViewContent";
 
 type Params = { params: Promise<{ id: string; sid: string }> };
 
@@ -118,6 +119,13 @@ export default async function SelectionDetailPage({ params }: Params) {
 
   return (
     <main className="min-h-screen pb-32">
+      <MetaViewContent
+        contentType="product"
+        contentId={`selection-${selectionId}`}
+        contentName={selection.selection_title}
+        contentCategory={String(selection.category_id)}
+      />
+
       <div className="px-5 pt-4">
         <Link
           href={`/c/${collectionId}`}
@@ -178,6 +186,9 @@ export default async function SelectionDetailPage({ params }: Params) {
       <div className="fixed bottom-0 inset-x-0 p-4 bg-gradient-to-t from-white via-white to-white/0">
         <OpenInApp
           schemeUrl={`${scheme}://c/${collectionId}/s/${selectionId}`}
+          source="selection"
+          contentType="product"
+          contentId={`selection-${selectionId}`}
         />
       </div>
     </main>
