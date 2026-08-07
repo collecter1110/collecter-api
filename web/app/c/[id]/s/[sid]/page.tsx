@@ -235,7 +235,8 @@ export default async function SelectionDetailPage({ params }: Params) {
           </ItemList>
         </section>
       ) : (
-        <div className="flex-1 pb-32" />
+        // 아이템이 없어도 아래는 회색으로 채운다 — 흰 화면으로 끝나지 않게.
+        <div className="min-h-40 flex-1 bg-neutral-100" />
       )}
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-white via-white to-white/0 p-4">
