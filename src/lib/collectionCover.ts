@@ -49,6 +49,13 @@ export async function ensureCollectionCoverIfEmpty(
     .eq("id", collectionId);
 }
 
+/**
+ * 커버가 `unavailableImageIds` 중 하나를 쓰고 있으면 남은 셀렉션 기준으로 다시 고른다.
+ * 쓸 수 있는 이미지가 없으면 커버를 비운다(null).
+ *
+ * "삭제된 이미지"뿐 아니라 **이 컬렉션에서 빠져나간 이미지**(셀렉션 이동·셀렉팅 취소)에도
+ * 그대로 쓴다. 커버가 더 이상 이 컬렉션 것이 아니게 됐다는 점에서 처리가 동일하다.
+ */
 export async function repairCollectionCoverIfUsingDeletedImage(
   collectionId: number,
   deletedImageIds: string[]

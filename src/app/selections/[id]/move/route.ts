@@ -3,6 +3,10 @@ import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
 import { recalcCollectionSelectionNums } from "@/lib/collectionStats";
+import {
+  ensureCollectionCoverIfEmpty,
+  repairCollectionCoverIfUsingDeletedImage,
+} from "@/lib/collectionCover";
 
 /**
  * @openapi
@@ -173,6 +177,23 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   await recalcCollectionSelectionNums([source_collection_id, target_collection_id]);
+
+  // 커버 갱신: 셀렉션이 옮겨갔으므로 양쪽 컬렉션의 커버를 다시 맞춘다.
+  const { data: movedImgs } = await getSupabase()
+    .from("selection_images")
+    .select("image_id, sort_order")
+    .eq("selection_id", id)
+    .order("sort_order", { ascending: true });
+
+  const movedImageIds = (movedImgs ?? []).map((r) => r.image_id as string);
+
+  if (movedImageIds.length > 0) {
+    await ensureCollectionCoverIfEmpty(target_collection_id, movedImageIds[0]);
+    await repairCollectionCoverIfUsingDeletedImage(
+      source_collection_id,
+      movedImageIds
+    );
+  }
 
   return apiResponse({ success: true });
 }
