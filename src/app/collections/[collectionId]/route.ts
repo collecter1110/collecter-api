@@ -344,6 +344,35 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return apiResponse({ success: true });
 }
 
+/**
+ * 이 이미지를 아직 참조하는 곳이 남아 있는지 확인한다.
+ *
+ * 컬렉션 삭제는 지울 이미지 목록을 미리 만들어 두고 나중에 지우기 때문에,
+ * 그 사이에 다른 셀렉션·컬렉션이 같은 이미지를 쓰고 있을 수 있다.
+ * 조회 자체가 실패하면 "쓰는 중"으로 보고 삭제하지 않는다 — 지워버리는 쪽이
+ * 되돌릴 수 없으므로, 확신이 없을 때는 남겨 두는 편이 안전하다.
+ */
+async function isImageStillReferenced(imageId: string): Promise<boolean> {
+  const [{ count: selCount, error: selError }, { count: colCount, error: colError }] =
+    await Promise.all([
+      getSupabase()
+        .from("selection_images")
+        .select("*", { count: "exact", head: true })
+        .eq("image_id", imageId),
+      getSupabase()
+        .from("collections")
+        .select("*", { count: "exact", head: true })
+        .eq("image_id", imageId),
+    ]);
+
+  if (selError || colError) {
+    console.error("isImageStillReferenced check failed:", imageId, selError ?? colError);
+    return true;
+  }
+
+  return (selCount ?? 0) > 0 || (colCount ?? 0) > 0;
+}
+
 // DELETE /collections/:collectionId — deleteCollection
 export async function DELETE(request: NextRequest, { params }: Params) {
   const auth = await requireAuth(request);
@@ -387,25 +416,40 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     .delete()
     .eq("collection_id", collectionId);
 
-  // 내가 만든 셀렉션의 이미지 ID 수집 (셀렉션 삭제 전에 조회해 둔다)
-  const ownedImageIds: string[] = [];
+  // 내가 만든 셀렉션의 이미지 ID 수집 (셀렉션 삭제 전에 조회해 둔다).
+  // 어느 셀렉션의 이미지인지 유지해야, 삭제에 성공한 셀렉션의 것만 골라 지울 수 있다.
+  const imageIdsBySelection = new Map<number, string[]>();
   for (const selId of ownedSelectionIds) {
     const { data: selImgs } = await getSupabase()
       .from("selection_images")
       .select("image_id")
       .eq("selection_id", selId);
 
-    for (const si of selImgs ?? []) {
-      ownedImageIds.push(si.image_id);
-    }
+    imageIdsBySelection.set(
+      selId,
+      (selImgs ?? []).map((si) => si.image_id as string)
+    );
   }
 
-  // 내가 만든 셀렉션 삭제
+  // 내가 만든 셀렉션 삭제.
+  // 실제로 지워진 행만 돌려받아, 삭제되지 않은 셀렉션의 이미지는 손대지 않는다.
+  // 예전에는 삭제 실패를 무시한 채 수집해 둔 이미지를 전부 지워서,
+  // 살아있는 셀렉션의 사진만 사라지는 사고가 났다.
+  const ownedImageIds: string[] = [];
   if (ownedSelectionIds.length > 0) {
-    await getSupabase()
+    const { data: deletedSelections, error: selDeleteError } = await getSupabase()
       .from("selections")
       .delete()
-      .in("id", ownedSelectionIds);
+      .in("id", ownedSelectionIds)
+      .select("id");
+
+    if (selDeleteError) {
+      console.error("deleteCollection selections delete error:", selDeleteError);
+    }
+
+    for (const row of deletedSelections ?? []) {
+      ownedImageIds.push(...(imageIdsBySelection.get(row.id as number) ?? []));
+    }
   }
 
   // 컬렉션 삭제
@@ -421,14 +465,19 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   // 이미지 삭제(S3 + images)는 응답에 영향이 없는 후처리이므로
   // 응답 전송 후 순차 실행한다. (셀렉션 이미지 → 컬렉션 대표 이미지 순)
+  //
+  // 지우기 직전에 다른 곳에서 아직 쓰는 이미지인지 확인한다.
+  // 컬렉션 대표 이미지는 셀렉션 이미지를 그대로 가리키므로(syncCollectionCover),
+  // 확인 없이 지우면 살아있는 셀렉션의 사진이 같이 사라진다.
   after(async () => {
     try {
       for (const imageId of ownedImageIds) {
+        if (await isImageStillReferenced(imageId)) continue;
         await deleteImageById(imageId);
       }
 
       // 컬렉션 대표 이미지 삭제
-      if (collection.image_id) {
+      if (collection.image_id && !(await isImageStillReferenced(collection.image_id))) {
         await deleteImageById(collection.image_id);
       }
     } catch (err) {
