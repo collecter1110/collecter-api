@@ -2,10 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { apiResponse, apiError } from "@/lib/apiResponse";
 import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
-import {
-  ensureCollectionCoverIfEmpty,
-  repairCollectionCoverIfUsingDeletedImage,
-} from "@/lib/collectionCover";
+import { syncCollectionCover } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 import { getUserImageMap } from "@/lib/userInfo";
 import {
@@ -390,17 +387,8 @@ export async function POST(request: NextRequest) {
     try {
       await recalcCollectionSelectionNum(selecting_collection_id);
 
-      // 컬렉션 커버가 비어있으면 셀렉션의 첫 이미지로 자동 설정
-      const { data: sourceImages } = await getSupabase()
-        .from("selection_images")
-        .select("image_id, sort_order")
-        .eq("selection_id", selected_selection_id)
-        .order("sort_order", { ascending: true })
-        .limit(1);
-
-      if (sourceImages && sourceImages.length > 0) {
-        await ensureCollectionCoverIfEmpty(selecting_collection_id, sourceImages[0].image_id);
-      }
+      // 셀렉션이 추가됐으므로 컬렉션 커버를 다시 맞춘다.
+      await syncCollectionCover(selecting_collection_id);
     } catch (err) {
       console.error("selecting post-response cleanup error:", err);
     }
@@ -429,7 +417,6 @@ export async function DELETE(request: NextRequest) {
   const [
     { data: col },
     { data: selection },
-    { data: selImgs },
     { data: existing },
   ] = await Promise.all([
     // 본인 컬렉션인지 확인 (다른 사람 컬렉션에서 제거 방지)
@@ -444,11 +431,6 @@ export async function DELETE(request: NextRequest) {
       .select("owner_id")
       .eq("id", selected_selection_id)
       .maybeSingle(),
-    // 삭제 전: 해당 셀렉션 이미지 목록 (커버 복구 판단용)
-    getSupabase()
-      .from("selection_images")
-      .select("image_id")
-      .eq("selection_id", selected_selection_id),
     // 본인이 만든 selecting 매핑 존재 확인
     getSupabase()
       .from("collection_selections")
@@ -473,8 +455,6 @@ export async function DELETE(request: NextRequest) {
     return apiError("You cannot cancel selecting for your own selection", 400);
   }
 
-  const imageIds = (selImgs ?? []).map((x) => x.image_id as string);
-
   if (!existing) {
     return apiError("Selecting not found", 404);
   }
@@ -493,8 +473,8 @@ export async function DELETE(request: NextRequest) {
 
   await recalcCollectionSelectionNum(selecting_collection_id);
 
-  // 컬렉션 커버가 방금 제거한 셀렉션 이미지라면, 남은 셀렉션들 기준으로 복구
-  await repairCollectionCoverIfUsingDeletedImage(selecting_collection_id, imageIds);
+  // 셀렉션이 빠졌으므로 컬렉션 커버를 다시 맞춘다.
+  await syncCollectionCover(selecting_collection_id);
 
   return apiResponse({ success: true });
 }

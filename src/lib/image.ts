@@ -11,6 +11,9 @@ export type ImagePreset = {
 export const PROFILE_IMAGE_PRESET: ImagePreset = { maxSize: 800, quality: 80 };
 export const SELECTION_IMAGE_PRESET: ImagePreset = { maxSize: 1600, quality: 82 };
 
+// 셀렉션당 이미지 최대 장수. 앱 검증만 믿으면 중복 요청·경합 시 초과 저장된다.
+export const SELECTION_IMAGE_MAX_COUNT = 2;
+
 // 투명 PNG/WebP를 JPEG로 변환할 때 알파 영역을 채우는 색.
 // 지정하지 않으면 sharp가 검은색으로 채워서 사진이 까맣게 보인다.
 // 업로드 최적화와 동적 리사이즈가 반드시 같은 값을 써야 결과가 일관된다.
