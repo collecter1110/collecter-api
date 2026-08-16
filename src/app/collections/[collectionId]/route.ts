@@ -467,9 +467,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   // 응답 전송 후 순차 실행한다. (셀렉션 이미지 → 컬렉션 대표 이미지 순)
   //
   // 지우기 직전에 다른 곳에서 아직 쓰는 이미지인지 확인한다.
-  // 컬렉션 대표 이미지는 셀렉션 이미지를 그대로 가리키도록 자동 설정되므로
-  // (ensureCollectionCoverIfEmpty), 확인 없이 지우면 살아있는 셀렉션의 사진이
-  // 같이 사라진다.
+  // 컬렉션 대표 이미지는 셀렉션 이미지를 그대로 가리키므로(syncCollectionCover),
+  // 확인 없이 지우면 살아있는 셀렉션의 사진이 같이 사라진다.
   after(async () => {
     try {
       for (const imageId of ownedImageIds) {

@@ -10,7 +10,7 @@ import {
   optimizeUploadedImages,
   isRejectableImageError,
 } from "@/lib/image";
-import { ensureCollectionCoverIfEmpty } from "@/lib/collectionCover";
+import { syncCollectionCover } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNum } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 import { emptyToNull, drainThenRespond } from "@/lib/formData";
@@ -453,14 +453,13 @@ export async function POST(request: NextRequest, { params }: Params) {
         continue;
       }
 
-      // 컬렉션 커버가 비어있으면 첫 셀렉션 이미지로 자동 설정
-      if (i === 0) {
-        await ensureCollectionCoverIfEmpty(collectionId, imageId);
-      }
     } catch (err) {
       console.error("Failed to upload selection image:", err);
     }
   }
+
+  // 셀렉션이 추가됐으므로 컬렉션 커버를 다시 맞춘다.
+  await syncCollectionCover(collectionId);
 
   // 셀렉션 수 재계산은 응답에 영향이 없는 후처리이므로 응답 후 실행
   after(async () => {

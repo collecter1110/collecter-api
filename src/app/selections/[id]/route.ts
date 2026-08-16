@@ -10,10 +10,7 @@ import {
   optimizeUploadedImages,
   isRejectableImageError,
 } from "@/lib/image";
-import {
-  ensureCollectionCoverIfEmpty,
-  repairCollectionCoverIfUsingDeletedImage,
-} from "@/lib/collectionCover";
+import { syncCollectionCovers } from "@/lib/collectionCover";
 import { recalcCollectionSelectionNums } from "@/lib/collectionStats";
 import { ensureKeywordsInCategory, parseKeywordsJson } from "@/lib/keywords";
 import { emptyToNull, drainThenRespond } from "@/lib/formData";
@@ -655,9 +652,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     nextSortOrder = orderedKeepIds.length;
 
-    for (const colId of collectionIds) {
-      await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
-    }
+    await syncCollectionCovers(collectionIds);
   }
 
   // 새 이미지 추가
@@ -693,10 +688,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
         sortOrder++;
         insertedImageIds.push(imageId);
-
-        for (const colId of collectionIds) {
-          await ensureCollectionCoverIfEmpty(colId, imageId);
-        }
       } catch (err) {
         console.error("Failed to upload selection image:", err);
       }
@@ -721,9 +712,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         for (const imageId of insertedImageIds) {
           await deleteImageById(imageId);
         }
-        for (const colId of collectionIds) {
-          await repairCollectionCoverIfUsingDeletedImage(colId, insertedImageIds);
-        }
+        await syncCollectionCovers(collectionIds);
 
         return apiError(
           `A selection can have at most ${SELECTION_IMAGE_MAX_COUNT} images`,
@@ -731,6 +720,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         );
       }
     }
+
+    await syncCollectionCovers(collectionIds);
   }
 
   return apiResponse({ success: true });
@@ -776,7 +767,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   ]);
 
   const collectionIds = (csData ?? []).map((r) => r.collection_id);
-  const deletedIds = (selImgs ?? []).map((x) => x.image_id);
 
   const { error } = await getSupabase()
     .from("selections")
@@ -790,10 +780,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   await recalcCollectionSelectionNums(collectionIds);
 
-  // 관련 컬렉션 커버 복구
-  for (const colId of collectionIds) {
-    await repairCollectionCoverIfUsingDeletedImage(colId, deletedIds);
-  }
+  // 셀렉션이 빠졌으므로 관련 컬렉션 커버를 다시 맞춘다.
+  await syncCollectionCovers(collectionIds);
 
   // 실제 스토리지 이미지 삭제는 응답과 분리해도 API 조회 정합성에 영향이 없다.
   after(async () => {
