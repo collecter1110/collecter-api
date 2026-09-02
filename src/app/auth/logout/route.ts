@@ -39,7 +39,10 @@ import { getSupabase } from "@/lib/supabase";
  *                 fcm_token: "fZx1...token"
  *     responses:
  *       200:
- *         description: 로그아웃 성공
+ *         description: |
+ *           로그아웃 성공. 이미 만료/변조된 refresh_token 을 보낸 경우에도 폐기할 세션이
+ *           없을 뿐이므로 성공으로 응답합니다(멱등). 클라이언트는 이 응답을 받으면
+ *           로컬 토큰을 지우면 됩니다.
  *         content:
  *           application/json:
  *             schema:
@@ -56,7 +59,7 @@ import { getSupabase } from "@/lib/supabase";
  *                   data:
  *                     success: true
  *       400:
- *         description: refresh_token 누락 또는 유효하지 않음
+ *         description: refresh_token 누락, 또는 refresh 가 아닌 종류의 토큰
  *         content:
  *           application/json:
  *             schema:
@@ -105,18 +108,30 @@ export async function POST(request: NextRequest) {
     return apiError("refresh_token is required", 400);
   }
 
+  // 만료되거나 변조된 refresh 토큰은 이미 아무것도 갱신할 수 없는 상태다. 여기서
+  // 실패를 돌려주면 클라이언트가 로그아웃을 끝내지 못하고 죽은 토큰을 기기에 그대로
+  // 남겨 무한 재시도에 빠진다. 폐기할 세션이 없을 뿐이므로 로그아웃은 성공으로 본다.
+  let claims: RefreshTokenClaims | null = null;
   try {
-    const claims = await verifyJwt<RefreshTokenClaims>(refresh_token);
-    if (!claims || claims.typ !== "refresh") {
+    claims = await verifyJwt<RefreshTokenClaims>(refresh_token);
+  } catch (e) {
+    console.warn("logout: unverifiable refresh token, nothing to revoke:", e);
+  }
+
+  if (claims) {
+    if (claims.typ !== "refresh") {
       return apiError("Invalid refresh token", 400);
     }
     if (claims.user_id !== auth.userId) {
       return apiError("Refresh token does not belong to this user", 403);
     }
-    await revokeRefreshChainByToken(refresh_token);
-  } catch (e) {
-    console.error("logout error:", e);
-    return apiError("Failed to logout", 500);
+    // 폐기 자체의 실패는 일시적 장애다. 세션이 살아 있을 수 있으니 500 으로 알린다.
+    try {
+      await revokeRefreshChainByToken(refresh_token);
+    } catch (e) {
+      console.error("logout revoke error:", e);
+      return apiError("Failed to logout", 500);
+    }
   }
 
   // Only this handset's token: the same user may stay logged in on another

@@ -216,10 +216,8 @@
  *                   type: string
  *                 refresh_token:
  *                   type: string
- *       400:
- *         description: 잘못된 토큰
  *       401:
- *         description: 세션 만료 또는 폐기됨
+ *         description: 토큰 누락·만료·변조, 또는 세션 폐기/만료 (재발급 불가)
  *
  * /collections/ranking:
  *   get:

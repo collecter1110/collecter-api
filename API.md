@@ -92,6 +92,7 @@ curl -X POST "https://<host>/auth/login" \
 - 토큰: 필수
 - Body: `refresh_token` (string, required), `fcm_token` (string, optional)
 - 동작: refresh session을 폐기합니다. `fcm_token`을 함께 보내면 **이 기기의** FCM 토큰도 삭제합니다.
+- 멱등: 이미 만료·변조된 `refresh_token`을 보내도 폐기할 세션이 없을 뿐이라 200으로 응답합니다.
 - 참고: `fcm_token`을 보내지 않으면 토큰이 남아 로그아웃한 기기로 계속 알림이 갑니다. 같은 유저가 다른 기기에 로그인해 있어도 그쪽 알림은 유지됩니다.
 
 ### POST `/auth/refresh`
@@ -99,6 +100,8 @@ curl -X POST "https://<host>/auth/login" \
 - 토큰: 불필요
 - Body: `refresh_token` (string, required)
 - 응답: 새 `access_token`, 새 `refresh_token`
+- 실패: 재발급이 불가능한 경우(토큰 누락·만료·변조, 세션 폐기·만료)는 **모두 401**입니다.
+  일시적 장애만 5xx로 나가므로, 클라이언트는 401을 받으면 로컬 토큰을 지우고 로그아웃하면 됩니다.
 
 ### DELETE `/auth/delete`
 
