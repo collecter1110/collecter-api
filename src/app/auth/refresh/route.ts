@@ -57,20 +57,11 @@ import {
  *                   data:
  *                     access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJ1c2VyX2lkIjo0NSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIn0.newSignature
  *                     refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic2lkIjoibmV3LXNlc3Npb24tdXVpZCIsInVzZXJfaWQiOjQ1LCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.newSignature
- *       400:
- *         description: 잘못된 refresh_token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
- *             examples:
- *               error:
- *                 value:
- *                   errorCode: SU000
- *                   msg: Invalid refresh token
- *                   data: {}
  *       401:
- *         description: 세션이 만료되었거나 폐기됨
+ *         description: |
+ *           refresh_token 이 없거나, 만료/변조되었거나, 세션이 폐기된 경우.
+ *           재발급이 불가능한 상태이므로 클라이언트는 로컬 토큰을 지우고 로그아웃해야 한다.
+ *           일시적 장애(5xx)와 구분하기 위해 재발급 거절은 항상 401 로 통일한다.
  *         content:
  *           application/json:
  *             schema:
@@ -89,18 +80,18 @@ export async function POST(request: NextRequest) {
   const refresh_token = body?.refresh_token as string | undefined;
 
   if (!refresh_token) {
-    return apiError("refresh_token is required", 400);
+    return apiError("refresh_token is required", 401);
   }
 
   let claims: RefreshTokenClaims;
   try {
     claims = await verifyJwt<RefreshTokenClaims>(refresh_token);
   } catch {
-    return apiError("Invalid refresh token", 400);
+    return apiError("Invalid refresh token", 401);
   }
 
   if (!claims || claims.typ !== "refresh" || !claims.sid || !claims.user_id || !claims.email) {
-    return apiError("Invalid refresh token", 400);
+    return apiError("Invalid refresh token", 401);
   }
 
   const session = await getValidRefreshSession({ session_id: claims.sid, refresh_token });
